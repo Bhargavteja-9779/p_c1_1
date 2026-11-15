@@ -20,10 +20,16 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
 
 ## Experiment status
 - Smoke test exposed stuck-meter data artefact -> fixed (CHANGELOG).
-- Quick mode run: in progress (verification only).
-- Full mode: NOT STARTED.
+- Quick mode: all 8 job kinds + sensitivity ran without failure (13:05-13:21 UTC); analysis, tables,
+  figures verified on quick outputs (then deleted).
+- Full mode: RUNNING since ~13:27 UTC (pid in results/experiment_logs; log: results/experiment_logs/run.log).
+  Resumable: re-running `python run_all.py --mode full` skips finished parts and cached trainings.
+
+## Manuscript status
+- sections 01 front (tokens), 02 intro, 03 related, 04 method, 05 setup, 09 backmatter drafted.
+- Results/discussion/conclusion to be written from full results (tokens via manuscript/values.py).
 
 ## Exact next step
-1. Finish quick run; check all job kinds; run analysis/figures in quick mode.
-2. Launch `python run_all.py --mode full` in background (~3-4 h on 4 cores).
-3. Meanwhile: literature matrix + verified references (literature/verify_refs.py), manuscript draft.
+1. Wait for full run; then `python run_all.py --mode full --skip-experiments`.
+2. Write 06_results, 07_discussion, 08_conclusion; build DOCX (manuscript/build_docx.py).
+3. Start review cycle 1 (10 reviewer agents) -> REVIEW/review_01.md.

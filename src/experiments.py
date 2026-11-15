@@ -47,8 +47,8 @@ def _done(pid):
 def _save(pid, df, curves, info):
     os.makedirs(PARTS, exist_ok=True)
     cv = []
-    for m, (c, s) in curves.items():
-        cv.append(pd.DataFrame(dict(method=m, stage=np.arange(1, len(c) + 1), coverage=c, rel_IS=s)))
+    for m, (c, s, smed) in curves.items():
+        cv.append(pd.DataFrame(dict(method=m, stage=np.arange(1, len(c) + 1), coverage=c, rel_IS=s, rel_IS_median=smed)))
     pd.concat(cv).assign(part=pid).to_csv(os.path.join(PARTS, pid + "_curves.csv"), index=False)
     info = {k: v for k, v in info.items() if k != "tune_table"}
     with open(os.path.join(PARTS, pid + "_info.json"), "w") as f:
@@ -107,7 +107,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     out, info = pl.run_calibration(PC, PT, alpha, mc if dsS is dsT else None, mtg if dsS is dsT else None,
                                    methods=methods)
     if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
-        for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR"]:
+        for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR", "Self-CQR", "ACI-CQR", "HSC-CQR -stage", "HSC-CQR -kNN",
+                  "HSC-CQR -shrink"]:
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     nb = len(mtg)

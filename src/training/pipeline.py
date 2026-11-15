@@ -309,6 +309,15 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
                           stages)[0]
     out["HSC-CQR"] = band(qq, lo=PT["qlo"], hi=PT["qhi"])
     info["hsc_cqr"] = bq
+    # same-score competitors for HSC-CQR: self-only CQR (fallback to pooled CQR) and ACI on CQR scores
+    cct_q = cb.cum_counts(Stq)
+    q_sq = cb.hsc_quantiles(cct_q, bincq, None, alpha, [0], stages)[0]
+    q_fbq = cb.pooled_quantile(bincq, alpha, True)[sb]
+    q_sq = np.where(q_sq >= cb.INF_RADIUS * 0.999, q_fbq[None, :], q_sq)
+    out["Self-CQR"] = band(q_sq, lo=PT["qlo"], hi=PT["qhi"])
+    gq, _ = tune_aci(Scq, alpha) if fixed is None else (fixed["gamma"], None)
+    info["aci_cqr_gamma"] = gq
+    out["ACI-CQR"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gq, stages), lo=PT["qlo"], hi=PT["qhi"])
     if methods == "all":
         # ablations (each re-tuned on calibration buildings with the component removed)
         b2, _ = tune_hsc(Sc, np.zeros_like(Sc), zc, alpha, stage_matched=False)
@@ -324,6 +333,19 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
         out["HSC -kNN -stage"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [b3["kappa"]], stages,
                                                        stage_matched=False)[0])
         info["ablation_params"] = dict(nostage=b2, noknn=b3, noshrink=b4)
+        # ablations of the CQR-score variant
+        bwq = PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None]
+        c2, _ = tune_hsc(Scq, bwq, zc, alpha, stage_matched=False)
+        out["HSC-CQR -stage"] = band(cb.hsc_quantiles(cct_q, bincq, nbrs_by_stage(zt, zc, c2["K"]), alpha,
+                                                      [c2["kappa"]], stages, stage_matched=False)[0],
+                                     lo=PT["qlo"], hi=PT["qhi"])
+        c3, _ = tune_hsc(Scq, bwq, zc, alpha, Ks=[None])
+        out["HSC-CQR -kNN"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [c3["kappa"]], stages)[0],
+                                   lo=PT["qlo"], hi=PT["qhi"])
+        c4, _ = tune_hsc(Scq, bwq, zc, alpha, kappas=[np.inf])
+        out["HSC-CQR -shrink"] = band(cb.hsc_quantiles(cct_q, bincq, nbrs_by_stage(zt, zc, c4["K"]), alpha,
+                                                       [np.inf], stages)[0], lo=PT["qlo"], hi=PT["qhi"])
+        info["ablation_params_cqr"] = dict(nostage=c2, noknn=c3, noshrink=c4)
     return out, info
 
 
@@ -331,6 +353,6 @@ def evaluate(out, PT, alpha):
     rows, curves = [], {}
     for name, (lo, hi) in out.items():
         m, sc, sis = mt.interval_metrics(PT["y"], lo, hi, alpha)
-        curves[name] = (sc.mean(axis=0), sis.mean(axis=0))
+        curves[name] = (sc.mean(axis=0), sis.mean(axis=0), np.median(sis, axis=0))
         rows.append(pd.DataFrame(dict(method=name, **m)))
     return pd.concat(rows, ignore_index=True), curves

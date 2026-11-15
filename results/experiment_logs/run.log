@@ -42,3 +42,6 @@
 [2026-11-15 13:21:45] === run_all mode=full: 30 jobs ===
 [2026-11-15 13:21:46] train BDG2_BDG2_random_s0_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
 [2026-11-15 13:21:48]   training rows 1,318,757  validation rows 183,509
+[2026-11-15 13:25:21] === run_all mode=full: 30 jobs ===
+[2026-11-15 13:25:21] train BDG2_BDG2_random_s0_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-15 13:25:23]   training rows 1,318,757  validation rows 183,509
