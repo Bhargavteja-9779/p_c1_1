@@ -70,3 +70,9 @@
 [2026-11-15 13:54:46] done main_BDG2_s4_a0.2 (26s): HSC IS=0.669 cov=0.794 | SCP-stage IS=0.780
 [2026-11-15 13:54:46] train UCI_UCI_random_s0_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
 [2026-11-15 13:54:48]   training rows 992,746  validation rows 132,144
+[2026-11-15 13:56:59] done main_UCI_s0_a0.1 (15s): HSC IS=0.759 cov=0.908 | SCP-stage IS=1.152
+[2026-11-15 13:57:06] done main_UCI_s0_a0.05 (7s): HSC IS=0.985 cov=0.958 | SCP-stage IS=1.849
+[2026-11-15 13:57:12] done main_UCI_s0_a0.2 (6s): HSC IS=0.581 cov=0.809 | SCP-stage IS=0.716
+[2026-11-15 13:57:12] train UCI_UCI_random_s1_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-15 13:57:13]   training rows 998,092  validation rows 130,608
+[2026-11-15 13:57:29] === run_all mode=full: 30 jobs ===

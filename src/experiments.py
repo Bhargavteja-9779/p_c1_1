@@ -111,6 +111,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
                   "HSC-CQR -shrink"]:
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
+    ok = pl.common_mask(out, PT)
+    PT = dict(PT, y=np.where(ok, PT["y"], np.nan))  # same evaluation mask for point metrics
     nb = len(mtg)
     df["building_id"] = np.tile(mtg.building_id.values, len(out))
     df["site_id"] = np.tile(mtg.site_id.values, len(out))

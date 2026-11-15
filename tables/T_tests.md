@@ -1,204 +1,56 @@
 **Paired Wilcoxon signed-rank tests (per building; Holm-adjusted)**
 
-| dataset   | protocol                | proposed   | baseline        | metric   |   n_buildings |   mean_diff | CI95              |   median_diff |   share_proposed_better |   rank_biserial |   p_holm |
-|:----------|:------------------------|:-----------|:----------------|:---------|--------------:|------------:|:------------------|--------------:|------------------------:|----------------:|---------:|
-| BDG2      | random                  | HSC-CQR    | CQR             | rel_IS   |           253 |     -0.009  | [-0.014, -0.006]  |       -0.002  |                  0.6166 |          0.4606 |   0      |
-| BDG2      | random                  | HSC-CQR    | CQR             | abs_dev  |           253 |     -0.0221 | [-0.025, -0.019]  |       -0.0193 |                  0.8419 |          0.8469 |   0      |
-| BDG2      | random                  | HSC-CQR    | QR-LGBM         | rel_IS   |           253 |     -0.0139 | [-0.022, -0.007]  |       -0.0022 |                  0.6166 |          0.5042 |   0      |
-| BDG2      | random                  | HSC-CQR    | QR-LGBM         | abs_dev  |           253 |     -0.0299 | [-0.040, -0.019]  |       -0.0231 |                  0.834  |          0.8494 |   0      |
-| BDG2      | random                  | HSC-CQR    | MLP-QR          | rel_IS   |           253 |     -0.0147 | [-0.026, -0.005]  |       -0.0149 |                  0.6957 |          0.4404 |   0      |
-| BDG2      | random                  | HSC-CQR    | MLP-QR          | abs_dev  |           253 |     -0.0182 | [-0.022, -0.016]  |       -0.0171 |                  0.7747 |          0.7217 |   0      |
-| BDG2      | random                  | HSC-CQR    | MLP-Gauss       | rel_IS   |           253 |     -0.108  | [-0.184, -0.076]  |       -0.0726 |                  0.9289 |          0.9458 |   0      |
-| BDG2      | random                  | HSC-CQR    | MLP-Gauss       | abs_dev  |           253 |     -0.0345 | [-0.044, -0.026]  |       -0.0432 |                  0.8221 |          0.8234 |   0      |
-| BDG2      | random                  | HSC-CQR    | SCP-stage       | rel_IS   |           253 |     -0.347  | [-0.481, -0.270]  |       -0.1739 |                  0.9723 |          0.994  |   0      |
-| BDG2      | random                  | HSC-CQR    | SCP-stage       | abs_dev  |           253 |     -0.0745 | [-0.084, -0.066]  |       -0.0567 |                  0.9051 |          0.9496 |   0      |
-| BDG2      | random                  | HSC-CQR    | ACI             | rel_IS   |           253 |     -0.4629 | [-1.103, -0.200]  |       -0.1368 |                  0.9684 |          0.9906 |   0      |
-| BDG2      | random                  | HSC-CQR    | ACI             | abs_dev  |           253 |     -0.0409 | [-0.047, -0.036]  |       -0.0372 |                  0.8775 |          0.9086 |   0      |
-| BDG2      | random                  | HSC-CQR    | Self-CP         | rel_IS   |           253 |     -0.2065 | [-0.338, -0.139]  |       -0.083  |                  0.9447 |          0.9841 |   0      |
-| BDG2      | random                  | HSC-CQR    | Self-CP         | abs_dev  |           253 |     -0.0083 | [-0.011, -0.005]  |       -0.0067 |                  0.6364 |          0.4441 |   0      |
-| BDG2      | random                  | HSC-CQR    | Mondrian-usage  | rel_IS   |           253 |     -0.3394 | [-0.475, -0.262]  |       -0.1834 |                  0.9644 |          0.9937 |   0      |
-| BDG2      | random                  | HSC-CQR    | Mondrian-usage  | abs_dev  |           253 |     -0.0754 | [-0.090, -0.065]  |       -0.0618 |                  0.8893 |          0.9442 |   0      |
-| BDG2      | random                  | HSC-CQR    | Naive+SCP       | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.8893 |          1      |   0      |
-| BDG2      | random                  | HSC-CQR    | Naive+SCP       | abs_dev  |           253 |     -0.072  | [-0.084, -0.058]  |       -0.0571 |                  0.917  |          0.9717 |   0      |
-| BDG2      | random                  | HSC-CQR    | HSC             | rel_IS   |           253 |     -0.1759 | [-0.260, -0.128]  |       -0.0705 |                  0.9486 |          0.9782 |   0      |
-| BDG2      | random                  | HSC-CQR    | HSC             | abs_dev  |           253 |     -0.0107 | [-0.013, -0.008]  |       -0.0069 |                  0.6759 |          0.5798 |   0      |
-| BDG2      | random                  | HSC        | SCP             | rel_IS   |           253 |     -0.1712 | [-0.235, -0.135]  |       -0.0628 |                  0.7945 |          0.8336 |   0      |
-| BDG2      | random                  | HSC        | SCP             | abs_dev  |           253 |     -0.0627 | [-0.074, -0.054]  |       -0.0439 |                  0.834  |          0.8662 |   0      |
-| BDG2      | random                  | HSC        | SCP-stage       | rel_IS   |           253 |     -0.171  | [-0.235, -0.135]  |       -0.0564 |                  0.8103 |          0.8126 |   0      |
-| BDG2      | random                  | HSC        | SCP-stage       | abs_dev  |           253 |     -0.0638 | [-0.075, -0.054]  |       -0.0446 |                  0.8498 |          0.8766 |   0      |
-| BDG2      | random                  | HSC        | Mondrian-usage  | rel_IS   |           253 |     -0.1634 | [-0.236, -0.123]  |       -0.0768 |                  0.8063 |          0.8398 |   0      |
-| BDG2      | random                  | HSC        | Mondrian-usage  | abs_dev  |           253 |     -0.0647 | [-0.081, -0.053]  |       -0.0513 |                  0.8656 |          0.8832 |   0      |
-| BDG2      | random                  | HSC        | Self-CP         | rel_IS   |           253 |     -0.0306 | [-0.103, -0.008]  |       -0.0054 |                  0.7154 |          0.4829 |   0      |
-| BDG2      | random                  | HSC        | Self-CP         | abs_dev  |           253 |      0.0023 | [0.001, 0.003]    |        0.0007 |                  0.4822 |         -0.1484 |   0.042  |
-| BDG2      | random                  | HSC        | ACI             | rel_IS   |           253 |     -0.2869 | [-0.875, -0.070]  |       -0.0264 |                  0.7115 |          0.6592 |   0      |
-| BDG2      | random                  | HSC        | ACI             | abs_dev  |           253 |     -0.0303 | [-0.038, -0.024]  |       -0.0298 |                  0.8063 |          0.7822 |   0      |
-| BDG2      | random                  | HSC        | Raw-SCP         | rel_IS   |           253 |     -1.7834 | [-2.766, -0.778]  |       -0.2981 |                  0.8933 |          0.9288 |   0      |
-| BDG2      | random                  | HSC        | Raw-SCP         | abs_dev  |           253 |     -0.0812 | [-0.099, -0.066]  |       -0.0624 |                  0.9289 |          0.948  |   0      |
-| BDG2      | random                  | HSC        | HSC -stage      | rel_IS   |           253 |     -0.0022 | [-0.003, -0.002]  |       -0.0007 |                  0.5455 |          0.2243 |   0.004  |
-| BDG2      | random                  | HSC        | HSC -stage      | abs_dev  |           253 |      0.0005 | [-0.000, 0.001]   |        0      |                  0.4862 |         -0.053  |   0.9722 |
-| BDG2      | random                  | HSC        | HSC -kNN        | rel_IS   |           253 |     -0.0067 | [-0.013, -0.003]  |       -0.0052 |                  0.6561 |          0.412  |   0      |
-| BDG2      | random                  | HSC        | HSC -kNN        | abs_dev  |           253 |     -0.0021 | [-0.005, 0.000]   |       -0.0043 |                  0.5731 |          0.1827 |   0.0492 |
-| BDG2      | random                  | HSC        | HSC -shrink     | rel_IS   |           253 |     -0.1242 | [-0.185, -0.086]  |       -0.03   |                  0.7747 |          0.7772 |   0      |
-| BDG2      | random                  | HSC        | HSC -shrink     | abs_dev  |           253 |     -0.0661 | [-0.083, -0.046]  |       -0.0409 |                  0.8538 |          0.8914 |   0      |
-| BDG2      | random                  | HSC        | HSC fixed-kappa | rel_IS   |           253 |      0      | [0.000, 0.000]    |        0      |                  0      |          0      |   1      |
-| BDG2      | random                  | HSC        | HSC fixed-kappa | abs_dev  |           253 |      0      | [0.000, 0.000]    |        0      |                  0      |          0      |   1      |
-| BDG2      | random                  | HSC        | HSC -kNN -stage | rel_IS   |           253 |     -0.0063 | [-0.012, -0.003]  |       -0.0045 |                  0.6443 |          0.3978 |   0      |
-| BDG2      | random                  | HSC        | HSC -kNN -stage | abs_dev  |           253 |     -0.0016 | [-0.004, 0.001]   |       -0.0023 |                  0.5771 |          0.1712 |   0.0575 |
-| UCI       | random                  | HSC-CQR    | CQR             | rel_IS   |            95 |     -0.0136 | [-0.029, -0.002]  |       -0.0007 |                  0.5579 |          0.2469 |   0.0733 |
-| UCI       | random                  | HSC-CQR    | CQR             | abs_dev  |            95 |     -0.026  | [-0.045, -0.012]  |       -0.0113 |                  0.8    |          0.8074 |   0      |
-| UCI       | random                  | HSC-CQR    | QR-LGBM         | rel_IS   |            95 |     -0.0169 | [-0.036, -0.002]  |        0.0003 |                  0.4421 |          0.1    |   0.3974 |
-| UCI       | random                  | HSC-CQR    | QR-LGBM         | abs_dev  |            95 |     -0.0291 | [-0.048, -0.015]  |       -0.0119 |                  0.7684 |          0.7518 |   0      |
-| UCI       | random                  | HSC-CQR    | MLP-QR          | rel_IS   |            95 |     -0.0219 | [-0.048, 0.002]   |       -0.0159 |                  0.8316 |          0.6978 |   0      |
-| UCI       | random                  | HSC-CQR    | MLP-QR          | abs_dev  |            95 |     -0.0316 | [-0.052, -0.016]  |       -0.0126 |                  0.8421 |          0.8336 |   0      |
-| UCI       | random                  | HSC-CQR    | MLP-Gauss       | rel_IS   |            95 |     -0.1213 | [-0.210, -0.062]  |       -0.043  |                  0.9474 |          0.9855 |   0      |
-| UCI       | random                  | HSC-CQR    | MLP-Gauss       | abs_dev  |            95 |     -0.0272 | [-0.032, -0.022]  |       -0.029  |                  0.8526 |          0.8858 |   0      |
-| UCI       | random                  | HSC-CQR    | SCP-stage       | rel_IS   |            95 |     -0.4378 | [-0.777, -0.192]  |       -0.1054 |                  1      |          1      |   0      |
-| UCI       | random                  | HSC-CQR    | SCP-stage       | abs_dev  |            95 |     -0.0776 | [-0.095, -0.062]  |       -0.0661 |                  0.9368 |          0.9886 |   0      |
-| UCI       | random                  | HSC-CQR    | ACI             | rel_IS   |            95 |     -0.9204 | [-2.207, -0.170]  |       -0.0791 |                  1      |          1      |   0      |
-| UCI       | random                  | HSC-CQR    | ACI             | abs_dev  |            95 |     -0.0502 | [-0.056, -0.044]  |       -0.0542 |                  0.9579 |          0.9732 |   0      |
-| UCI       | random                  | HSC-CQR    | Self-CP         | rel_IS   |            95 |     -0.1517 | [-0.233, -0.084]  |       -0.0365 |                  1      |          1      |   0      |
-| UCI       | random                  | HSC-CQR    | Self-CP         | abs_dev  |            95 |     -0.0094 | [-0.013, -0.006]  |       -0.0082 |                  0.6737 |          0.5659 |   0      |
-| UCI       | random                  | HSC-CQR    | Naive+SCP       | rel_IS   |            95 |     -0.5275 | [-0.726, -0.355]  |       -0.2473 |                  1      |          1      |   0      |
-| UCI       | random                  | HSC-CQR    | Naive+SCP       | abs_dev  |            95 |     -0.0636 | [-0.075, -0.053]  |       -0.061  |                  0.9368 |          0.9768 |   0      |
-| UCI       | random                  | HSC-CQR    | HSC             | rel_IS   |            95 |     -0.1309 | [-0.204, -0.073]  |       -0.0297 |                  0.9474 |          0.9895 |   0      |
-| UCI       | random                  | HSC-CQR    | HSC             | abs_dev  |            95 |     -0.0104 | [-0.014, -0.007]  |       -0.0125 |                  0.7579 |          0.6276 |   0      |
-| UCI       | random                  | HSC        | SCP             | rel_IS   |            95 |     -0.3093 | [-0.587, -0.116]  |       -0.0681 |                  0.8842 |          0.9395 |   0      |
-| UCI       | random                  | HSC        | SCP             | abs_dev  |            95 |     -0.0673 | [-0.086, -0.051]  |       -0.0543 |                  0.9474 |          0.9785 |   0      |
-| UCI       | random                  | HSC        | SCP-stage       | rel_IS   |            95 |     -0.3069 | [-0.582, -0.114]  |       -0.069  |                  0.8526 |          0.9039 |   0      |
-| UCI       | random                  | HSC        | SCP-stage       | abs_dev  |            95 |     -0.0672 | [-0.085, -0.051]  |       -0.0565 |                  0.9158 |          0.9732 |   0      |
-| UCI       | random                  | HSC        | Self-CP         | rel_IS   |            95 |     -0.0209 | [-0.047, -0.005]  |       -0.0051 |                  0.8632 |          0.7132 |   0      |
-| UCI       | random                  | HSC        | Self-CP         | abs_dev  |            95 |      0.001  | [-0.002, 0.004]   |        0      |                  0.4737 |         -0.0262 |   0.8274 |
-| UCI       | random                  | HSC        | ACI             | rel_IS   |            95 |     -0.7895 | [-2.010, -0.095]  |       -0.0354 |                  0.7895 |          0.7974 |   0      |
-| UCI       | random                  | HSC        | ACI             | abs_dev  |            95 |     -0.0398 | [-0.046, -0.034]  |       -0.0439 |                  0.8947 |          0.9469 |   0      |
-| UCI       | random                  | HSC        | Raw-SCP         | rel_IS   |            95 |     -8.7469 | [-23.030, -1.456] |       -0.8078 |                  0.9579 |          0.9781 |   0      |
-| UCI       | random                  | HSC        | Raw-SCP         | abs_dev  |            95 |     -0.0817 | [-0.102, -0.066]  |       -0.0744 |                  0.9684 |          0.9803 |   0      |
-| UCI       | random                  | HSC        | HSC -stage      | rel_IS   |            95 |     -0.0004 | [-0.008, 0.009]   |        0.0006 |                  0.4526 |         -0.0671 |   1      |
-| UCI       | random                  | HSC        | HSC -stage      | abs_dev  |            95 |      0.0019 | [0.001, 0.003]    |        0.003  |                  0.3684 |         -0.3326 |   0.0112 |
-| UCI       | random                  | HSC        | HSC -kNN        | rel_IS   |            95 |     -0.0052 | [-0.013, 0.004]   |       -0.0094 |                  0.7789 |          0.5478 |   0      |
-| UCI       | random                  | HSC        | HSC -kNN        | abs_dev  |            95 |     -0.0074 | [-0.010, -0.005]  |       -0.0097 |                  0.7053 |          0.5649 |   0      |
-| UCI       | random                  | HSC        | HSC -shrink     | rel_IS   |            95 |     -0.2534 | [-0.489, -0.083]  |       -0.0114 |                  0.8421 |          0.8561 |   0      |
-| UCI       | random                  | HSC        | HSC -shrink     | abs_dev  |            95 |     -0.0554 | [-0.076, -0.037]  |       -0.0283 |                  0.7789 |          0.7962 |   0      |
-| UCI       | random                  | HSC        | HSC fixed-kappa | rel_IS   |            95 |      0      | [0.000, 0.000]    |        0      |                  0      |          0      |   1      |
-| UCI       | random                  | HSC        | HSC fixed-kappa | abs_dev  |            95 |      0      | [0.000, 0.000]    |        0      |                  0      |          0      |   1      |
-| UCI       | random                  | HSC        | HSC -kNN -stage | rel_IS   |            95 |     -0.0048 | [-0.013, 0.004]   |       -0.0067 |                  0.7368 |          0.5123 |   0      |
-| UCI       | random                  | HSC        | HSC -kNN -stage | abs_dev  |            95 |     -0.0065 | [-0.009, -0.004]  |       -0.0097 |                  0.6632 |          0.5319 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | CQR             | rel_IS   |           248 |     -0.0196 | [-0.024, -0.015]  |       -0.0076 |                  0.7419 |          0.7445 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | CQR             | abs_dev  |           248 |     -0.0365 | [-0.040, -0.033]  |       -0.0342 |                  0.9194 |          0.967  |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | QR-LGBM         | rel_IS   |           248 |     -0.0314 | [-0.037, -0.026]  |       -0.0199 |                  0.8427 |          0.9047 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | QR-LGBM         | abs_dev  |           248 |     -0.0558 | [-0.060, -0.052]  |       -0.0551 |                  0.9556 |          0.9914 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | MLP-QR          | rel_IS   |           248 |     -0.0161 | [-0.026, -0.005]  |       -0.0146 |                  0.621  |          0.3426 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | MLP-QR          | abs_dev  |           248 |     -0.0392 | [-0.044, -0.035]  |       -0.0364 |                  0.9073 |          0.9535 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | MLP-Gauss       | rel_IS   |           248 |     -0.1536 | [-0.198, -0.119]  |       -0.0858 |                  0.8992 |          0.9238 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | MLP-Gauss       | abs_dev  |           248 |     -0.0205 | [-0.025, -0.016]  |       -0.0209 |                  0.6815 |          0.5695 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | SCP-stage       | rel_IS   |           248 |     -0.4023 | [-0.478, -0.333]  |       -0.15   |                  0.9597 |          0.9753 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | SCP-stage       | abs_dev  |           248 |     -0.1118 | [-0.128, -0.097]  |       -0.0679 |                  0.8589 |          0.902  |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | ACI             | rel_IS   |           248 |     -0.2885 | [-0.418, -0.191]  |       -0.0995 |                  0.9234 |          0.9606 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | ACI             | abs_dev  |           248 |     -0.0351 | [-0.040, -0.030]  |       -0.03   |                  0.7782 |          0.773  |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | Self-CP         | rel_IS   |           248 |     -0.2059 | [-0.289, -0.150]  |       -0.0928 |                  0.9153 |          0.9526 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | Self-CP         | abs_dev  |           248 |     -0.0047 | [-0.008, -0.002]  |       -0.0035 |                  0.5645 |          0.1922 |   0.0087 |
-| BDG2      | leave-site-out          | HSC-CQR    | Mondrian-usage  | rel_IS   |           248 |     -0.4133 | [-0.490, -0.345]  |       -0.1595 |                  0.9597 |          0.9802 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | Mondrian-usage  | abs_dev  |           248 |     -0.121  | [-0.138, -0.106]  |       -0.0743 |                  0.8831 |          0.9252 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | Naive+SCP       | rel_IS   |           248 |    nan      | [nan, nan]        |      nan      |                  0.7661 |          0.9982 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | Naive+SCP       | abs_dev  |           248 |     -0.1331 | [-0.149, -0.118]  |       -0.0964 |                  0.9073 |          0.9548 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | HSC             | rel_IS   |           248 |     -0.1597 | [-0.189, -0.132]  |       -0.083  |                  0.9234 |          0.9541 |   0      |
-| BDG2      | leave-site-out          | HSC-CQR    | HSC             | abs_dev  |           248 |     -0.0081 | [-0.011, -0.005]  |       -0.0052 |                  0.5766 |          0.3127 |   0      |
-| BDG2      | leave-site-out          | HSC        | SCP             | rel_IS   |           248 |     -0.2434 | [-0.306, -0.186]  |       -0.0481 |                  0.7056 |          0.688  |   0      |
-| BDG2      | leave-site-out          | HSC        | SCP             | abs_dev  |           248 |     -0.1029 | [-0.119, -0.088]  |       -0.0644 |                  0.7984 |          0.8323 |   0      |
-| BDG2      | leave-site-out          | HSC        | SCP-stage       | rel_IS   |           248 |     -0.2425 | [-0.304, -0.186]  |       -0.051  |                  0.7218 |          0.6914 |   0      |
-| BDG2      | leave-site-out          | HSC        | SCP-stage       | abs_dev  |           248 |     -0.1037 | [-0.120, -0.089]  |       -0.0618 |                  0.8065 |          0.8469 |   0      |
-| BDG2      | leave-site-out          | HSC        | Mondrian-usage  | rel_IS   |           248 |     -0.2536 | [-0.316, -0.197]  |       -0.064  |                  0.7581 |          0.7517 |   0      |
-| BDG2      | leave-site-out          | HSC        | Mondrian-usage  | abs_dev  |           248 |     -0.1129 | [-0.130, -0.098]  |       -0.0677 |                  0.8589 |          0.8892 |   0      |
-| BDG2      | leave-site-out          | HSC        | Self-CP         | rel_IS   |           248 |     -0.0462 | [-0.108, -0.009]  |       -0.0008 |                  0.5121 |          0.1747 |   0.0171 |
-| BDG2      | leave-site-out          | HSC        | Self-CP         | abs_dev  |           248 |      0.0034 | [0.001, 0.006]    |        0.0053 |                  0.4395 |         -0.1941 |   0.0083 |
-| BDG2      | leave-site-out          | HSC        | ACI             | rel_IS   |           248 |     -0.1287 | [-0.244, -0.048]  |       -0.0082 |                  0.6048 |          0.3939 |   0      |
-| BDG2      | leave-site-out          | HSC        | ACI             | abs_dev  |           248 |     -0.0271 | [-0.032, -0.022]  |       -0.0246 |                  0.7379 |          0.6439 |   0      |
-| BDG2      | leave-site-out          | HSC        | Raw-SCP         | rel_IS   |           248 |     -2.7862 | [-3.937, -1.820]  |       -0.387  |                  0.8387 |          0.8906 |   0      |
-| BDG2      | leave-site-out          | HSC        | Raw-SCP         | abs_dev  |           248 |     -0.0826 | [-0.100, -0.067]  |       -0.0635 |                  0.8468 |          0.87   |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | CQR             | rel_IS   |            95 |     -0.0039 | [-0.010, 0.000]   |        0.0013 |                  0.3789 |         -0.1461 |   0.6493 |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | CQR             | abs_dev  |            95 |     -0.0169 | [-0.027, -0.010]  |       -0.0082 |                  0.7895 |          0.7982 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | QR-LGBM         | rel_IS   |            95 |     -0.0065 | [-0.016, -0.000]  |        0.0012 |                  0.3895 |         -0.0311 |   0.8801 |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | QR-LGBM         | abs_dev  |            95 |     -0.0245 | [-0.038, -0.014]  |       -0.0112 |                  0.7684 |          0.7319 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | MLP-QR          | rel_IS   |            95 |      0.0004 | [-0.007, 0.008]   |       -0.0032 |                  0.5579 |          0.0912 |   0.8801 |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | MLP-QR          | abs_dev  |            95 |     -0.0149 | [-0.022, -0.010]  |       -0.0103 |                  0.7579 |          0.6591 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | MLP-Gauss       | rel_IS   |            95 |     -0.0608 | [-0.076, -0.047]  |       -0.0577 |                  0.9474 |          0.889  |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | MLP-Gauss       | abs_dev  |            95 |     -0.0465 | [-0.051, -0.042]  |       -0.0482 |                  0.9789 |          0.9934 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | SCP-stage       | rel_IS   |            95 |     -0.3828 | [-0.667, -0.172]  |       -0.115  |                  0.9684 |          0.9943 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | SCP-stage       | abs_dev  |            95 |     -0.0847 | [-0.110, -0.063]  |       -0.0655 |                  0.9789 |          0.9947 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | ACI             | rel_IS   |            95 |     -1.2872 | [-3.110, -0.116]  |       -0.0731 |                  0.9579 |          0.9851 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | ACI             | abs_dev  |            95 |     -0.0509 | [-0.058, -0.044]  |       -0.058  |                  0.9263 |          0.9678 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | Self-CP         | rel_IS   |            95 |     -0.1364 | [-0.195, -0.084]  |       -0.0421 |                  0.9579 |          0.9864 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | Self-CP         | abs_dev  |            95 |     -0.0137 | [-0.018, -0.010]  |       -0.0134 |                  0.7579 |          0.684  |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | Naive+SCP       | rel_IS   |            95 |     -0.5005 | [-0.688, -0.357]  |       -0.2941 |                  1      |          1      |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | Naive+SCP       | abs_dev  |            95 |     -0.0736 | [-0.083, -0.064]  |       -0.0735 |                  0.9368 |          0.984  |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | HSC             | rel_IS   |            95 |     -0.1174 | [-0.172, -0.069]  |       -0.0365 |                  0.9158 |          0.9399 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC-CQR    | HSC             | abs_dev  |            95 |     -0.0208 | [-0.025, -0.017]  |       -0.0216 |                  0.8421 |          0.8649 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | SCP             | rel_IS   |            95 |     -0.2717 | [-0.514, -0.105]  |       -0.0785 |                  0.8737 |          0.9175 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | SCP             | abs_dev  |            95 |     -0.0628 | [-0.089, -0.041]  |       -0.0357 |                  0.9158 |          0.9575 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | SCP-stage       | rel_IS   |            95 |     -0.2655 | [-0.509, -0.097]  |       -0.071  |                  0.8316 |          0.8649 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | SCP-stage       | abs_dev  |            95 |     -0.0639 | [-0.090, -0.043]  |       -0.0372 |                  0.9158 |          0.9566 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | Self-CP         | rel_IS   |            95 |     -0.019  | [-0.033, -0.008]  |       -0.0066 |                  0.7579 |          0.5535 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | Self-CP         | abs_dev  |            95 |      0.0071 | [0.004, 0.010]    |        0.0088 |                  0.2632 |         -0.561  |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | ACI             | rel_IS   |            95 |     -1.1698 | [-2.913, -0.037]  |       -0.028  |                  0.7053 |          0.6654 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | ACI             | abs_dev  |            95 |     -0.0301 | [-0.037, -0.024]  |       -0.029  |                  0.8632 |          0.8671 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | Raw-SCP         | rel_IS   |            95 |     -0.4994 | [-0.727, -0.328]  |       -0.1778 |                  0.8105 |          0.8816 |   0      |
-| UCI       | BDG2->UCI (no weather)  | HSC        | Raw-SCP         | abs_dev  |            95 |     -0.1194 | [-0.156, -0.087]  |       -0.0625 |                  0.8737 |          0.8956 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | CQR             | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.6838 |          0.5824 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | CQR             | abs_dev  |           253 |     -0.0369 | [-0.049, -0.025]  |       -0.0281 |                  0.8814 |          0.9285 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | QR-LGBM         | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.6798 |          0.628  |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | QR-LGBM         | abs_dev  |           253 |     -0.0497 | [-0.068, -0.031]  |       -0.0417 |                  0.83   |          0.8982 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | MLP-QR          | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.7115 |          0.5352 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | MLP-QR          | abs_dev  |           253 |     -0.0419 | [-0.061, -0.023]  |       -0.0305 |                  0.83   |          0.8261 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | MLP-Gauss       | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.7984 |          0.7943 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | MLP-Gauss       | abs_dev  |           253 |     -0.0335 | [-0.036, -0.030]  |       -0.0298 |                  0.8063 |          0.8099 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | SCP-stage       | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.9486 |          0.9855 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | SCP-stage       | abs_dev  |           253 |     -0.085  | [-0.103, -0.069]  |       -0.061  |                  0.8379 |          0.8785 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | ACI             | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.9289 |          0.9753 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | ACI             | abs_dev  |           253 |     -0.037  | [-0.044, -0.032]  |       -0.0401 |                  0.7905 |          0.7924 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | Self-CP         | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.9091 |          0.9561 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | Self-CP         | abs_dev  |           253 |     -0.0023 | [-0.006, 0.001]   |       -0.0028 |                  0.5296 |          0.0868 |   0.2334 |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | Naive+SCP       | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.8617 |          1      |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | Naive+SCP       | abs_dev  |           253 |     -0.0871 | [-0.114, -0.059]  |       -0.0603 |                  0.8498 |          0.9117 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | HSC             | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.9328 |          0.9683 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC-CQR    | HSC             | abs_dev  |           253 |     -0.0075 | [-0.011, -0.005]  |       -0.0045 |                  0.5731 |          0.2998 |   0.0001 |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | SCP             | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.751  |          0.7726 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | SCP             | abs_dev  |           253 |     -0.0768 | [-0.096, -0.059]  |       -0.0469 |                  0.8221 |          0.8262 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | SCP-stage       | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.7431 |          0.751  |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | SCP-stage       | abs_dev  |           253 |     -0.0775 | [-0.096, -0.060]  |       -0.0475 |                  0.83   |          0.8307 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | Self-CP         | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.5692 |          0.25   |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | Self-CP         | abs_dev  |           253 |      0.0052 | [0.003, 0.007]    |        0.006  |                  0.4071 |         -0.2651 |   0.0003 |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | ACI             | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.664  |          0.5519 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | ACI             | abs_dev  |           253 |     -0.0295 | [-0.036, -0.026]  |       -0.0312 |                  0.7549 |          0.7028 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | Raw-SCP         | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.9644 |          0.9834 |   0      |
-| BDG2      | UCI->BDG2 (no weather)  | HSC        | Raw-SCP         | abs_dev  |           253 |     -0.0659 | [-0.070, -0.060]  |       -0.0683 |                  0.9486 |          0.9762 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | CQR             | rel_IS   |           253 |     -0.0084 | [-0.012, -0.006]  |       -0.0015 |                  0.6166 |          0.4401 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | CQR             | abs_dev  |           253 |     -0.0215 | [-0.024, -0.018]  |       -0.0179 |                  0.834  |          0.8519 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | QR-LGBM         | rel_IS   |           253 |     -0.0109 | [-0.017, -0.005]  |       -0.0016 |                  0.6126 |          0.46   |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | QR-LGBM         | abs_dev  |           253 |     -0.0255 | [-0.035, -0.014]  |       -0.0186 |                  0.8024 |          0.8321 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | MLP-QR          | rel_IS   |           253 |     -0.0104 | [-0.020, -0.005]  |       -0.01   |                  0.6443 |          0.3628 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | MLP-QR          | abs_dev  |           253 |     -0.0194 | [-0.024, -0.015]  |       -0.0171 |                  0.7668 |          0.7373 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | MLP-Gauss       | rel_IS   |           253 |     -0.0755 | [-0.103, -0.058]  |       -0.0597 |                  0.9209 |          0.9194 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | MLP-Gauss       | abs_dev  |           253 |     -0.0336 | [-0.045, -0.023]  |       -0.0423 |                  0.7984 |          0.8123 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | SCP-stage       | rel_IS   |           253 |     -0.3049 | [-0.423, -0.244]  |       -0.1695 |                  0.9684 |          0.9931 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | SCP-stage       | abs_dev  |           253 |     -0.0714 | [-0.081, -0.064]  |       -0.0566 |                  0.9012 |          0.954  |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | ACI             | rel_IS   |           253 |     -0.4321 | [-1.282, -0.168]  |       -0.1423 |                  0.9605 |          0.9899 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | ACI             | abs_dev  |           253 |     -0.0411 | [-0.047, -0.036]  |       -0.0403 |                  0.8775 |          0.9065 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | Self-CP         | rel_IS   |           253 |     -0.1701 | [-0.298, -0.119]  |       -0.0845 |                  0.9368 |          0.9724 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | Self-CP         | abs_dev  |           253 |     -0.008  | [-0.011, -0.005]  |       -0.0075 |                  0.664  |          0.4204 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | Mondrian-usage  | rel_IS   |           253 |     -0.2974 | [-0.423, -0.234]  |       -0.1848 |                  0.9723 |          0.9948 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | Mondrian-usage  | abs_dev  |           253 |     -0.0734 | [-0.088, -0.064]  |       -0.0655 |                  0.9249 |          0.9576 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | Naive+SCP       | rel_IS   |           253 |    nan      | [nan, nan]        |      nan      |                  0.8893 |          1      |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | Naive+SCP       | abs_dev  |           253 |     -0.0726 | [-0.084, -0.059]  |       -0.0603 |                  0.917  |          0.9686 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | HSC             | rel_IS   |           253 |     -0.1425 | [-0.199, -0.114]  |       -0.0708 |                  0.9486 |          0.9711 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC-CQR    | HSC             | abs_dev  |           253 |     -0.0116 | [-0.014, -0.009]  |       -0.011  |                  0.6877 |          0.6062 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | SCP             | rel_IS   |           253 |     -0.1631 | [-0.229, -0.129]  |       -0.0585 |                  0.7866 |          0.8151 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | SCP             | abs_dev  |           253 |     -0.0595 | [-0.069, -0.052]  |       -0.0424 |                  0.8379 |          0.873  |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | SCP-stage       | rel_IS   |           253 |     -0.1625 | [-0.229, -0.128]  |       -0.0598 |                  0.7668 |          0.785  |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | SCP-stage       | abs_dev  |           253 |     -0.0598 | [-0.069, -0.052]  |       -0.0439 |                  0.8538 |          0.8801 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | Mondrian-usage  | rel_IS   |           253 |     -0.1549 | [-0.227, -0.116]  |       -0.0774 |                  0.7945 |          0.8416 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | Mondrian-usage  | abs_dev  |           253 |     -0.0617 | [-0.077, -0.052]  |       -0.0476 |                  0.8735 |          0.8955 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | Self-CP         | rel_IS   |           253 |     -0.0276 | [-0.101, -0.005]  |       -0.0046 |                  0.6719 |          0.4118 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | Self-CP         | abs_dev  |           253 |      0.0036 | [0.002, 0.005]    |        0.003  |                  0.4427 |         -0.2109 |   0.0036 |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | ACI             | rel_IS   |           253 |     -0.2896 | [-1.098, -0.049]  |       -0.026  |                  0.6877 |          0.6311 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | ACI             | abs_dev  |           253 |     -0.0295 | [-0.037, -0.024]  |       -0.0298 |                  0.8024 |          0.7764 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | Raw-SCP         | rel_IS   |           253 |     -1.8267 | [-2.833, -0.796]  |       -0.3181 |                  0.8854 |          0.9303 |   0      |
-| BDG2      | BDG2->BDG2 (no weather) | HSC        | Raw-SCP         | abs_dev  |           253 |     -0.0791 | [-0.096, -0.064]  |       -0.061  |                  0.913  |          0.931  |   0      |
+| dataset   | protocol   | proposed   | baseline        | metric   |   n_buildings |   mean_diff | CI95             |   median_diff |   share_proposed_better |   rank_biserial |   p_holm |
+|:----------|:-----------|:-----------|:----------------|:---------|--------------:|------------:|:-----------------|--------------:|------------------------:|----------------:|---------:|
+| BDG2      | random     | HSC-CQR    | CQR             | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.5736 |          0.4084 |   0      |
+| BDG2      | random     | HSC-CQR    | CQR             | abs_dev  |           713 |     -0.0205 | [-0.024, -0.019] |       -0.0164 |                  0.8485 |          0.8758 |   0      |
+| BDG2      | random     | HSC-CQR    | Self-CQR        | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.9187 |          0.9143 |   0      |
+| BDG2      | random     | HSC-CQR    | Self-CQR        | abs_dev  |           713 |     -0.0035 | [-0.007, -0.001] |       -0.0022 |                  0.5638 |          0.2312 |   0      |
+| BDG2      | random     | HSC-CQR    | ACI-CQR         | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.4839 |          0.1191 |   0      |
+| BDG2      | random     | HSC-CQR    | ACI-CQR         | abs_dev  |           713 |     -0.0087 | [-0.011, -0.007] |       -0.0066 |                  0.7335 |          0.6495 |   0      |
+| BDG2      | random     | HSC-CQR    | QR-LGBM         | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.6858 |          0.6488 |   0      |
+| BDG2      | random     | HSC-CQR    | QR-LGBM         | abs_dev  |           713 |     -0.0321 | [-0.038, -0.024] |       -0.0272 |                  0.9102 |          0.9629 |   0      |
+| BDG2      | random     | HSC-CQR    | MLP-QR          | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.6564 |          0.3707 |   0      |
+| BDG2      | random     | HSC-CQR    | MLP-QR          | abs_dev  |           713 |     -0.021  | [-0.023, -0.020] |       -0.0169 |                  0.8373 |          0.842  |   0      |
+| BDG2      | random     | HSC-CQR    | MLP-Gauss       | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.9215 |          0.9308 |   0      |
+| BDG2      | random     | HSC-CQR    | MLP-Gauss       | abs_dev  |           713 |     -0.024  | [-0.033, -0.017] |       -0.0212 |                  0.7994 |          0.7824 |   0      |
+| BDG2      | random     | HSC-CQR    | SCP-stage       | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.986  |          0.9988 |   0      |
+| BDG2      | random     | HSC-CQR    | SCP-stage       | abs_dev  |           713 |     -0.0758 | [-0.084, -0.070] |       -0.0603 |                  0.9173 |          0.9701 |   0      |
+| BDG2      | random     | HSC-CQR    | ACI             | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.979  |          0.997  |   0      |
+| BDG2      | random     | HSC-CQR    | ACI             | abs_dev  |           713 |     -0.0414 | [-0.049, -0.036] |       -0.0394 |                  0.8836 |          0.9247 |   0      |
+| BDG2      | random     | HSC-CQR    | Self-CP         | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.9719 |          0.9918 |   0      |
+| BDG2      | random     | HSC-CQR    | Self-CP         | abs_dev  |           713 |     -0.0084 | [-0.010, -0.007] |       -0.007  |                  0.6985 |          0.5271 |   0      |
+| BDG2      | random     | HSC-CQR    | Mondrian-usage  | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.9874 |          0.9989 |   0      |
+| BDG2      | random     | HSC-CQR    | Mondrian-usage  | abs_dev  |           713 |     -0.0748 | [-0.086, -0.069] |       -0.0595 |                  0.9411 |          0.9793 |   0      |
+| BDG2      | random     | HSC-CQR    | Naive+SCP       | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.9341 |          0.9952 |   0      |
+| BDG2      | random     | HSC-CQR    | Naive+SCP       | abs_dev  |           713 |     -0.0755 | [-0.085, -0.064] |       -0.0622 |                  0.9411 |          0.9742 |   0      |
+| BDG2      | random     | HSC-CQR    | HSC             | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.9593 |          0.987  |   0      |
+| BDG2      | random     | HSC-CQR    | HSC             | abs_dev  |           713 |     -0.0112 | [-0.013, -0.009] |       -0.0095 |                  0.7504 |          0.649  |   0      |
+| BDG2      | random     | HSC        | SCP             | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.8163 |          0.8443 |   0      |
+| BDG2      | random     | HSC        | SCP             | abs_dev  |           713 |     -0.064  | [-0.074, -0.057] |       -0.0454 |                  0.8808 |          0.9204 |   0      |
+| BDG2      | random     | HSC        | SCP-stage       | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.798  |          0.8249 |   0      |
+| BDG2      | random     | HSC        | SCP-stage       | abs_dev  |           713 |     -0.0646 | [-0.075, -0.057] |       -0.0461 |                  0.885  |          0.9245 |   0      |
+| BDG2      | random     | HSC        | Mondrian-usage  | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.8163 |          0.8524 |   0      |
+| BDG2      | random     | HSC        | Mondrian-usage  | abs_dev  |           713 |     -0.0636 | [-0.076, -0.057] |       -0.0465 |                  0.892  |          0.9352 |   0      |
+| BDG2      | random     | HSC        | Self-CP         | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.7069 |          0.5358 |   0      |
+| BDG2      | random     | HSC        | Self-CP         | abs_dev  |           713 |      0.0028 | [0.002, 0.004]   |        0.0015 |                  0.4264 |         -0.1905 |   0      |
+| BDG2      | random     | HSC        | ACI             | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.7181 |          0.666  |   0      |
+| BDG2      | random     | HSC        | ACI             | abs_dev  |           713 |     -0.0302 | [-0.038, -0.025] |       -0.0297 |                  0.8149 |          0.8188 |   0      |
+| BDG2      | random     | HSC        | Raw-SCP         | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.8962 |          0.9384 |   0      |
+| BDG2      | random     | HSC        | Raw-SCP         | abs_dev  |           713 |     -0.0904 | [-0.112, -0.074] |       -0.063  |                  0.9411 |          0.9712 |   0      |
+| BDG2      | random     | HSC        | HSC -stage      | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.561  |          0.236  |   0      |
+| BDG2      | random     | HSC        | HSC -stage      | abs_dev  |           713 |      0.0005 | [0.000, 0.001]   |        0.0004 |                  0.4404 |         -0.1284 |   0.0109 |
+| BDG2      | random     | HSC        | HSC -kNN        | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.6676 |          0.4198 |   0      |
+| BDG2      | random     | HSC        | HSC -kNN        | abs_dev  |           713 |     -0.0007 | [-0.003, 0.001]  |       -0.0014 |                  0.547  |          0.099  |   0.0448 |
+| BDG2      | random     | HSC        | HSC -shrink     | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.8303 |          0.8276 |   0      |
+| BDG2      | random     | HSC        | HSC -shrink     | abs_dev  |           713 |     -0.0681 | [-0.082, -0.049] |       -0.0387 |                  0.9046 |          0.9417 |   0      |
+| BDG2      | random     | HSC        | HSC fixed-kappa | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.1683 |         -0.0478 |   0      |
+| BDG2      | random     | HSC        | HSC fixed-kappa | abs_dev  |           713 |     -0.0004 | [-0.000, -0.000] |        0      |                  0.2104 |          0.3646 |   0      |
+| BDG2      | random     | HSC        | HSC -kNN -stage | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.6648 |          0.4312 |   0      |
+| BDG2      | random     | HSC        | HSC -kNN -stage | abs_dev  |           713 |     -0.0003 | [-0.003, 0.002]  |       -0.0009 |                  0.5316 |          0.0595 |   0.1713 |
+| BDG2      | random     | HSC-CQR    | HSC-CQR -stage  | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.4881 |         -0.0899 |   0      |
+| BDG2      | random     | HSC-CQR    | HSC-CQR -stage  | abs_dev  |           713 |      0.0003 | [0.000, 0.000]   |        0.0004 |                  0.4208 |         -0.1354 |   0.0024 |
+| BDG2      | random     | HSC-CQR    | HSC-CQR -kNN    | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.4656 |         -0.0092 |   0      |
+| BDG2      | random     | HSC-CQR    | HSC-CQR -kNN    | abs_dev  |           713 |      0.0004 | [-0.000, 0.001]  |        0.0004 |                  0.3619 |         -0.1623 |   0.0008 |
+| BDG2      | random     | HSC-CQR    | HSC-CQR -shrink | rel_IS   |           713 |    nan      | [nan, nan]       |      nan      |                  0.6171 |          0.4465 |   0      |
+| BDG2      | random     | HSC-CQR    | HSC-CQR -shrink | abs_dev  |           713 |     -0.0191 | [-0.022, -0.016] |       -0.0154 |                  0.8822 |          0.9016 |   0      |

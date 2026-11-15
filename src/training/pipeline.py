@@ -349,10 +349,21 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     return out, info
 
 
+def common_mask(out, PT):
+    """Hours evaluated: truth observed AND every method issued a finite interval (a forecast cannot be
+    issued when the building's whole scale window is missing; such hours are excluded for all methods)."""
+    ok = ~np.isnan(PT["y"])
+    for lo, hi in out.values():
+        ok &= np.isfinite(lo) & np.isfinite(hi)
+    return ok
+
+
 def evaluate(out, PT, alpha):
     rows, curves = [], {}
+    ok = common_mask(out, PT)
+    y = np.where(ok, PT["y"], np.nan)
     for name, (lo, hi) in out.items():
-        m, sc, sis = mt.interval_metrics(PT["y"], lo, hi, alpha)
+        m, sc, sis = mt.interval_metrics(y, lo, hi, alpha)
         curves[name] = (sc.mean(axis=0), sis.mean(axis=0), np.median(sis, axis=0))
         rows.append(pd.DataFrame(dict(method=name, **m)))
     return pd.concat(rows, ignore_index=True), curves

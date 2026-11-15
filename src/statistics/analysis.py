@@ -138,6 +138,7 @@ def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, per
             continue
         B = b[b.method == bl].set_index("building_id")
         common = P.index.intersection(B.index)
+        common = [c for c in common if np.isfinite(P.loc[c, "rel_IS"]) and np.isfinite(B.loc[c, "rel_IS"])]
         for metric in ["rel_IS", "abs_dev"]:
             d = (P.loc[common, metric] - B.loc[common, metric]).values  # negative = proposed better
             stat, p = wilcoxon(d, zero_method="wilcox", alternative="two-sided") if np.any(d != 0) else (np.nan, 1.0)

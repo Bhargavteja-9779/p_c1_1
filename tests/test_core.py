@@ -82,3 +82,11 @@ def test_interval_metrics():
     m2, _, _ = mt.interval_metrics(y, lo, hi2, 0.1)
     assert np.allclose(m2["coverage"], 0)
     assert np.allclose(m2["rel_IS"], 0.4 + 20 * 0.1)
+
+
+def test_metrics_ignore_undefined_intervals():
+    y = np.ones((1, 56, 24))
+    lo, hi = y * 0.5, y * 1.5
+    lo[0, 3, :] = np.nan  # forecast not issued on stage 4
+    m, _, _ = mt.interval_metrics(y, lo, hi, 0.1)
+    assert np.allclose(m["coverage"], 1.0) and np.isfinite(m["rel_IS"]).all()

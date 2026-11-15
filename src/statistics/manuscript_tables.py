@@ -65,7 +65,8 @@ def tests_table(st):
     for _, r in t.iterrows():
         if r.baseline in ("HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink"):
             continue
-        ci = json.loads(r.ci95_mean_diff) if isinstance(r.ci95_mean_diff, str) else r.ci95_mean_diff
+        ci = ([float(x) for x in r.ci95_mean_diff.strip("[]").split(",")] if isinstance(r.ci95_mean_diff, str)
+              else r.ci95_mean_diff)
         rows.append({"Data": r.dataset, "Baseline": r.baseline,
                      "Metric": "Rel. IS" if r.metric == "rel_IS" else "|cov − 0.9|",
                      "n": int(r.n_buildings), "Mean diff. [95 % CI]": f"{r.mean_diff:+.4f} [{ci[0]:+.4f}, {ci[1]:+.4f}]",

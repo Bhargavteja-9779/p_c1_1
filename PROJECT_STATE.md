@@ -19,11 +19,11 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   tests/test_core.py (6 passing), run_all.py (--mode quick|full).
 
 ## Experiment status
-- Smoke test exposed stuck-meter data artefact -> fixed (CHANGELOG).
-- Quick mode: all 8 job kinds + sensitivity ran without failure (13:05-13:21 UTC); analysis, tables,
-  figures verified on quick outputs (then deleted).
-- Full mode: RUNNING since ~13:27 UTC (pid in results/experiment_logs; log: results/experiment_logs/run.log).
-  Resumable: re-running `python run_all.py --mode full` skips finished parts and cached trainings.
+- Full run restarted 13:57 UTC after evaluation fix (common evaluation mask; see CHANGELOG). Trainings
+  are cached in results/cache (BDG2 seeds 0-4, UCI seed 0 done). Log: results/experiment_logs/run.log.
+- Interim (pre-fix, BDG2 5 seeds): HSC-CQR MACD 0.018, under-covered 3.4 %; Self-CQR 0.021/6.0 %;
+  ACI-CQR 0.026/9.3 %; CQR 0.038/18.6 %; kNN & stage-matching: no effect (ablation).
+- Background prior-art search agent running (novelty risk).
 
 ## Manuscript status
 - sections 01 front (tokens), 02 intro, 03 related, 04 method, 05 setup, 09 backmatter drafted.

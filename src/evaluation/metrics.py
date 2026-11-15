@@ -17,9 +17,11 @@ EARLY = 7  # stages h <= 7 = first week after metering starts
 
 def interval_metrics(y, lo, hi, alpha):
     """y, lo, hi: (nt, NH, 24) kWh. Returns dict of per-building arrays and stage curves."""
-    valid = ~np.isnan(y)
+    valid = ~np.isnan(y) & np.isfinite(lo) & np.isfinite(hi)
     yv = np.where(valid, y, 0.0)
-    cov = ((lo <= y) & (y <= hi)) & valid
+    lo = np.where(valid, lo, 0.0)
+    hi = np.where(valid, hi, 0.0)
+    cov = ((lo <= yv) & (yv <= hi)) & valid
     w = np.where(valid, hi - lo, 0.0)
     pen = (2 / alpha) * (np.maximum(lo - yv, 0) + np.maximum(yv - hi, 0))
     IS = np.where(valid, w + pen, 0.0)
@@ -43,7 +45,7 @@ def interval_metrics(y, lo, hi, alpha):
 
 
 def point_metrics(y, yhat):
-    valid = ~np.isnan(y)
+    valid = ~np.isnan(y) & np.isfinite(yhat)
     e = np.where(valid, yhat - y, 0.0)
     n = valid.sum(axis=(1, 2))
     ybar = np.where(valid, y, 0).sum(axis=(1, 2)) / np.maximum(n, 1)
