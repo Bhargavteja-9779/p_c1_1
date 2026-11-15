@@ -21,3 +21,5 @@
   as misses (coverage) and produced NaN interval scores for 3 BDG2 building-seed cases. Now every method
   is evaluated on the common set of hours with observed truth and finite intervals; point metrics use the
   same mask. New unit test. All result parts deleted and recomputed (trained models reused from cache).
+- Operational: two parallel experiment processes caused OpenMP thread oversubscription (LightGBM/torch
+  spin-waiting; no progress for 33 min). Reverted to one sequential process. No results affected.
