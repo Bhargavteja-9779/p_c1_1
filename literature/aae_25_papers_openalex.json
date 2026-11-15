@@ -1,0 +1,369 @@
+[
+ {
+  "doi": "10.1016/j.adapen.2023.100123",
+  "title": "Interpretable machine learning for building energy management: A state-of-the-art review",
+  "year": 2023,
+  "authors": [
+   "Zhe Chen",
+   "Fu Xiao",
+   "Fangzhou Guo",
+   "Jinyue Yan"
+  ],
+  "cited": 378,
+  "abstract": "Machine learning has been widely adopted for improving building energy efficiency and flexibility in the past decade owing to the ever-increasing availability of massive building operational data. However, it is challenging for end-users to understand and trust machine learning models because of their black-box nature. To this end, the interpretability of machine learning models has attracted increasing attention in recent studies because it helps users understand the decisions made by these models. This article reviews previous studies that adopted interpretable machine learning techniques for building energy management to analyze how model interpretability is improved. First, the studies are categorized according to the application stages of interpretable machine learning techniques: ante-hoc and post-hoc approaches. Then, the studies are analyzed in detail according to specific techniques with critical comparisons. Through the review, we find that the broad application of interpretable machine learning in building energy management faces the following significant challenges: (1) different terminologies are used to describe model interpretability which could cause confusion, (2) performance of interpretable ML in different tasks is difficult to compare, and (3) current prevalent techniques such as SHAP and LIME can only provide limited interpretability. Finally, we discuss the future R&D needs for improving the interpretability of black-box models that could be significant to accelerate the application of machine learning for building energy management.",
+  "oa": "https://doi.org/10.1016/j.adapen.2023.100123"
+ },
+ {
+  "doi": "10.1016/j.adapen.2022.100084",
+  "title": "Transfer learning for smart buildings: A critical review of algorithms, applications, and future perspectives",
+  "year": 2022,
+  "authors": [
+   "Giuseppe Pinto",
+   "Zhe Wang",
+   "Abhishek Roy",
+   "Tianzhen Hong",
+   "Alfonso Capozzoli"
+  ],
+  "cited": 318,
+  "abstract": "Smart buildings play a crucial role toward decarbonizing society, as globally buildings emit about one-third of greenhouse gases. In the last few years, machine learning has achieved a notable momentum that, if properly harnessed, may unleash its potential for advanced analytics and control of smart buildings, enabling the technique to scale up for supporting the decarbonization of the building sector. In this perspective, transfer learning aims to improve the performance of a target learner exploiting knowledge in related environments. The present work provides a comprehensive overview of transfer learning applications in smart buildings, classifying and analyzing 77 papers according to their applications, algorithms, and adopted metrics. The study identified four main application areas of transfer learning: (1) building load prediction, (2) occupancy detection and activity recognition, (3) building dynamics modeling, and (4) energy systems control. Furthermore, the review highlighted the role of deep learning in transfer learning applications that has been used in more than half of the analyzed studies. The paper also discusses how to integrate transfer learning in a smart building\u2019s ecosystem, identifying, for each application area, the research gaps and guidelines for future research directions.",
+  "oa": "https://doi.org/10.1016/j.adapen.2022.100084"
+ },
+ {
+  "doi": "10.1016/j.adapen.2021.100054",
+  "title": "Energy flexibility of residential buildings: A systematic review of characterization and quantification methods and applications",
+  "year": 2021,
+  "authors": [
+   "Han Li",
+   "Zhe Wang",
+   "Tianzhen Hong",
+   "Mary Ann Piette"
+  ],
+  "cited": 449,
+  "abstract": "With building electric demand becoming increasingly dynamic, and a growing percentage of intermittent renewable power generation from solar photovoltaics and wind turbines, the power grid is facing increasing challenge to manage the real time balance between the supply and demand. With advancements in smart sensing and metering, smart appliances, electric vehicles, and energy storage technologies, demand side management of residential buildings can help the grid to improve stability by optimizing flexible loads. This paper reviews recent studies on residential building demand side management, with a focus on characterization and quantification of energy flexibility covering various types of flexible loads, metrics, methods, and applications. The reviewed studies showed four levels of applications: building level (45%), district or community level (29%), system level (19%), and building sector level (7%). Shifting loads is the dominant flexibility type in 60% of applications, followed by shedding (19%), generation (16%), and modulating (6%). Depending on the technology and application scope, flexible operations have a wide range of performance, with peak power reductions of 1%~65%, energy savings up to 60%, operational cost reduction of 1%~48%, and greenhouse gas emission reductions of up to29%. More than half (51%) of the studies employed control strategies to achieve flexibility; among those 72% used optimal controls, while 28% used rule-based controls. About 58% of the studies used mathematical formulation to quantify energy flexibility. Most studies were based on simulation, while less than 15% of the studies had measurements from experiments or field tests. The review reveals research opportunities to address significant gaps in the existing literature: (1) establishing a common definition and performance metrics for energy flexibility of buildings that are technology and application agnostic, (2) developing an ontology to standardize representation of flexibility resources for interoperability, (3) integrating occupant impacts into the quantification and optimization of energy flexibility, and (4) developing requirements and credits of energy flexibility in building energy codes and standards. Findings from the review can inform future research and development of energy flexible buildings which are essential to a reliable and resilient power grid.",
+  "oa": "https://doi.org/10.1016/j.adapen.2021.100054"
+ },
+ {
+  "doi": "10.1016/j.adapen.2020.100004",
+  "title": "Theory-guided deep-learning for electrical load forecasting (TgDLF) via ensemble long short-term memory",
+  "year": 2020,
+  "authors": [
+   "Yuntian Chen",
+   "Dongxiao Zhang"
+  ],
+  "cited": 126,
+  "abstract": "Electricity constitutes an indispensable source of secondary energy in modern society. Accurate and robust short-term electrical load forecasting is essential for more effective scheduling of load generation, minimizing the gap between generation and demand, and reducing electricity losses. This study proposes theory-guided deep-learning load forecasting (TgDLF), which is a gradient-free model that fully combines domain knowledge and machine learning algorithms. TgDLF predicts the future load through load ratio decomposition, in which dimensionless trends are obtained based on domain knowledge, and the local fluctuations are estimated via data-driven models. TgDLF simplifies the problem with the assistance of expertise, and utilizes the strong expressive power of neural networks to obtain accurate predictions. The historical load, weather forecast and calendar effect are considered in the model, and the model's robustness to inaccurate weather forecast data is improved by adding synthetic disturbance during the training process. Cross-validation experiments demonstrate that TgDLF is 23% more accurate than long short-term memory, and the TgDLF with enhanced robustness can effectively extract information from weather forecast data with up to 40% noise.",
+  "oa": "https://www.sciencedirect.com/science/article/pii/S2666792420300044/pdf"
+ },
+ {
+  "doi": "10.1016/j.adapen.2021.100025",
+  "title": "Predicting city-scale daily electricity consumption using data-driven models",
+  "year": 2021,
+  "authors": [
+   "Zhe Wang",
+   "Tianzhen Hong",
+   "Han Li",
+   "Mary Ann Piette"
+  ],
+  "cited": 123,
+  "abstract": "Accurate electricity demand forecasts that account for impacts of extreme weather events are needed to inform electric grid operation and utility resource planning, as well as to enhance energy security and grid resilience. Three common data-driven models are used to predict city-scale daily electricity usage: linear regression models, machine learning models for time series data, and machine learning models for tabular data. In this study, we developed and compared seven data-driven models: (1) five-parameter change-point model, (2) Heating/Cooling Degree Hour model, (3) time series decomposed model implemented by Facebook Prophet, (4) Gradient Boosting Machine implemented by Microsoft lightGBM, and (5) three widely-used machine learning models (Random Forest, Support Vector Machine, Neural Network). Seven models are applied to the city-scale electricity usage data for three metropolitan areas in the United States: Sacramento, Los Angeles, and New York. Results show seven models can predict the metropolitan area's daily electricity use, with a coefficient of variation of the root mean square error (CVRMSE) less than 10%. The lightGBM provides the most accurate results, with CVRMSE on the test dataset of 6.5% for Los Angeles, 4.6% for Sacramento, and 4.1% for the New York metropolitan area. These models are further applied to explore how extreme weather events (e.g., heat waves) and unexpected public health events (e.g., COVID-19 pandemic) influence each city's electricity demand. Results show weather-sensitive component accounts for 30%\u201350% of the total daily electricity usage. Every degree Celsius ambient temperature increase in summer leads to about 5% (4.7% in Los Angeles, 6.2% in Sacramento, and 5.1% in New York) more daily electricity usage compared with the base load in the three metropolitan areas. The COVID-19 pandemic reduced city-scale electricity demand: compared with the pre-pandemic same months in 2019, daily electricity usage during the 2020 pandemic decreased by 10% in April and started to rebound in summer.",
+  "oa": "https://www.sciencedirect.com/science/article/pii/S2666792421000184/pdf"
+ },
+ {
+  "doi": "10.1016/j.adapen.2023.100142",
+  "title": "An adaptive deep-learning load forecasting framework by integrating transformer and domain knowledge",
+  "year": 2023,
+  "authors": [
+   "Jiaxin Gao",
+   "Yuntian Chen",
+   "Wenbo Hu",
+   "Dongxiao Zhang"
+  ],
+  "cited": 82,
+  "abstract": "Electrical energy is essential in today's society. Accurate electrical load forecasting is beneficial for better scheduling of electricity generation and saving electrical energy. In this paper, we propose an adaptive deep-learning load forecasting framework by integrating Transformer and domain knowledge (Adaptive-TgDLF). Adaptive-TgDLF introduces the deep-learning model Transformer and adaptive learning methods (including transfer learning for different locations and online learning for different time periods), which captures the long-term dependency of the load series, and is more appropriate for realistic scenarios with scarce samples and variable data distributions. Under the theory-guided framework, the electrical load is divided into dimensionless trends and local fluctuations. The dimensionless trends are considered as the inherent pattern of the load, and the local fluctuations are considered to be determined by the external driving forces. Adaptive learning can cope with the change of load in location and time, and can make full use of load data at different locations and times to train a more efficient model. Cross-validation experiments on different districts show that Adaptive-TgDLF is approximately 16% more accurate than the previous TgDLF model and saves more than half of the training time. Adaptive-TgDLF with 50% weather noise has the same accuracy as the previous TgDLF model without noise, which proves its robustness. We also preliminarily mine the interpretability of Transformer in Adaptive-TgDLF, which may provide future potential for better theory guidance. Furthermore, experiments demonstrate that transfer learning can accelerate convergence of the model in half the number of training epochs and achieve better performance, and online learning enables the model to achieve better results on the changing load.",
+  "oa": "https://doi.org/10.1016/j.adapen.2023.100142"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100165",
+  "title": "Probabilistic load forecasting for integrated energy systems using attentive quantile regression temporal convolutional network",
+  "year": 2024,
+  "authors": [
+   "Han Guo",
+   "Bin Huang",
+   "Jianhui Wang"
+  ],
+  "cited": 50,
+  "abstract": "The burgeoning proliferation of integrated energy systems has fostered an unprecedented degree of coupling among various energy streams, thereby elevating the necessity for unified multi-energy forecasting (MEF). Prior approaches predominantly relied on independent predictions for heterogeneous load demands, overlooking the synergy embedded within the dataset. The two principal challenges in MEF are extracting the intricate coupling correlations among diverse loads and accurately capturing the inherent uncertainties associated with each type of load. This study proposes an attentive quantile regression temporal convolutional network (QTCN) as a probabilistic framework for MEF, featuring an end-to-end predictor for the probabilistic intervals of electrical, thermal, and cooling loads. This study leverages an attention layer to extract correlations between diverse loads. Subsequently, a QTCN is implemented to retain the temporal characteristics of load data and gauge the uncertainties and temporal correlations of each load type. The multi-task learning framework is deployed to facilitate simultaneous regression of various quantiles, thereby expediting the training progression of the forecasting model. The proposed model is validated using realistic load data and meteorological data from the Arizona State University metabolic system and National Oceanic and Atmospheric Administration respectively, and the results indicate superior performance and greater economic benefits compared to the baselines in existing literature.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100165"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100172",
+  "title": "SkyGPT: Probabilistic ultra-short-term solar forecasting using synthetic sky images from physics-constrained VideoGPT",
+  "year": 2024,
+  "authors": [
+   "Yuhao Nie",
+   "Eric Zelikman",
+   "Andea Scott",
+   "Quentin Paletta",
+   "Adam R. Brandt"
+  ],
+  "cited": 66,
+  "abstract": "The variability of solar photovoltaic (PV) power output, driven by rapidly changing cloud dynamics, hinders the transition to reliable renewable energy systems. Information on future sky conditions, especially cloud coverage, hold the promise for improving PV output forecasting. Leveraging recent advances in generative artificial intelligence (AI), we introduce SkyGPT, a physics-constrained stochastic video prediction model, which predicts plausible future images of the sky using historical sky images. We show that SkyGPT can accurately capture cloud dynamics, producing highly realistic and diverse future sky images. We further demonstrate its efficacy in 15-minute-ahead probabilistic PV output forecasting using real-world power generation data from a 30-kW rooftop PV system. By coupling SkyGPT with a U-Net-based PV power prediction model, we observe superior prediction reliability and sharpness compared with several benchmark methods. The propose approach achieves a continuous ranked probability score (CRPS) of 2.81 kW, outperforming a classic convolutional neural network (CNN) baseline by 13% and the smart persistence model by 23%. The findings of this research could aid efficient and resilient management of solar electricity generation, particularly as we transition to renewable-heavy grids. The study also provides valuable insights into stochastic cloud modeling for a broad research community, encompassing fields such as solar energy meteorology and atmospheric sciences.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100172"
+ },
+ {
+  "doi": "10.1016/j.adapen.2022.100120",
+  "title": "Day-ahead probabilistic forecasting at a co-located wind and solar power park in Sweden: Trading and forecast verification",
+  "year": 2023,
+  "authors": [
+   "Oskar Lindberg",
+   "David Lingfors",
+   "Johan Arnqvist",
+   "D. van der Meer",
+   "Joakim Munkhammar"
+  ],
+  "cited": 60,
+  "abstract": "This paper presents a first step in the field of probabilistic forecasting of co-located wind and photovoltaic (PV) parks. The effect of aggregation is analyzed with respect to forecast accuracy and value at a co-located park in Sweden using roughly three years of data. We use a fixed modelling framework where we post-process numerical weather predictions to calibrated probabilistic production forecasts, which is a prerequisite when placing optimal bids in the day-ahead market. The results show that aggregation improves forecast accuracy in terms of continuous ranked probability score, interval score and quantile score when compared to wind or PV power forecasts alone. The optimal aggregation ratio is found to be 50%\u201360% wind power and the remainder PV power. This is explained by the aggregated time series being smoother, which improves the calibration and produces sharper predictive distributions, especially during periods of high variability in both resources, i.e., most prominently in the summer, spring and fall. Furthermore, the daily variability of wind and PV power generation was found to be anti-correlated which proved to be beneficial when forecasting the aggregated time series. Finally, we show that probabilistic forecasts of co-located production improve trading in the day-ahead market, where the more accurate and sharper forecasts reduce balancing costs. In conclusion, the study indicates that co-locating wind and PV power parks can improve probabilistic forecasts which, furthermore, carry over to electricity market trading. The results from the study should be generally applicable to other co-located parks in similar climates.",
+  "oa": "https://doi.org/10.1016/j.adapen.2022.100120"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100167",
+  "title": "Energy flexibility quantification of a tropical net-zero office building using physically consistent neural network-based model predictive control",
+  "year": 2024,
+  "authors": [
+   "Wei Liang",
+   "Han Li",
+   "Sicheng Zhan",
+   "Adrian Chong",
+   "Tianzhen Hong"
+  ],
+  "cited": 67,
+  "abstract": "Building energy flexibility plays a critical role in demand-side management for reducing utility costs for building owners and sustainable, reliable, and smart grids. Realizing building energy flexibility in tropical regions requires solar photovoltaics and energy storage systems. However, quantifying the energy flexibility of buildings utilizing such technologies in tropical regions has yet to be explored, and a robust control sequence is needed for this scenario. Hence, this work presents a case study to evaluate the building energy flexibility controls and operations of a net-zero energy office building in Singapore. The case study utilizes a data-driven energy flexibility quantification workflow and employs a novel data-driven model predictive control (MPC) framework based on the physically consistent neural network (PCNN) model to optimize the building energy flexibility. To the best of our knowledge, this is the first instance that PCNN is applied to a mathematical MPC setting, and the stability of the system is formally proved. Three scenarios are evaluated and compared: the default regulated flat tariff, a real-time pricing mechanism, and an on-site battery energy storage system (BESS). Our findings indicate that incorporating real-time pricing into the MPC framework could be more beneficial to leverage building energy flexibility for control decisions than the flat-rate approach. Moreover, adding BESS to the on-site PV generation improved the building self-sufficiency and the PV self-consumption by 17% and 20%, respectively. This integration also addresses model mismatch issues within the MPC framework, thus ensuring a more reliable local energy supply. Future research can leverage the proposed PCNN-MPC framework for different data-driven energy flexibility quantification types.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100167"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100181",
+  "title": "Impact of forecasting on energy system optimization",
+  "year": 2024,
+  "authors": [
+   "Florian Peterssen",
+   "Marlon Schlemminger",
+   "Clemens Lohr",
+   "Raphael Niepelt",
+   "Richard Hanke\u2010Rauschenbach",
+   "Rolf Brendel"
+  ],
+  "cited": 25,
+  "abstract": "Linear programs are frequently employed to optimize national energy system models, which are used to find a minimum-cost energy system. For the operation, they assume perfect forecasting of the weather and demands over the whole optimization horizon and can therefore perfectly fit the energy systems\u2019 design and operation. Therefore, they will yield lower costs than any real energy system that only has partial forecasting available. We compare linear programming with a priority list, a heuristic operation strategy which uses no forecasting at all, in a model of a climate-neutral German energy system. We find a 28% more expensive energy system under the priority list. Optimizing the same energy system model with both strategies envelopes the cost and design of any energy system that has partial forecasting. We demonstrate this by incorporating some rudimentary forecasting into a modified priority list, which actually reduces the gap to 22%. This is thus an approach to find an upper bound for how much a linear program possibly underestimates the costs of a real energy system in Germany in regard to imperfect forecasting. We also find that the two approaches differ mainly in the dimensioning and operation of energy storage. The priority list yields 63% less batteries, 73% less thermal storage and 54% more hydrogen storage. The use of renewables and other components in the system is very similar.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100181"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100186",
+  "title": "A probabilistic model for real-time quantification of building energy flexibility",
+  "year": 2024,
+  "authors": [
+   "Binglong Han",
+   "Hangxin Li",
+   "Shengwei Wang"
+  ],
+  "cited": 25,
+  "abstract": "Buildings have great energy flexibility potential to manage supply-demand imbalance in power grids with high renewable penetration. Accurate and real-time quantification of building energy flexibility is essential not only for engaging buildings in electricity and grid service markets, but also for ensuring the reliable and optimal operation of power grids. This paper proposes a probabilistic model for rapidly quantifying the aggregated flexibility of buildings under uncertainties. An explicit equation is derived as the analytical solution of a commonly used second-order building thermodynamic model to quantify the flexibility of individual buildings, eliminating the need of time-consuming iterative and finite difference computations. A sampling-based uncertainty analysis is performed to obtain the distribution of aggregated building flexibility, considering major uncertainties comprehensively. Validation tests are conducted using 150 commercial buildings in Hong Kong. The results show that the proposed model not only quantifies the aggregated flexibility with high accuracy, but also dramatically reduces the computation time from 3605 s to 6.7 s, about 537 times faster than the existing probabilistic model solved numerically. Moreover, the proposed model is 8 times faster than the archetype-based model and achieves significantly higher accuracy.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100186"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100189",
+  "title": "Active learning concerning sampling cost for enhancing AI-enabled building energy system modeling",
+  "year": 2024,
+  "authors": [
+   "Ao Li",
+   "Fu Xiao",
+   "Ziwei Xiao",
+   "Rui Yan",
+   "Anbang Li",
+   "Yan Lv",
+   "Bing Su"
+  ],
+  "cited": 26,
+  "abstract": "Machine learning is widely recognized as a promising data-driven modeling technique for the model-based control and optimization of building energy systems. However, the generalizability of data-driven models often faces significant challenges, as the available training data from building operations usually only covers a limited range of working conditions. Active learning can proactively test unseen and informative working conditions to enrich training set by adding new data samples, leading to improved generalization performance of data-driven models. A novel distance and information density-based sample strategy is developed which accounts for the real-time status of building operation and outdoor environment. Based on Mahalanobis distance, this strategy determines the sampling value of an unlabeled sample (unseen working condition) by assessing its similarity to both the training samples and other unlabeled samples. As collecting sufficiently representative samples can be difficult, costly and time-consuming, a distance-based sampling cost metric is proposed to compare the efficiency of different sampling methods, considering the detrimental effects of the actively sampling process on the normal operation of building energy systems. This paper presents a comprehensive and in-depth comparison on five active learning methods, including one incorporating the distance-based sampling strategy, by conducting data experiments on the data collected from the cooling towers of a real high-rise building. The results show that active learning can effectively identify informative data samples and improve the generalization performance of data-driven models. The research outcomes are valuable for enhancing AI-enabled data-driven modeling of building energy systems with substantial decreases in costs on data sampling.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100189"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100197",
+  "title": "Multi-scale electricity consumption prediction model based on land use and interpretable machine learning: A case study of China",
+  "year": 2024,
+  "authors": [
+   "Haizhi Luo",
+   "Yiwen Zhang",
+   "Xinyu Gao",
+   "Zhengguang Liu",
+   "Xiangzhao Meng",
+   "Xiaohu Yang"
+  ],
+  "cited": 20,
+  "abstract": "\u2022 A high-performance and interpretable electricity consumption prediction model was proposed. \u2022 Land use correlated with electricity consumption was subdivided based on big data. \u2022 Electricity consumption in 297 cities and 2505 counties was used as case studies. \u2022 Marginal impact of electricity consumption from land use perspective was revealed. \u2022 Specific energy optimization strategies tailored to multiple scales were proposed. The prediction of electricity consumption plays a vital role in promoting sustainable development, ensuring energy security and resilience, facilitating regional planning, and integrating renewable energy sources. A novel electricity consumption characterization and prediction model based on land use was proposed. This model achieves land-use subdivision to provide highly correlated variables; exhibits strong interpretability, thereby revealing even marginal effects of land use on electricity consumption; and demonstrates high performance, thereby enabling large-scale simulations and predictions. Using 297 cities and 2,505 counties as case studies, the key findings are as follows: (1) The model demonstrates strong generalization ability (R 2 = 0.91), high precision (Kappa = 0.77), and robustness, with an overall prediction accuracy exceeding 80 %; (2) The marginal impact of industrial land on electricity consumption is more complex, with more efficiency achieved by limiting its area to either 104.3 km 2 or between 288.2 and 657.3 km 2 ; (3) The marginal impact of commercial and residential land on electricity consumption exhibits a strong linear relationship (R 2 > 0.80). Restricting the scale to 11.3 km 2 could effectively mitigate this impact. Mixed commercial and residential land is advantageous for overall electricity consumption control, but after exceeding 43.5 km 2 , separate layout considerations for urban residential land are necessary; (4) In 2030, Shanghai's electricity consumption is projected to reach 155,143 million kW\u00b7h, making it the highest among the 297 cities. Meanwhile, Suzhou Industrial Park leads among the 2,505 districts with a consumption of 30,996 million kW\u00b7h; (5) Identify future electricity consumption hotspots and clustering characteristics, evaluate the renewable energy potential in these hotspot areas, and propose targeted strategies accordingly.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100197"
+ },
+ {
+  "doi": "10.1016/j.adapen.2025.100223",
+  "title": "Physics-informed machine learning for building performance simulation-A review of a nascent field",
+  "year": 2025,
+  "authors": [
+   "Zixin Jiang",
+   "Xuezheng Wang",
+   "Han Li",
+   "Tianzhen Hong",
+   "Fengqi You",
+   "J\u00e1n Drgo\u0148a",
+   "Draguna Vrabie",
+   "Bing Dong"
+  ],
+  "cited": 90,
+  "abstract": "\u2022 Apply Physics-Informed Machine Learning (PIML) to advance Building Performance Simulation (BPS). \u2022 Conduct an in-depth review of PIML methods and application areas in BPS. \u2022 Provide foundation and resources to inform future research of PIML in BPS. \u2022 Develop a general guideline for selecting suitable PIML models. \u2022 Identify key challenges and future directions for PIML in BPS. Building performance simulation (BPS) is critical for understanding building dynamics and behavior, analyzing the performance of the built environment, optimizing energy efficiency, improving demand flexibility, and enhancing building resilience. However, conducting BPS is not trivial. Traditional BPS relies on accurate building energy models, which are primarily physics-based and heavily dependent on detailed building information, expert knowledge, and case-by-case model calibrations, significantly limiting their scalability. With the development of sensing technology and the increased availability of data, there is growing attention and interest in data-driven BPS. However, purely data-driven models often suffer from limited generalization ability and a lack of physical consistency, resulting in poor performance in real-world applications. To address these limitations, recent studies have begun integrating physics priors into data-driven models, a methodology known as physics-informed machine learning (PIML). PIML is an emerging field where its definitions, methodologies, evaluation criteria, application scenarios, and future directions remain open. To bridge those gaps, this study systematically reviews the state-of-the-art PIML for BPS, offering a comprehensive definition of PIML and comparing it to traditional BPS approaches regarding data requirements, modeling effort, performance, and computational cost. We also summarize the commonly used methodologies, validation approaches, application domains, available data sources, open-source packages, and testbeds. In addition, this study provides a general guideline for selecting appropriate PIML models based on BPS applications. Finally, this study identifies key challenges and outlines future research directions, providing a solid foundation and valuable insights to advance R&D of PIML in BPS.",
+  "oa": "https://doi.org/10.1016/j.adapen.2025.100223"
+ },
+ {
+  "doi": "10.1016/j.adapen.2023.100150",
+  "title": "Advances in solar forecasting: Computer vision with deep learning",
+  "year": 2023,
+  "authors": [
+   "Quentin Paletta",
+   "Guillermo Terr\u00e9n-Serrano",
+   "Yuhao Nie",
+   "Binghui Li",
+   "Jacob Bieker",
+   "Wenqi Zhang",
+   "Laurent Dubus",
+   "Soumyabrata Dev",
+   "Cong Feng"
+  ],
+  "cited": 178,
+  "abstract": "Renewable energy forecasting is crucial for integrating variable energy sources into the grid. It allows power systems to address the intermittency of the energy supply at different spatiotemporal scales. To anticipate the future impact of cloud displacements on the energy generated by solar facilities, conventional modeling methods rely on numerical weather prediction or physical models, which have difficulties in assimilating cloud information and learning systematic biases. Augmenting computer vision with machine learning overcomes some of these limitations by fusing real-time cloud cover observations with surface measurements acquired from multiple sources. This Review summarizes recent progress in solar forecasting from multisensor Earth observations with a focus on deep learning, which provides the necessary theoretical framework to develop architectures capable of extracting relevant information from data generated by ground-level sky cameras, satellites, weather stations, and sensor networks. Overall, machine learning has the potential to significantly improve the accuracy and robustness of solar energy meteorology; however, more research is necessary to realize this potential and address its limitations.",
+  "oa": "https://ars.els-cdn.com/content/image/1-s2.0-S266679242300029X-gr001_lrg.jpg"
+ },
+ {
+  "doi": "10.1016/j.adapen.2021.100062",
+  "title": "Impact of electric vehicle charging on the power demand of retail buildings",
+  "year": 2021,
+  "authors": [
+   "Madeline Gilleran",
+   "Eric Bonnema",
+   "Jason Woods",
+   "Partha Pratim Mishra",
+   "Ian Doebber",
+   "Chad Hunter",
+   "Matt Mitchell",
+   "Margaret Mann"
+  ],
+  "cited": 168,
+  "abstract": "As electric vehicle penetration increases, charging is expected to have a significant impact on the grid. Electric vehicle charging stations will greatly affect a building site's power demand, especially with the onset of fast charging with power levels as high as 350 kW per charger. Here, we assess how electric vehicle charging stations would impact a retail big box grocery store, exploring numerous station sizes, charging power levels, and utilization factors in various climate zones and seasons. We measure the effect of charging by assessing changes in monthly peak power demand, electricity usage, and annual electricity bill, computed using three distinct rate structures. We find that an electric vehicle station has the potential to dwarf a big box building's power demand if behind the same meter, increasing monthly peak power demand at the site by over 250%. Cold-climate areas paired with rate structures incorporating high demand charges are most susceptible for significant changes to the annual electricity bill, with increases as high as 88%.",
+  "oa": "https://www.sciencedirect.com/science/article/pii/S2666792421000548/pdf"
+ },
+ {
+  "doi": "10.1016/j.adapen.2023.100124",
+  "title": "Multi-zone building control with thermal comfort constraints under disjunctive uncertainty using data-driven robust model predictive control",
+  "year": 2023,
+  "authors": [
+   "Guoqing Hu",
+   "Fengqi You"
+  ],
+  "cited": 56,
+  "abstract": "This paper proposes a novel data-driven robust model predictive control (MPC) framework for a multi-zone building considering thermal comfort and uncertain weather forecast errors. The control objective is to maintain each zone's temperature and relative humidity within the specified ranges by minimizing the energy usage of the underlying heating system. A state-space model is developed to use a hybrid physics-based and data-driven method for the multi-zone building's temperature and relative humidity. The temperature and humidity RMSEs between the state-space model and the EnergyPlus-based model are less than 0.25 \u00b0C and 5.9%, respectively. The uncertainty space is based on historical weather forecast error data, which are clustered by using a k-means clustering algorithm. Machine learning approaches, including principal component analysis and kernel density estimation, are used to construct each basic uncertainty set and reduce the conservatism of resulting robust control action under disturbances. A robust MPC framework is built upon the proposed state-space model and data-driven disjunctive uncertainty set. An affine disturbance feedback rule is employed to obtain a tractable approximation of the robust MPC problem. Besides, the feasibility and stability of the proposed MPC are discussed in detail. A case study of controlling temperature and relative humidity of a multi-zone building in Ithaca, New York, USA, is presented. The results demonstrate that the proposed framework can reduce up to 8.8% of total energy consumption compared to conventional robust MPC approaches. Moreover, the proposed framework can essentially satisfy the thermal constraints that certainty equivalent MPC and robust MPC largely violate.",
+  "oa": "https://doi.org/10.1016/j.adapen.2023.100124"
+ },
+ {
+  "doi": "10.1016/j.adapen.2022.100100",
+  "title": "Strategic retail pricing and demand bidding of retailers in electricity market: A data-driven chance-constrained programming",
+  "year": 2022,
+  "authors": [
+   "Dawei Qiu",
+   "Zihang Dong",
+   "Guangchun Ruan",
+   "Haiwang Zhong",
+   "Goran \u0160trbac",
+   "Chongqing Kang"
+  ],
+  "cited": 47,
+  "abstract": "This paper proposes a novel bi-level optimization model to study the strategic retail pricing and demand bidding problems of an electricity retailer that considers the interactions between demand response and market clearing process. In order to accurately forecast the day-ahead demand bids submitted by the retailer, a novel deep learning framework based on convolutional neural networks and long short-term memory is proposed that can capture both local trends and long-term dependency of the forecasting data. In addition, uncertainties about the retailer\u2019s served demand, rivals\u2019 demand bids, and wind power generation are incorporated using the data-driven uncertainty set constructed from data. We further propose chance-constrained programming that introduces a set of chance constraints to represent the operational risk associated with the market uncertainties. To solve this problem, we first reformulate chance-constrained programming as a tractable second-order conic programming and then convert it into a single-level mathematical program with equilibrium constraints by using its Karush Kuhn Tucker conditions. The scope of the examined case studies is four-fold. First, they evaluate the benefits of the proposed forecasting framework in terms of higher accuracy and expected profit compared to the conventional forecasting methods. Second, they demonstrate how demand flexibility affects the retailer\u2019s strategies and its business cases. Third, they highlight the added value of the proposed bi-level model capturing the market clearing process by comparing its outcomes against the state-of-the-art bi-level model with exogenous market prices. Finally, they analyze the retailer\u2019s strategies and business cases at different confidence levels regarding the imposed chance constraints.",
+  "oa": "https://www.sciencedirect.com/science/article/pii/S266679242200018X/pdf"
+ },
+ {
+  "doi": "10.1016/j.adapen.2021.100019",
+  "title": "New York State's 100% renewable electricity transition planning under uncertainty using a data-driven multistage adaptive robust optimization approach with machine-learning",
+  "year": 2021,
+  "authors": [
+   "Ning Bo Zhao",
+   "Fengqi You"
+  ],
+  "cited": 85,
+  "abstract": "Power system decarbonization is critical for combating climate change, and handling systems uncertainties is essential for designing robust renewable transition pathways. In this study, a bottom-up data-driven multistage adaptive robust optimization (MARO) framework is proposed to address the power systems\u2019 renewable transition under uncertainty. To illustrate the applicability of the proposed framework, a case study for New York State is presented. Machine learning techniques, including a variational algorithm for Dirichlet process mixture model, principal component analysis, and kernel density estimation, are applied for constructing data-driven uncertainty sets, which are integrated into the proposed MARO framework to systematically handle uncertainty. The results show that the total renewable electricity transition costs under uncertainty are 21%-42% higher than deterministic planning, and the costs under the data-driven uncertainty sets are 2%-17% lower than the conventional uncertainty sets. By 2035, on-land wind and offshore wind would be the major power source for the deterministic planning case and robust optimization cases, respectively.",
+  "oa": "https://www.sciencedirect.com/science/article/pii/S2666792421000123/pdf"
+ },
+ {
+  "doi": "10.1016/j.adapen.2022.100117",
+  "title": "Transfer learning for battery smarter state estimation and ageing prognostics: Recent progress, challenges, and prospects",
+  "year": 2022,
+  "authors": [
+   "Kailong Liu",
+   "Qiao Peng",
+   "Yunhong Che",
+   "Yusheng Zheng",
+   "Kang Li",
+   "Remus Teodorescu",
+   "Widanalage Dhammika Widanage",
+   "Anup Barai"
+  ],
+  "cited": 174,
+  "abstract": "With the advent of sustainable and clean energy transitions, lithium-ion batteries have become one of the most important energy storage sources for many applications. Battery management is of utmost importance for the safe, efficient, and long-lasting operation of lithium-ion batteries. However, the frequently changing load and operating conditions, the different cell chemistries and formats, and the complicated degradation patterns pose challenges for traditional battery management. The data-driven solutions that have emerged in recent years offer great opportunities to uncover the underlying data mapping within a battery system. In particular, transfer learning improves the performance of data-driven strategies by transferring existing knowledge from different but related domains, and if properly applied, would be a promising approach for smarter battery management. To this end, this paper presents a systematic review for the applications of transfer learning in the field of battery management for the first time, with particular focuses on battery state estimation and ageing prognostics. Specifically, the general issues faced by conventional battery management are identified and the applications of transfer learning to these issues are summarized. Then, the specific challenges of each topic are identified and the potential solutions based on transfer learning are explained, followed by a discussion of the state of the art in terms of principles, algorithm frameworks, advantages and disadvantages. Finally, future trends of data-driven battery management with transfer learning are discussed in terms of key challenges and promising opportunities.",
+  "oa": "https://doi.org/10.1016/j.adapen.2022.100117"
+ },
+ {
+  "doi": "10.1016/j.adapen.2023.100138",
+  "title": "TOM.D: Taking advantage of microclimate data for urban building energy modeling",
+  "year": 2023,
+  "authors": [
+   "Thomas R. Dougherty",
+   "Rishee  Kumar Jain"
+  ],
+  "cited": 23,
+  "abstract": "Urban Building Energy Modeling (UBEM) provides a framework for decarbonization decision-making on an urban scale. However, existing UBEM systems routinely neglect microclimate effects on building energy consumption, potentially leading to major sources of error. In this work, we attempt to address these sources of error by proposing the large scale collection of remote sensing and climate modeling data to improve the capabilities of existing systems. We explore situations when remote sensing might be most valuable, particularly when high quality weather station data might not be available. We show that lack of access to weather station data is unlikely to be driving existing errors in energy models, as most buildings are likely to be close enough to collect high quality data. We also highlight the significance of Landsat8\u2019s thermal instrumentation to capture pertinent temperatures for the buildings through feature importance visualizations. Our analysis then characterizes the seasonal benefits of microclimate data for energy prediction. Landsat8 is found to provide a potential benefit of an 8% reduction in electricity prediction error in the spring and summertime of New York City. In contrast, NOAA RTMA may provide a benefit of a 2.5% reduction in natural gas prediction error in the winter and spring. Finally, we explore the potential of remote sensing to enhance the quality of energy predictions at a neighborhood level. We show that benefits for individual buildings translates to the regional level, as we can achieve improved predictions for groups of buildings.",
+  "oa": "https://doi.org/10.1016/j.adapen.2023.100138"
+ },
+ {
+  "doi": "10.1016/j.adapen.2021.100041",
+  "title": "Advancing smart building readiness: Automated metadata extraction using neural language processing methods",
+  "year": 2021,
+  "authors": [
+   "David Waterworth",
+   "Subbu Sethuvenkatraman",
+   "Quan Z. Sheng"
+  ],
+  "cited": 35,
+  "abstract": "Digitalisation of the built environment provides multiple benefits such as operational and energy productivity improvements and supports the participation of buildings in the management of electricity networks. Automated methods to infer contextual information from building management systems and Internet of Things sensor metadata plays a significant role in this process. In this paper, we have studied the problem of transfer learning using text metadata to automatically tag building sensors with semantic tags. We demonstrate that state-of-the-art pre-trained neural language models are a promising approach which to the best of our knowledge have not been studied due to the lack of pre-processors to tokenise the texts. We develop a tokeniser based on the unigram language model capable of tokenising the idiosyncratic text found in building sensor metadata and use it to train from scratch a transformer based language model using sensor metadata from 152 buildings. The weights are then used to train a tagset classifier using transfer learning, and tested on 30 buildings. Metrics such as precision, recall and the Jaccard similarity coefficient have been used to evaluate the suitability of our results for various buildings. The proposed method can predict building tagsets with over 70% accuracy against a real world noisy dataset.",
+  "oa": "https://www.sciencedirect.com/science/article/pii/S2666792421000330/pdf"
+ },
+ {
+  "doi": "10.1016/j.adapen.2024.100191",
+  "title": "Toward global rooftop PV detection with Deep Active Learning",
+  "year": 2024,
+  "authors": [
+   "Matthias Zech",
+   "Hendrik-Pieter Tetens",
+   "Joseph A. Ranalli"
+  ],
+  "cited": 25,
+  "abstract": "It is crucial to know the location of rooftop PV systems to monitor the regional progress toward sustainable societies and to ensure the integration of decentralized energy resources into the electricity grid. However, locations of PV are often unknown, which is why a large number of studies have proposed variants of Deep Learning to detect PV panels in remote sensing data using supervised Deep Learning. However, these methods are based on annotating datasets and therefore often require relabeling when fine-tuned or extended to a different region. Recent advances in Deep Active Learning offer the opportunity to significantly reduce the number of required annotated images by intelligently selecting the images to label next based on their informative value for the model. In this study, we compare different Deep Active Learning algorithms using a variety of datasets from different regions and compare different model training variants. In the simulations, the entropy-based acquisition function shows the highest performance with only 3% of the data needed in case-imbalanced data, while remaining simple to implement. We believe that Deep Active Learning provides an elegant solution to maintain high model accuracy while reducing annotation effort substantially. This facilitates the development of generalizable models for worldwide rooftop PV detection. \u2022 Labeling is hindering generalizable, global rooftop PV detection. \u2022 Deep Active Learning greatly facilitates model training for PV detection. \u2022 In highly imbalanced data, only 3% of the data are needed. \u2022 Entropy-based sampling acquisition function showed best performance. \u2022 Deep Active Learning is reliable for model extension and model fine-tuning.",
+  "oa": "https://doi.org/10.1016/j.adapen.2024.100191"
+ },
+ {
+  "doi": "10.1016/j.adapen.2025.100237",
+  "title": "Physics-informed modularized neural network for advanced building control by deep reinforcement learning",
+  "year": 2025,
+  "authors": [
+   "Zixin Jiang",
+   "Xuezheng Wang",
+   "Bing Dong"
+  ],
+  "cited": 25,
+  "abstract": "\u2022 Propose a physics-informed modularized neural network for building control. \u2022 Define a matrix to quantify physical consistency in data-driven building models. \u2022 Evaluate the value of physical priors by calculating rule importance. \u2022 Achieved 31.4% HVAC energy savings through deep reinforcement learning experiment. \u2022 Provide a guideline for integrating data-driven models into building controls. Physics-informed machine learning (PIML) provides a promising solution for building energy modeling and can be used as a virtual environment to enable reinforcement learning (RL) agents to interact and learn. However, how to integrate physics priors efficiently, evaluate the effectiveness of physics constraints, balance model accuracy and physics consistency, and enable real-world implementation remain open challenges. To address these gaps, this study introduces a Physics-Informed Modularized Neural Network (PI-ModNN), which integrates physics priors through a physics-informed model structure, loss functions, and hard constraints. A new evaluation matrix called \u201ctemperature response violation\u201d is developed to quantify the physical consistency of data-driven building dynamic models under varying control inputs and training data sizes. Additionally, a physics prior evaluation framework based on \u201crule importance\u201d is proposed to quantify the contribution of each individual physical priors, offering guidance on selecting appropriate PIML techniques. The results indicate that incorporating physical priors does not always improve model performance; inappropriate physical priors could decrease model accuracy and consistency. However, hard constraints effectively enforce model consistency. Furthermore, we present a general workflow for developing control-oriented PIML models and integrating them with deep reinforcement learning (DRL). Following this framework, a case study of implementation DRL in an office space for three months demonstrates potential energy savings of 31.4%. Finally, we provide a general guideline for integrating data-driven models with advanced building control through a four-step evaluation framework, paving the way for reliable and scalable implementation of advanced building controls.",
+  "oa": "https://doi.org/10.1016/j.adapen.2025.100237"
+ }
+]
