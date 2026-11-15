@@ -229,6 +229,10 @@ def run(mode="full"):
         f.write("**Paired Wilcoxon signed-rank tests (per building; Holm-adjusted)**\n\n" +
                 main_t.round(4).to_markdown(index=False) + "\n")
     _efficiency(tag)
+    if mode != "quick":
+        from src.statistics import manuscript_tables, error_analysis
+        manuscript_tables.run()
+        error_analysis.run()
     return st
 
 

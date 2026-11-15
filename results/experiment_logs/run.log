@@ -45,3 +45,28 @@
 [2026-11-15 13:25:21] === run_all mode=full: 30 jobs ===
 [2026-11-15 13:25:21] train BDG2_BDG2_random_s0_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
 [2026-11-15 13:25:23]   training rows 1,318,757  validation rows 183,509
+[2026-11-15 13:30:14] done main_BDG2_s0_a0.1 (71s): HSC IS=0.875 cov=0.899 | SCP-stage IS=1.048
+[2026-11-15 13:30:44] done main_BDG2_s0_a0.05 (29s): HSC IS=1.248 cov=0.953 | SCP-stage IS=1.499
+[2026-11-15 13:31:10] done main_BDG2_s0_a0.2 (26s): HSC IS=0.636 cov=0.800 | SCP-stage IS=0.712
+[2026-11-15 13:31:10] train BDG2_BDG2_random_s1_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-15 13:31:12]   training rows 1,322,913  validation rows 186,241
+[2026-11-15 13:36:38] done main_BDG2_s1_a0.1 (71s): HSC IS=0.930 cov=0.899 | SCP-stage IS=1.113
+[2026-11-15 13:37:04] done main_BDG2_s1_a0.05 (26s): HSC IS=1.233 cov=0.948 | SCP-stage IS=1.579
+[2026-11-15 13:37:27] done main_BDG2_s1_a0.2 (23s): HSC IS=0.674 cov=0.800 | SCP-stage IS=0.761
+[2026-11-15 13:37:27] train BDG2_BDG2_random_s2_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-15 13:37:29]   training rows 1,320,185  validation rows 185,756
+[2026-11-15 13:41:42] done main_BDG2_s2_a0.1 (66s): HSC IS=0.844 cov=0.903 | SCP-stage IS=1.041
+[2026-11-15 13:42:07] done main_BDG2_s2_a0.05 (25s): HSC IS=1.113 cov=0.952 | SCP-stage IS=1.480
+[2026-11-15 13:42:33] done main_BDG2_s2_a0.2 (25s): HSC IS=0.621 cov=0.800 | SCP-stage IS=0.711
+[2026-11-15 13:42:33] train BDG2_BDG2_random_s3_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-15 13:42:35]   training rows 1,318,589  validation rows 183,599
+[2026-11-15 13:47:30] done main_BDG2_s3_a0.1 (58s): HSC IS=0.822 cov=0.901 | SCP-stage IS=1.017
+[2026-11-15 13:47:54] done main_BDG2_s3_a0.05 (24s): HSC IS=1.047 cov=0.951 | SCP-stage IS=1.430
+[2026-11-15 13:48:20] done main_BDG2_s3_a0.2 (26s): HSC IS=0.616 cov=0.802 | SCP-stage IS=0.702
+[2026-11-15 13:48:20] train BDG2_BDG2_random_s4_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-15 13:48:23]   training rows 1,317,922  validation rows 184,495
+[2026-11-15 13:53:47] done main_BDG2_s4_a0.1 (69s): HSC IS=0.930 cov=0.895 | SCP-stage IS=1.152
+[2026-11-15 13:54:20] done main_BDG2_s4_a0.05 (33s): HSC IS=1.278 cov=0.946 | SCP-stage IS=1.653
+[2026-11-15 13:54:46] done main_BDG2_s4_a0.2 (26s): HSC IS=0.669 cov=0.794 | SCP-stage IS=0.780
+[2026-11-15 13:54:46] train UCI_UCI_random_s0_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-15 13:54:48]   training rows 992,746  validation rows 132,144

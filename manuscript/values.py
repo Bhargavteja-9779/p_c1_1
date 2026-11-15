@@ -116,5 +116,81 @@ def compute(mode="full"):
             v[f"sens_{d}_macd_min"] = f"{g.min():.3f}"
             v[f"sens_{d}_macd_max_finite"] = f"{g[[k for k in g.index if np.isfinite(k[1])]].max():.3f}"
             v[f"sens_{d}_macd_inf"] = f"{g[[k for k in g.index if np.isinf(k[1])]].mean():.3f}"
+    # sampling-noise floor of MACD for perfectly calibrated intervals with independent misses:
+    # E|Binomial(n, 0.9)/n - 0.9| evaluated by Monte Carlo at each building's number of valid hours
+    rng = np.random.default_rng(0)
+    for d in ["BDG2", "UCI"]:
+        nv = df[(df.exp == "main") & (df.dataset == d) & (df.alpha == 0.1) & (df.method == "HSC-CQR")].n_valid.values
+        if len(nv):
+            sim = np.abs(rng.binomial(nv[None, :].repeat(200, 0), 0.9) / nv[None, :] - 0.9).mean()
+            v[f"floor_{d}_macd"] = f"{sim:.4f}"
+            v[f"nvalid_{d}_median"] = int(np.median(nv))
+    v["ERROR_ANALYSIS_TEXT"] = _error_text()
+    v["ABSTRACT"] = _abstract(v)
+    v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"
     json.dump(v, open(os.path.join(RES, f"manuscript_values{tag}.json"), "w"), indent=1, default=str)
     return v
+
+
+def _p(p):
+    return "p < 0.001" if p < 0.001 else f"p = {p:.3f}"
+
+
+def _error_text():
+    """Error-analysis paragraph whose wording follows the actual test outcomes."""
+    f = os.path.join(RES, "error_analysis.json")
+    if not os.path.exists(f):
+        return "(error analysis not available)"
+    e = json.load(open(f))
+    b = e.get("BDG2", {})
+    t = []
+    if "rho_cov_cvrmse_CQR" in b:
+        t.append(f"On BDG2 the Spearman correlation between per-building coverage and CV(RMSE) is "
+                 f"{b['rho_cov_cvrmse_CQR']:.2f} for CQR and {b['rho_cov_cvrmse_HSC-CQR']:.2f} for HSC-CQR "
+                 f"({b['rho_cov_cvrmse_SCP-stage']:.2f} for SCP-stage), i.e. HSC "
+                 + ("weakens" if abs(b['rho_cov_cvrmse_HSC-CQR']) < abs(b['rho_cov_cvrmse_CQR']) else "does not weaken")
+                 + " the dependence of reliability on forecast difficulty.")
+    if "usage_largest_reduction" in b:
+        t.append(f"Across usage classes with at least 30 building × seed units, the largest reduction of the "
+                 f"absolute coverage deviation is observed for '{b['usage_largest_reduction']}' and the smallest for "
+                 f"'{b['usage_smallest_reduction']}' (Fig. [-@fig:errors]b).")
+    if "shift_p" in b:
+        sig = b["shift_p"] < 0.05
+        t.append(f"Of the {b['n_units']} building × seed units, {b['n_under']} remain under-covered by HSC-CQR. "
+                 f"Their median within-window level change |log(mean load weeks 5–8 / weeks 1–4)| is "
+                 f"{b['shift_median_under']:.3f} versus {b['shift_median_other']:.3f} for the others "
+                 f"(Mann–Whitney {_p(b['shift_p'])}); "
+                 + ("remaining failures are therefore associated with regime changes during onboarding"
+                    if sig and b['shift_median_under'] > b['shift_median_other'] else
+                    "the remaining failures are not explained by level changes alone")
+                 + f". Their first-week volatility is {b['vol_median_under']:.3f} versus {b['vol_median_other']:.3f} "
+                 f"({_p(b['vol_p'])}).")
+    u = e.get("UCI", {})
+    if "shift_p" in u:
+        t.append(f"On UCI, {u['n_under']} of {u['n_units']} units remain under-covered; the corresponding level-change "
+                 f"medians are {u['shift_median_under']:.3f} versus {u['shift_median_other']:.3f} ({_p(u['shift_p'])}).")
+    return " ".join(t)
+
+
+def _abstract(v):
+    return (
+        "Demand response, flexibility bidding and measurement-and-verification need day-ahead prediction intervals "
+        "for individual buildings, often from the first days after a building is metered. Conformal and quantile "
+        "methods are usually judged by coverage pooled over many buildings, which can hide buildings whose intervals "
+        "are systematically too narrow. We study per-building interval reliability during onboarding and propose "
+        "hierarchical shrinkage conformal (HSC) calibration. HSC blends the nonconformity-score distribution of "
+        "previously metered buildings with the new building's own accumulating scores through a single pseudo-count "
+        "selected by leave-one-building-out. It has a closed form, recovers population and self-only split "
+        "conformal prediction as limits, and works on top of any forecaster. In pre-registered experiments on "
+        f"{v['n_bdg2']} buildings at {v['n_sites']} sites (Building Data Genome 2) and {v['n_uci']} Portuguese "
+        "electricity clients, with building- and period-disjoint splits and five seeds, conformalised quantile "
+        f"regression left {v['main_BDG2_CQR_under_rate']} and {v['main_UCI_CQR_under_rate']} of new buildings "
+        "with coverage more than five points below the 90 % target. HSC applied to the same scores reduced these "
+        f"shares to {v['main_BDG2_HSCCQR_under_rate']} and {v['main_UCI_HSCCQR_under_rate']} and the mean absolute "
+        f"coverage deviation from {v['main_BDG2_CQR_macd']} to {v['main_BDG2_HSCCQR_macd']} (BDG2), without a "
+        f"higher interval score (median {v['main_BDG2_HSCCQR_rel_IS']} vs {v['main_BDG2_CQR_rel_IS']}). It was more "
+        "reliable than self-only calibration and adaptive conformal inference on the same scores, and the "
+        "improvements persisted for unseen sites, meter noise, missing data and small calibration pools. "
+        "Similarity weighting and onboarding-stage matching added nothing, leaving a one-parameter method that "
+        f"costs {v['cost_BDG2_apply_ms']} ms per building-day."
+    )

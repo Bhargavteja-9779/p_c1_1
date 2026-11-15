@@ -1,0 +1,1 @@
+Input features of the global forecasters (identical for LightGBM and MLP models).

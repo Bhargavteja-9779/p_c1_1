@@ -23,6 +23,16 @@ from references import REFS  # noqa: E402
 import values as V  # noqa: E402
 
 
+def include_tables(text):
+    """<<TABLE:MS_name|tbl:label>> -> caption line + generated markdown table (tables/MS_name.*)."""
+    def rep(m):
+        name, lab = m.group(1), m.group(2)
+        md = open(os.path.join(ROOT, "tables", name + ".md")).read().strip()
+        cap = open(os.path.join(ROOT, "tables", name + ".caption.txt")).read().strip()
+        return f"Table: {cap} {{#{lab}}}\n\n{md}\n"
+    return re.sub(r"<<TABLE:([\w\-.]+)\|(tbl:[\w-]+)>>", rep, text)
+
+
 def number_labels(text):
     """Assign numbers to {#eq:..}, {#fig:..}, {#tbl:..}, {#sec:..} in order of appearance."""
     nums = {}
@@ -193,6 +203,7 @@ def build(mode="full", out_name="Final_Manuscript"):
     secs = sorted(glob.glob(os.path.join(HERE, "sections", "*.md")))
     text = "\n\n".join(open(s).read() for s in secs)
     text = fill_tokens(text, vals)
+    text = include_tables(text)
     text = number_labels(text)
     text, refs, order = cite(text)
     text = text.replace("<<REFERENCES>>", refs)
