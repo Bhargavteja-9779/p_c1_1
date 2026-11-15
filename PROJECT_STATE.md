@@ -34,3 +34,14 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
 1. Wait for full run; then `python run_all.py --mode full --skip-experiments`.
 2. Write 06_results, 07_discussion, 08_conclusion; build DOCX (manuscript/build_docx.py).
 3. Start review cycle 1 (10 reviewer agents) -> REVIEW/review_01.md.
+
+## Automatic resume
+Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
+session). On resume: read this file, check `ps aux | grep ex.execute`, restart stopped jobs
+(`ex.execute('full', kinds=[...])` skips finished parts), continue with the next unfinished task.
+
+## Planned recompute pass (after audit)
+Add methods: "HSC simple"/"HSC-CQR simple" (K=all, no stage matching; recommended default) and
+"CQR-MLP"/"HSC-CQR-MLP" (model-agnostic check on MLP quantiles); apply verified audit fixes; then
+delete results/parts and rerun `ex.execute('full')` (models cached → calibration only), then
+`ex.sensitivity('full')`, `python run_all.py --mode full --skip-experiments`.
