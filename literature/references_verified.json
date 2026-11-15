@@ -1,0 +1,797 @@
+[
+ {
+  "key": "10.1038/s41597-020-00712-x",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1038/s41597-020-00712-x",
+  "title": "The Building Data Genome Project 2, energy meter data from the ASHRAE Great Energy Predictor III competition",
+  "authors": [
+   "Miller, Clayton",
+   "Kathirgamanathan, Anjukan",
+   "Picchetti, Bianca",
+   "Arjunan, Pandarasamy",
+   "Park, June Young",
+   "Nagy, Zoltan",
+   "Raftery, Paul",
+   "Hobson, Brodie W.",
+   "Shi, Zixiao",
+   "Meggers, Forrest"
+  ],
+  "year": 2020,
+  "venue": "Scientific Data",
+  "volume": "7",
+  "issue": "1",
+  "pages": "368",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.24432/C58C86",
+  "source": "crossref",
+  "ok": false,
+  "error": "HTTP Error 404: Not Found"
+ },
+ {
+  "key": "10.1007/b106715",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1007/b106715",
+  "title": "Algorithmic Learning in a Random World",
+  "authors": [],
+  "year": 2005,
+  "venue": "Springer-Verlag",
+  "volume": null,
+  "issue": null,
+  "pages": null,
+  "type": "book"
+ },
+ {
+  "key": "10.1080/01621459.2017.1307116",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1080/01621459.2017.1307116",
+  "title": "Distribution-Free Predictive Inference for Regression",
+  "authors": [
+   "Lei, Jing",
+   "G\u2019Sell, Max",
+   "Rinaldo, Alessandro",
+   "Tibshirani, Ryan J.",
+   "Wasserman, Larry"
+  ],
+  "year": 2018,
+  "venue": "Journal of the American Statistical Association",
+  "volume": "113",
+  "issue": "523",
+  "pages": "1094-1111",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1214/23-AOS2276",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1214/23-AOS2276",
+  "title": "Conformal prediction beyond exchangeability",
+  "authors": [
+   "Barber, Rina Foygel",
+   "Cand\u00e8s, Emmanuel J.",
+   "Ramdas, Aaditya",
+   "Tibshirani, Ryan J."
+  ],
+  "year": 2023,
+  "venue": "The Annals of Statistics",
+  "volume": "51",
+  "issue": "2",
+  "pages": "816-845",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1080/01621459.2022.2060112",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1080/01621459.2022.2060112",
+  "title": "Distribution-Free Prediction Sets for Two-Layer Hierarchical Models",
+  "authors": [
+   "Dunn, Robin",
+   "Wasserman, Larry",
+   "Ramdas, Aaditya"
+  ],
+  "year": 2022,
+  "venue": "Journal of the American Statistical Association",
+  "volume": "118",
+  "issue": "544",
+  "pages": "2491-2502",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1198/016214506000001437",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1198/016214506000001437",
+  "title": "Strictly Proper Scoring Rules, Prediction, and Estimation",
+  "authors": [
+   "Gneiting, Tilmann",
+   "Raftery, Adrian E"
+  ],
+  "year": 2007,
+  "venue": "Journal of the American Statistical Association",
+  "volume": "102",
+  "issue": "477",
+  "pages": "359-378",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.ijforecast.2015.11.011",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.ijforecast.2015.11.011",
+  "title": "Probabilistic electric load forecasting: A tutorial review",
+  "authors": [
+   "Hong, Tao",
+   "Fan, Shu"
+  ],
+  "year": 2016,
+  "venue": "International Journal of Forecasting",
+  "volume": "32",
+  "issue": "3",
+  "pages": "914-938",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.ijforecast.2016.02.001",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.ijforecast.2016.02.001",
+  "title": "Probabilistic energy forecasting: Global Energy Forecasting Competition 2014 and beyond",
+  "authors": [
+   "Hong, Tao",
+   "Pinson, Pierre",
+   "Fan, Shu",
+   "Zareipour, Hamidreza",
+   "Troccoli, Alberto",
+   "Hyndman, Rob J."
+  ],
+  "year": 2016,
+  "venue": "International Journal of Forecasting",
+  "volume": "32",
+  "issue": "3",
+  "pages": "896-913",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2022.100084",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2022.100084",
+  "title": "Transfer learning for smart buildings: A critical review of algorithms, applications, and future perspectives",
+  "authors": [
+   "Pinto, Giuseppe",
+   "Wang, Zhe",
+   "Roy, Abhishek",
+   "Hong, Tianzhen",
+   "Capozzoli, Alfonso"
+  ],
+  "year": 2022,
+  "venue": "Advances in Applied Energy",
+  "volume": "5",
+  "issue": null,
+  "pages": "100084",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2020.100004",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2020.100004",
+  "title": "Theory-guided deep-learning for electrical load forecasting (TgDLF) via ensemble long short-term memory",
+  "authors": [
+   "Chen, Yuntian",
+   "Zhang, Dongxiao"
+  ],
+  "year": 2021,
+  "venue": "Advances in Applied Energy",
+  "volume": "1",
+  "issue": null,
+  "pages": "100004",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2023.100142",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2023.100142",
+  "title": "An adaptive deep-learning load forecasting framework by integrating transformer and domain knowledge",
+  "authors": [
+   "Gao, Jiaxin",
+   "Chen, Yuntian",
+   "Hu, Wenbo",
+   "Zhang, Dongxiao"
+  ],
+  "year": 2023,
+  "venue": "Advances in Applied Energy",
+  "volume": "10",
+  "issue": null,
+  "pages": "100142",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2024.100165",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2024.100165",
+  "title": "Probabilistic load forecasting for integrated energy systems using attentive quantile regression temporal convolutional network",
+  "authors": [
+   "Guo, Han",
+   "Huang, Bin",
+   "Wang, Jianhui"
+  ],
+  "year": 2024,
+  "venue": "Advances in Applied Energy",
+  "volume": "14",
+  "issue": null,
+  "pages": "100165",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2021.100025",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2021.100025",
+  "title": "Predicting city-scale daily electricity consumption using data-driven models",
+  "authors": [
+   "Wang, Zhe",
+   "Hong, Tianzhen",
+   "Li, Han",
+   "Ann Piette, Mary"
+  ],
+  "year": 2021,
+  "venue": "Advances in Applied Energy",
+  "volume": "2",
+  "issue": null,
+  "pages": "100025",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2023.100123",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2023.100123",
+  "title": "Interpretable machine learning for building energy management: A state-of-the-art review",
+  "authors": [
+   "Chen, Zhe",
+   "Xiao, Fu",
+   "Guo, Fangzhou",
+   "Yan, Jinyue"
+  ],
+  "year": 2023,
+  "venue": "Advances in Applied Energy",
+  "volume": "9",
+  "issue": null,
+  "pages": "100123",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2021.100054",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2021.100054",
+  "title": "Energy flexibility of residential buildings: A systematic review of characterization and quantification methods and applications",
+  "authors": [
+   "Li, Han",
+   "Wang, Zhe",
+   "Hong, Tianzhen",
+   "Piette, Mary Ann"
+  ],
+  "year": 2021,
+  "venue": "Advances in Applied Energy",
+  "volume": "3",
+  "issue": null,
+  "pages": "100054",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2024.100172",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2024.100172",
+  "title": "SkyGPT: Probabilistic ultra-short-term solar forecasting using synthetic sky images from physics-constrained VideoGPT",
+  "authors": [
+   "Nie, Yuhao",
+   "Zelikman, Eric",
+   "Scott, Andea",
+   "Paletta, Quentin",
+   "Brandt, Adam"
+  ],
+  "year": 2024,
+  "venue": "Advances in Applied Energy",
+  "volume": "14",
+  "issue": null,
+  "pages": "100172",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.adapen.2022.100120",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.adapen.2022.100120",
+  "title": "Day-ahead probabilistic forecasting at a co-located wind and solar power park in Sweden: Trading and forecast verification",
+  "authors": [
+   "Lindberg, O.",
+   "Lingfors, D.",
+   "Arnqvist, J.",
+   "van der Meer, D.",
+   "Munkhammar, J."
+  ],
+  "year": 2023,
+  "venue": "Advances in Applied Energy",
+  "volume": "9",
+  "issue": null,
+  "pages": "100120",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.enbuild.2018.01.034",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.enbuild.2018.01.034",
+  "title": "Transfer learning with seasonal and trend adjustment for cross-building energy forecasting",
+  "authors": [
+   "Ribeiro, Mauro",
+   "Grolinger, Katarina",
+   "ElYamany, Hany F.",
+   "Higashino, Wilson A.",
+   "Capretz, Miriam A.M."
+  ],
+  "year": 2018,
+  "venue": "Energy and Buildings",
+  "volume": "165",
+  "issue": null,
+  "pages": "352-363",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.apenergy.2020.114499",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.apenergy.2020.114499",
+  "title": "Statistical investigations of transfer learning-based methodology for short-term building energy predictions",
+  "authors": [
+   "Fan, Cheng",
+   "Sun, Yongjun",
+   "Xiao, Fu",
+   "Ma, Jie",
+   "Lee, Dasheng",
+   "Wang, Jiayuan",
+   "Tseng, Yen Chieh"
+  ],
+  "year": 2020,
+  "venue": "Applied Energy",
+  "volume": "262",
+  "issue": null,
+  "pages": "114499",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1080/23744731.2020.1795514",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1080/23744731.2020.1795514",
+  "title": "The ASHRAE Great Energy Predictor III competition: Overview and results",
+  "authors": [
+   "Miller, Clayton",
+   "Arjunan, Pandarasamy",
+   "Kathirgamanathan, Anjukan",
+   "Fu, Chun",
+   "Roth, Jonathan",
+   "Park, June Young",
+   "Balbach, Chris",
+   "Gowri, Krishnan",
+   "Nagy, Zoltan",
+   "Fontanini, Anthony D.",
+   "Haberl, Jeff"
+  ],
+  "year": 2020,
+  "venue": "Science and Technology for the Built Environment",
+  "volume": "26",
+  "issue": "10",
+  "pages": "1427-1447",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1561/2200000101",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1561/2200000101",
+  "title": "Conformal Prediction: A Gentle Introduction",
+  "authors": [
+   "Angelopoulos, Anastasios N.",
+   "Bates, Stephen"
+  ],
+  "year": 2023,
+  "venue": "Foundations and Trends\u00ae in Machine Learning",
+  "volume": "16",
+  "issue": "4",
+  "pages": "494-591",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.apenergy.2018.10.078",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.apenergy.2018.10.078",
+  "title": "Probabilistic individual load forecasting using pinball loss guided LSTM",
+  "authors": [
+   "Wang, Yi",
+   "Gan, Dahua",
+   "Sun, Mingyang",
+   "Zhang, Ning",
+   "Lu, Zongxiang",
+   "Kang, Chongqing"
+  ],
+  "year": 2019,
+  "venue": "Applied Energy",
+  "volume": "235",
+  "issue": null,
+  "pages": "10-20",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.ijforecast.2019.07.001",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.ijforecast.2019.07.001",
+  "title": "DeepAR: Probabilistic forecasting with autoregressive recurrent networks",
+  "authors": [
+   "Salinas, David",
+   "Flunkert, Valentin",
+   "Gasthaus, Jan",
+   "Januschowski, Tim"
+  ],
+  "year": 2020,
+  "venue": "International Journal of Forecasting",
+  "volume": "36",
+  "issue": "3",
+  "pages": "1181-1191",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.2307/1913643",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.2307/1913643",
+  "title": "Regression Quantiles",
+  "authors": [
+   "Koenker, Roger",
+   "Bassett, Gilbert"
+  ],
+  "year": 1978,
+  "venue": "Econometrica",
+  "volume": "46",
+  "issue": "1",
+  "pages": "33",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1007/3-540-36755-1_29",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1007/3-540-36755-1_29",
+  "title": "Inductive Confidence Machines for Regression",
+  "authors": [
+   "Papadopoulos, Harris",
+   "Proedrou, Kostas",
+   "Vovk, Volodya",
+   "Gammerman, Alex"
+  ],
+  "year": 2002,
+  "venue": "Lecture Notes in Computer Science",
+  "volume": null,
+  "issue": null,
+  "pages": "345-356",
+  "type": "book-chapter"
+ },
+ {
+  "key": "10.1080/01621459.1972.10481224",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1080/01621459.1972.10481224",
+  "title": "A Decision-Theoretic Approach to Interval Estimation",
+  "authors": [
+   "Winkler, Robert L."
+  ],
+  "year": 1972,
+  "venue": "Journal of the American Statistical Association",
+  "volume": "67",
+  "issue": "337",
+  "pages": "187-191",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1214/aos/1176342360",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1214/aos/1176342360",
+  "title": "A Bayesian Analysis of Some Nonparametric Problems",
+  "authors": [
+   "Ferguson, Thomas S."
+  ],
+  "year": 1973,
+  "venue": "The Annals of Statistics",
+  "volume": "1",
+  "issue": "2",
+  "pages": "209-230",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.2307/3001968",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.2307/3001968",
+  "title": "Individual Comparisons by Ranking Methods",
+  "authors": [
+   "Wilcoxon, Frank"
+  ],
+  "year": 1945,
+  "venue": "Biometrics Bulletin",
+  "volume": "1",
+  "issue": "6",
+  "pages": "80",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.2466/11.IT.3.1",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.2466/11.IT.3.1",
+  "title": "The Simple Difference Formula: An Approach to Teaching Nonparametric Correlation",
+  "authors": [
+   "Kerby, Dave S."
+  ],
+  "year": 2014,
+  "venue": "Comprehensive Psychology",
+  "volume": "3",
+  "issue": null,
+  "pages": "11.IT.3.1",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.knosys.2025.114222",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.knosys.2025.114222",
+  "title": "Mamba based adaptive conformal inference for probabilistic short-term load forecasting",
+  "authors": [
+   "Suresh, Vishnu",
+   "Swain, Anshuman",
+   "Revathi, B. Sri",
+   "Guerrero, Josep M."
+  ],
+  "year": 2025,
+  "venue": "Knowledge-Based Systems",
+  "volume": "328",
+  "issue": null,
+  "pages": "114222",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1016/j.rser.2017.04.095",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1016/j.rser.2017.04.095",
+  "title": "A review of data-driven building energy consumption prediction studies",
+  "authors": [
+   "Amasyali, Kadir",
+   "El-Gohary, Nora M."
+  ],
+  "year": 2018,
+  "venue": "Renewable and Sustainable Energy Reviews",
+  "volume": "81",
+  "issue": null,
+  "pages": "1192-1205",
+  "type": "journal-article"
+ },
+ {
+  "key": "10.1093/jrsssb/qkaf008",
+  "source": "crossref",
+  "ok": true,
+  "doi": "10.1093/jrsssb/qkaf008",
+  "title": "Conformal prediction with conditional guarantees",
+  "authors": [
+   "Gibbs, Isaac",
+   "Cherian, John J",
+   "Cand\u00e8s, Emmanuel J"
+  ],
+  "year": 2025,
+  "venue": "Journal of the Royal Statistical Society Series B: Statistical Methodology",
+  "volume": "87",
+  "issue": "4",
+  "pages": "1100-1126",
+  "type": "journal-article"
+ },
+ {
+  "key": "1905.03222",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformalized Quantile Regression",
+  "authors": [
+   "Yaniv Romano",
+   "Evan Patterson",
+   "Emmanuel J. Cand\u00e8s"
+  ],
+  "year": 2019,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2306.09335",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Class-Conditional Conformal Prediction with Many Classes",
+  "authors": [
+   "Tiffany Ding",
+   "Anastasios N. Angelopoulos",
+   "Stephen Bates",
+   "Michael I. Jordan",
+   "Ryan J. Tibshirani"
+  ],
+  "year": 2023,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "1904.06019",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformal Prediction Under Covariate Shift",
+  "authors": [
+   "Ryan J. Tibshirani",
+   "Rina Foygel Barber",
+   "Emmanuel J. Candes",
+   "Aaditya Ramdas"
+  ],
+  "year": 2019,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2202.07282",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Adaptive Conformal Predictions for Time Series",
+  "authors": [
+   "Margaux Zaffran",
+   "Aymeric Dieuleveut",
+   "Olivier F\u00e9ron",
+   "Yannig Goude",
+   "Julie Josse"
+  ],
+  "year": 2022,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "1912.01703",
+  "source": "arxiv",
+  "ok": true,
+  "title": "PyTorch: An Imperative Style, High-Performance Deep Learning Library",
+  "authors": [
+   "Adam Paszke",
+   "Sam Gross",
+   "Francisco Massa",
+   "Adam Lerer",
+   "James Bradbury",
+   "Gregory Chanan",
+   "Trevor Killeen",
+   "Zeming Lin",
+   "Natalia Gimelshein",
+   "Luca Antiga",
+   "Alban Desmaison",
+   "Andreas K\u00f6pf",
+   "Edward Yang",
+   "Zach DeVito",
+   "Martin Raison",
+   "Alykhan Tejani",
+   "Sasank Chilamkurthy",
+   "Benoit Steiner",
+   "Lu Fang",
+   "Junjie Bai",
+   "Soumith Chintala"
+  ],
+  "year": 2019,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2102.08898",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Few-shot Conformal Prediction with Auxiliary Tasks",
+  "authors": [
+   "Adam Fisch",
+   "Tal Schuster",
+   "Tommi Jaakkola",
+   "Regina Barzilay"
+  ],
+  "year": 2021,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2010.09107",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformal prediction for time series",
+  "authors": [
+   "Chen Xu",
+   "Yao Xie"
+  ],
+  "year": 2020,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2307.00142",
+  "source": "arxiv",
+  "ok": true,
+  "title": "BuildingsBench: A Large-Scale Dataset of 900K Buildings and Benchmark for Short-Term Load Forecasting",
+  "authors": [
+   "Patrick Emami",
+   "Abhijeet Sahu",
+   "Peter Graf"
+  ],
+  "year": 2023,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2106.00170",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Adaptive Conformal Inference Under Distribution Shift",
+  "authors": [
+   "Isaac Gibbs",
+   "Emmanuel Cand\u00e8s"
+  ],
+  "year": 2021,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2305.12616",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformal Prediction With Conditional Guarantees",
+  "authors": [
+   "Isaac Gibbs",
+   "John J. Cherian",
+   "Emmanuel J. Cand\u00e8s"
+  ],
+  "year": 2023,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2508.01418",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Bayesian Conformal Prediction via the Bayesian Bootstrap",
+  "authors": [
+   "Graham Gibson"
+  ],
+  "year": 2025,
+  "journal_ref": null,
+  "doi": null
+ },
+ {
+  "key": "2306.06342",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Distribution-free inference with hierarchical data",
+  "authors": [
+   "Yonghoon Lee",
+   "Rina Foygel Barber",
+   "Rebecca Willett"
+  ],
+  "year": 2023,
+  "journal_ref": null,
+  "doi": null
+ }
+]

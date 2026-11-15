@@ -1,0 +1,45 @@
+{
+ "t_scp": 0.35307884216308594,
+ "aci_gamma": 0.0005,
+ "hsc_K": 50,
+ "hsc_kappa": 168.0,
+ "t_tune_hsc": 11.049602508544922,
+ "t_hsc_apply_per_target_day": 0.00021290061523288075,
+ "hsc_store_MB": 16.078496,
+ "hsc_cqr": {
+  "K": 50,
+  "kappa": 336.0
+ },
+ "ablation_params": {
+  "nostage": {
+   "K": 25,
+   "kappa": 168.0
+  },
+  "noknn": {
+   "K": null,
+   "kappa": 96.0
+  },
+  "noshrink": {
+   "K": 25,
+   "kappa": Infinity
+  }
+ },
+ "t_calibration_total": 56.669172525405884,
+ "train_total": 53.53569149971008,
+ "lgb": 18.546839475631714,
+ "mlp": 22.847010374069214,
+ "n_train_rows": 329567,
+ "pred_lgb_per_target_day": 0.00019552656513754674,
+ "point": {
+  "cvrmse": 0.16737861546794094,
+  "nmae": 0.120036406195321
+ },
+ "point_naive": {
+  "cvrmse": 0.2436093563048292,
+  "nmae": 0.18023206499546116
+ },
+ "point_mlp": {
+  "cvrmse": 0.16748417547180372,
+  "nmae": 0.12418331463314083
+ }
+}

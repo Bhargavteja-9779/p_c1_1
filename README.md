@@ -1,0 +1,81 @@
+# Reliable day-ahead prediction intervals for newly metered buildings (HSC)
+
+Code, data instructions, results and manuscript for the study
+
+> **Per-building reliable prediction intervals for day-ahead load forecasting of newly metered
+> buildings via hierarchical shrinkage conformal calibration**
+> (target journal: *Advances in Applied Energy*, Elsevier).
+
+The study asks how to give **each** newly metered building calibrated 24-h-ahead prediction
+intervals from its first day of data. A global forecaster (LightGBM; also quantile models and MLPs)
+is trained on other buildings. The proposed calibration layer **HSC** starts from the score
+distribution of calibration buildings that are at the same onboarding stage and look similar in their
+first days. It then shrinks toward the building's own accumulating scores, with a pseudo-count κ
+chosen by leave-one-building-out on calibration buildings only.
+
+## 1. Installation
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt          # or: conda env create -f environment.yml
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU build (optional)
+```
+Tested with Python 3.13, numpy 2.5, pandas 3.0, scipy 1.18, LightGBM 4.7, PyTorch 2.15 (CPU),
+matplotlib 3.11 on a 4-core CPU with 16 GB RAM. CUDA or Apple-MPS are used automatically for the
+MLP baselines if available. LightGBM always runs on CPU (deterministic mode).
+
+## 2. Data (downloaded automatically on first run)
+| Dataset | Source | Licence | Used |
+|---|---|---|---|
+| Building Data Genome 2, electricity (cleaned), metadata, weather | github.com/buds-lab/building-data-genome-project-2 (Miller et al., 2020, *Sci. Data* 7:368) | CC-BY-4.0 | 842 buildings / 12 sites after quality filter; 2016 = training/calibration period, 2017 = target period |
+| ElectricityLoadDiagrams20112014 | UCI ML Repository, doi:10.24432/C58C86 | CC-BY-4.0 | 315 clients; 2012–13 training/calibration, 2014 target |
+
+`src/data/datasets.py` downloads the files to `data/raw/` and builds cached arrays in
+`data/processed/`. Quality rules: runs of ≥24 identical readings (outage or stuck meter) are
+treated as missing; gaps ≤6 h are interpolated; buildings need ≤5 % missing hours per period and a
+mean load ≥1 kWh/h.
+
+## 3. Reproduce everything
+```bash
+python run_all.py --mode quick   # ~20–30 min: 1 seed, 10 % of training rows; checks the whole pipeline
+python run_all.py --mode full    # complete study (~4–6 h on 4 CPU cores); resumable
+python run_all.py --mode full --skip-experiments   # rebuild statistics, tables and figures only
+pytest -q tests/                 # leakage guards and calibration unit tests
+python manuscript/build_docx.py  # regenerate the manuscript DOCX from generated tables and figures
+```
+Outputs:
+* `results/raw_results.csv`: one row per (experiment, seed, α, perturbation, method, target building)
+* `results/stage_curves.csv`: coverage and interval score by onboarding day
+* `results/seed_level_metrics.csv`, `results/metrics.json`, `results/statistics.{csv,json}`
+* `results/run_info.json`: tuned κ, K, γ; timings; memory
+* `results/experiment_logs/run.log`
+* `tables/*.md|csv`, `figures/*.pdf|png` (generated, never hand-edited)
+
+## 4. Experimental protocol
+* **Splits:** buildings are disjoint across model-training (50 %, of which 10 % are validation for
+  early stopping), calibration (20 %) and target (30 %) sets. Periods are disjoint too: model and
+  calibration scores come from the training period, and targets are onboarded at a random date in
+  the later period.
+* **Onboarding window:** 56 daily day-ahead forecasts per target. Stage *h* means *h* days of the
+  building's own history were available.
+* **Seeds:** 0–4 (main), 0–2 (robustness and cross-dataset). All are fixed in advance
+  (`experiments/PREREGISTRATION.md`).
+* **Experiments:** E1/E2 main and baselines, E3 ablation, E4 robustness (noise, missing data,
+  ±40 % level shifts, small calibration pools, weak forecaster), E5 leave-site-out and BDG2↔UCI
+  transfer, E6 cost, E7 κ/K/α sensitivity, E8 error analysis.
+
+## 5. Code map
+```
+src/data/datasets.py          download, cleaning, cube representation
+src/preprocessing/features.py cold-start features (history-masked, scale-normalised), descriptors
+src/models/forecasters.py     LightGBM point/quantile, MLP Gaussian/quantile
+src/models/calibration.py     SCP, stage-matched SCP, ACI, HSC (Eq. 3-6 of the manuscript)
+src/training/pipeline.py      splits, training, onboarding windows, all interval methods, tuning
+src/experiments.py            E1-E8 definitions (resumable), sensitivity, examples
+src/evaluation/metrics.py     per-building coverage, width, interval score, MACD
+src/statistics/analysis.py    Wilcoxon/Holm/rank-biserial/cluster bootstrap, tables
+src/visualization/figures.py  all figures
+```
+`config/default.yaml` documents every setting. The code constants it mirrors are authoritative.
+
+## 6. Licence and citation
+Code: MIT. Data: see each source's licence. Please cite the datasets as above.

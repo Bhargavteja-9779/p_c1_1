@@ -22,6 +22,7 @@ def main():
     a = ap.parse_args()
     if not a.skip_experiments:
         ex.execute(a.mode)
+        ex.sensitivity(a.mode)
     ex.collect()
     from src.statistics import analysis
     analysis.run(a.mode)

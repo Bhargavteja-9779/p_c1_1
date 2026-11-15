@@ -1,0 +1,21 @@
+# Configuration of the study (values used in code; changing them changes the experiment)
+horizon_hours: 24              # day-ahead
+onboarding_window_days: 56     # NH, stages h = 1..56
+history_cap_days: 28           # features use at most 28 days
+scale_window_days: 7           # s = mean load of last min(h,7) days
+split_fractions: {train: 0.5, calibration: 0.2, target: 0.3}   # random protocol; 10% of train = validation
+periods: {BDG2: {train: 2016, test: 2017}, UCI: {train: [2012, 2013], test: 2014}}
+alpha_main: 0.1
+alpha_sensitivity: [0.05, 0.2]
+seeds_main: [0, 1, 2, 3, 4]
+seeds_robustness: [0, 1, 2]
+training_row_fraction: {quick: 0.1, full: 0.4}
+lightgbm: {learning_rate: 0.05, num_leaves: 63, min_data_in_leaf: 200, feature_fraction: 0.8,
+           bagging_fraction: 0.8, lambda_l2: 1.0, early_stopping_rounds: 50, max_rounds: 2000}
+mlp: {layers: [256, 256, 128], epochs_max: 12, batch: 4096, lr: 0.001, patience: 3}
+hsc_grid: {kappa_hours: [0, 24, 48, 96, 168, 336, 672, 1344, inf], K: [10, 25, 50, 100, all]}
+aci_grid: {gamma: [0.0005, 0.001, 0.002, 0.005, 0.01]}
+stage_bins_days: [[1], [2], [3], [4, 6], [7, 13], [14, 27], [28, 56]]
+score_grid: {points: 3000, min: -10, max: 60, spacing: asinh}
+data_quality: {stuck_run_hours: 24, interpolate_gap_hours: 6, max_missing_fraction: 0.05,
+               min_mean_kwh: 1.0, max_normalised_training_target: 20, min_valid_window_fraction: 0.8}

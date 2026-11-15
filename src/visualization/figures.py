@@ -47,33 +47,35 @@ def _c(m):
 
 
 def fig_schematic():
-    fig, ax = plt.subplots(figsize=(190 * MM, 62 * MM))
+    fig, ax = plt.subplots(figsize=(190 * MM, 72 * MM))
     ax.set_axis_off()
     ax.set_xlim(0, 100)
-    ax.set_ylim(0, 34)
+    ax.set_ylim(0, 40)
+    fs = 6.2
     boxes = [
-        (1, 20, 20, 11, "Source buildings\n(training set)\nglobal LightGBM / QR\non normalised load y/s"),
-        (1, 3, 20, 13, "Calibration buildings\nsimulated onboarding,\nscores e = |y-ŷ|/s (or CQR)\nper stage h = 1..56"),
-        (27, 3, 21, 13, "Population prior F_prior\nstage-bin matched;\nK nearest buildings by\nearly-load descriptor z"),
-        (27, 20, 21, 11, "New building b\nmetered from day 0;\nfeatures & z from its\nfirst h days only"),
-        (54, 11, 22, 13, "Hierarchical shrinkage\nF = (κ F_prior + Σ 1{e_i ≤ ·})\n      / (κ + n_b + 1)\nq = F⁻¹(1-α)"),
-        (81, 11, 18, 13, "Day-ahead interval\n[lo - q s, hi + q s]\nfor the 24 h of day h+1;\nscores of day h+1\nfed back"),
+        (0.5, 23, 21, 13, "Training buildings\n(source period)\nglobal LightGBM / QR\non normalised load $y/s$"),
+        (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nscores $e=|y-\\hat{y}|/s$\n(or CQR) per stage $h$"),
+        (26, 3, 22, 15, "Population prior $F^{prior}$\nstage-bin matched;\n$K$ nearest buildings\nby load descriptor $z$"),
+        (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures and $z$ from its\nown $h$ days only"),
+        (53, 11, 24, 17, "Hierarchical shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{prior}(e)+\\#\\{i: e_i\\leq e\\}$\n(normalised by $\\kappa+n_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
+        (81, 11, 18.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
     ]
     for x, y, w, h, t in boxes:
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.4,rounding_size=1.2", fc="#f0f5fc",
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.3,rounding_size=1.0", fc="#f0f5fc",
                                     ec="#2a78d6", lw=0.8))
-        ax.text(x + w / 2, y + h / 2, t, ha="center", va="center", fontsize=6.6, color=INK)
+        ax.text(x + w / 2, y + h / 2, t, ha="center", va="center", fontsize=fs, color=INK, linespacing=1.6)
     arr = dict(arrowstyle="-|>", color=INK2, lw=0.8)
-    ax.annotate("", xy=(27, 9.5), xytext=(21.5, 9.5), arrowprops=arr)
-    ax.annotate("", xy=(27, 25.5), xytext=(21.5, 25.5), arrowprops=arr)
-    ax.annotate("", xy=(54, 15), xytext=(48.5, 9.5), arrowprops=arr)
-    ax.annotate("", xy=(54, 20), xytext=(48.5, 25.5), arrowprops=arr)
-    ax.annotate("", xy=(81, 17.5), xytext=(76.5, 17.5), arrowprops=arr)
-    ax.annotate("", xy=(65, 24.6), xytext=(90, 24.6), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.8,
-                                                                        connectionstyle="arc3,rad=0.35"))
-    ax.text(77.5, 31.5, "own scores accumulate (n_b = 24·(h-1))", ha="center", fontsize=6.2, color=INK2)
-    ax.text(38, 1.0, "κ, K chosen by leave-one-building-out on calibration buildings only", ha="center",
-            fontsize=6.2, color=INK2)
+    ax.annotate("", xy=(25.6, 10.5), xytext=(21.9, 10.5), arrowprops=arr)
+    ax.annotate("", xy=(25.6, 29.5), xytext=(21.9, 29.5), arrowprops=arr)
+    ax.annotate("", xy=(52.6, 16), xytext=(48.4, 10.5), arrowprops=arr)
+    ax.annotate("", xy=(52.6, 23), xytext=(48.4, 29.5), arrowprops=arr)
+    ax.annotate("", xy=(80.6, 19.5), xytext=(77.4, 19.5), arrowprops=arr)
+    ax.annotate("", xy=(66, 28.6), xytext=(90, 28.6), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.9,
+                                                                        connectionstyle="arc3,rad=0.45"))
+    ax.text(78, 37.2, "realised scores of day $h+1$ are added to $b$'s own scores ($n_b=24(h-1)$)", ha="center",
+            fontsize=fs, color=INK2)
+    ax.text(24.5, 0.3, "$\\kappa$ and $K$ are chosen by leave-one-building-out on calibration buildings only",
+            ha="center", fontsize=fs, color=INK2)
     _save(fig, "Fig1_method")
 
 
@@ -100,27 +102,40 @@ def fig_data(meta_bdg2, meta_uci, load_b, load_u):
     _save(fig, "Fig2_data")
 
 
+def _blocks(g):
+    """Daily values for days 1-7, then 7-day block means (plotted at block mid-day)."""
+    st = g.stage.values
+    blk = np.where(st <= 7, st, 7 + 7 * ((st - 8) // 7) + 4)
+    return g.assign(x=blk).groupby("x").mean(numeric_only=True).reset_index()
+
+
 def fig_stage_curves(cv, tag):
-    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 100 * MM), sharex=True)
+    meths = ["HSC-CQR", "CQR", "HSC", "SCP-stage", "ACI", "Self-CP", "MLP-QR", "QR-LGBM"]
+    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 110 * MM), sharex=True)
+    fig.subplots_adjust(hspace=0.32, wspace=0.22)
     for j, ds in enumerate(["BDG2", "UCI"]):
         d = cv[cv.part.str.startswith(f"main{tag}_{ds}_s") & cv.part.str.endswith("a0.1")]
         g = d.groupby(["method", "stage"])[["coverage", "rel_IS"]].mean().reset_index()
-        for m in KEY:
+        for m in meths:
             gm = g[g.method == m]
             if not len(gm):
                 continue
-            axs[0, j].plot(gm.stage, gm.coverage, color=_c(m), marker=MARK[m], markersize=2.5, markevery=7,
-                           label=m, lw=1.6 if m.startswith("HSC") else 1.0)
-            axs[1, j].plot(gm.stage, gm.rel_IS, color=_c(m), marker=MARK[m], markersize=2.5, markevery=7,
-                           lw=1.6 if m.startswith("HSC") else 1.0)
+            gb = _blocks(gm)
+            kw = dict(color=_c(m), marker=MARK[m], markersize=3, lw=1.7 if m.startswith("HSC") else 0.9,
+                      ls="-" if m.startswith("HSC") else (0, (3, 1)))
+            axs[0, j].plot(gb.x, gb.coverage, label=m, **kw)
+            axs[1, j].plot(gb.x, gb.rel_IS, **kw)
         axs[0, j].axhline(0.9, color=INK, lw=0.8, ls="--")
-        axs[0, j].set_title(f"{'ab'[j]}  {ds}: mean per-building coverage by onboarding day", loc="left")
+        axs[0, j].set_title(f"{'ab'[j]}  {ds}: mean coverage", loc="left")
         axs[1, j].set_title(f"{'cd'[j]}  {ds}: mean relative interval score", loc="left")
-        axs[1, j].set_xlabel("Days of history h (forecast for day h+1)")
-        axs[1, j].set_yscale("log")
+        axs[1, j].set_xlabel("Days of own history h (daily to h = 7, then weekly means)")
+        axs[0, j].axvspan(0.5, 7.5, color="#f0efec", zorder=0)
+        axs[1, j].axvspan(0.5, 7.5, color="#f0efec", zorder=0)
     axs[0, 0].set_ylabel("Coverage (nominal 0.90)")
-    axs[1, 0].set_ylabel("Rel. interval score (log)")
-    axs[0, 1].legend(ncol=2, frameon=False, loc="lower right")
+    axs[1, 0].set_ylabel("Relative interval score")
+    h, l = axs[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=8, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.02))
+    fig.subplots_adjust(bottom=0.14)
     _save(fig, "Fig3_stage_curves")
 
 
@@ -150,12 +165,14 @@ def fig_tradeoff(s):
         d = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
         g = d.groupby("method")[["macd", "rel_IS"]].agg(["mean", "std"])
         for m in g.index:
-            if m.startswith("HSC ") or m == "Raw-SCP":
+            if m.startswith("HSC ") or m in ("Raw-SCP", "SCP", "Mondrian-usage"):
                 continue
             x, y = g.loc[m, ("rel_IS", "mean")], g.loc[m, ("macd", "mean")]
             axs[j].errorbar(x, y, xerr=g.loc[m, ("rel_IS", "std")], yerr=g.loc[m, ("macd", "std")], fmt=MARK.get(m, "o"),
                             color=_c(m), ms=5 if m in COL else 3.5, elinewidth=0.6, capsize=1.5)
-            axs[j].annotate(m, (x, y), xytext=(4, 3), textcoords="offset points", fontsize=6, color=INK)
+            off = {"QR-LGBM": (-34, 6), "MLP-QR": (5, 3), "CQR": (5, -9), "Self-CP": (5, -2), "HSC": (5, 3),
+                   "MLP-Gauss": (5, -8)}.get(m, (5, 3))
+            axs[j].annotate(m, (x, y), xytext=off, textcoords="offset points", fontsize=6, color=INK)
         axs[j].set_xlabel("Median relative interval score (lower = sharper & valid)")
         axs[j].set_title(f"{'ab'[j]}  {ds}", loc="left")
     axs[0].set_ylabel("MACD = mean |coverage_b − 0.90| (lower = more reliable)")
@@ -199,7 +216,10 @@ def fig_robust(s):
                        label=m)
         axs[j].set_ylabel(lab)
     axs[1].set_xticks(np.arange(len(perts)))
-    axs[1].set_xticklabels(perts, rotation=20)
+    nice = {"noise5": "noise 5%", "noise15": "noise 15%", "missing20": "missing 20%", "missing40": "missing 40%",
+            "shift+40": "level +40%\n(day 28)", "shift-40": "level −40%\n(day 28)", "calpool10": "10% cal.\npool",
+            "calpool25": "25% cal.\npool", "calpool50": "50% cal.\npool", "weak-forecaster": "weak\nforecaster*"}
+    axs[1].set_xticklabels([nice.get(p, p) for p in perts], rotation=0)
     axs[0].legend(ncol=7, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.18))
     axs[0].set_title("a  Per-building miscalibration under stress (BDG2, 3 seeds)", loc="left", pad=14)
     axs[1].set_title("b  Under-coverage", loc="left")
@@ -240,7 +260,8 @@ def fig_sensitivity(tag):
         return
     d = pd.read_csv(p)
     d = d[np.isfinite(d.kappa) | (d.kappa == np.inf)]
-    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 95 * MM))
+    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 100 * MM))
+    fig.subplots_adjust(hspace=0.45, wspace=0.25)
     for j, ds in enumerate(["BDG2", "UCI"]):
         g = d[(d.dataset == ds) & (d.score == "cqr")].groupby(["K", "kappa"])[["macd", "rel_IS"]].mean().reset_index()
         g = g[g.kappa > 0]
@@ -251,6 +272,7 @@ def fig_sensitivity(tag):
                 axs[i, j].plot(xs, gk[metric], marker="o", ms=2.5, lw=1.0,
                                color=["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"][kk], label=f"K={K}")
             axs[i, j].set_xscale("log")
+            axs[i, j].minorticks_off()
             axs[i, j].set_xticks([24, 96, 336, 1344, 3000])
             axs[i, j].set_xticklabels(["24", "96", "336", "1344", "∞"])
             axs[i, j].set_title(f"{'abcd'[2 * i + j]}  {ds}: HSC-CQR {'MACD' if metric == 'macd' else 'median rel. IS'}",
@@ -294,22 +316,27 @@ def fig_examples(tag):
     if not os.path.exists(p):
         return
     d = pd.read_csv(p)
-    fig, axs = plt.subplots(2, 1, figsize=(190 * MM, 85 * MM))
+    fig, axs = plt.subplots(2, 1, figsize=(190 * MM, 95 * MM))
+    fig.subplots_adjust(hspace=0.4)
     for i, pick in enumerate(["p10", "p50"]):
         e = d[(d.pick == pick) & (d.stage <= 10)]
         b = e.building.iloc[0]
-        for m, c in [("CQR", _c("CQR")), ("HSC-CQR", _c("HSC-CQR"))]:
+        em0 = e[e.method == "CQR"].sort_values(["stage", "hour"])
+        t = (em0.stage.values) * 24 + em0.hour.values
+        axs[i].plot(t, em0.y, color=INK, lw=0.8, label="observed", zorder=3)
+        for m, ls in [("CQR", (0, (3, 1.5))), ("HSC-CQR", "-")]:
             em = e[e.method == m].sort_values(["stage", "hour"])
-            t = (em.stage.values - 1) * 24 + em.hour.values + 24
-            axs[i].fill_between(t, em.lo, em.hi, color=c, alpha=0.22 if m == "CQR" else 0.18, lw=0, label=f"{m} 90 % PI")
-        em = e[e.method == "CQR"].sort_values(["stage", "hour"])
-        t = (em.stage.values - 1) * 24 + em.hour.values + 24
-        axs[i].plot(t, em.y, color=INK, lw=0.7, label="observed")
-        axs[i].set_title(f"{'ab'[i]}  {b} ({'10th' if pick == 'p10' else '50th'} percentile of CQR coverage, seed 0)",
-                         loc="left")
+            axs[i].plot(t, em.lo, color=_c(m), lw=0.9, ls=ls, label=f"{m} 90 % bounds")
+            axs[i].plot(t, em.hi, color=_c(m), lw=0.9, ls=ls)
+            miss = (em.y.values < em.lo.values) | (em.y.values > em.hi.values)
+            axs[i].scatter(t[miss], em.y.values[miss], s=9, marker="x" if m == "CQR" else "o", color=_c(m),
+                           zorder=4, linewidths=0.8, facecolors="none" if m == "HSC-CQR" else None,
+                           label=f"missed by {m}")
+        axs[i].set_title(f"{'ab'[i]}  {b}: {'10th' if pick == 'p10' else '50th'} percentile of CQR coverage "
+                         f"(seed 0, first 10 forecast days)", loc="left")
         axs[i].set_ylabel("kWh")
-    axs[1].set_xlabel("Hours since metering started (first 10 forecast days)")
-    axs[0].legend(ncol=3, frameon=False, loc="upper right")
+    axs[1].set_xlabel("Hours since metering started")
+    axs[0].legend(ncol=5, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.32))
     _save(fig, "Fig11_examples")
 
 
