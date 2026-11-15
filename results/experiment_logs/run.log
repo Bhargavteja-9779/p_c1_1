@@ -1,0 +1,18 @@
+[2026-11-15 13:05:49] === run_all mode=quick: 8 jobs ===
+[2026-11-15 13:05:49] train BDG2_BDG2_random_s0_w1_f0.1_m1_tb1.0_quick: train=379 cal=168 tgt=253
+[2026-11-15 13:05:50]   training rows 334,698  validation rows 182,694
+[2026-11-15 13:07:26] === run_all mode=quick: 8 jobs ===
+[2026-11-15 13:08:01] done main_quick_BDG2_s0_a0.1 (50s): HSC IS=0.893 cov=0.898 | SCP-stage IS=1.064
+[2026-11-15 13:08:17] done main_quick_BDG2_s0_a0.05 (16s): HSC IS=1.275 cov=0.952 | SCP-stage IS=1.516
+[2026-11-15 13:08:18] done main_quick_BDG2_s0_a0.1 (52s): HSC IS=0.893 cov=0.898 | SCP-stage IS=1.064
+[2026-11-15 13:08:31] done main_quick_BDG2_s0_a0.2 (14s): HSC IS=0.646 cov=0.801 | SCP-stage IS=0.725
+[2026-11-15 13:08:31] train UCI_UCI_random_s0_w0_f0.1_m1_tb1.0_quick: train=142 cal=63 tgt=95
+[2026-11-15 13:08:32]   training rows 252,834  validation rows 130,920
+[2026-11-15 13:08:43] done main_quick_BDG2_s0_a0.2 (25s): HSC IS=0.646 cov=0.801 | SCP-stage IS=0.725
+[2026-11-15 13:08:43] train UCI_UCI_random_s0_w0_f0.1_m1_tb1.0_quick: train=142 cal=63 tgt=95
+[2026-11-15 13:08:44]   training rows 252,834  validation rows 130,920
+[2026-11-15 13:09:25] done main_quick_UCI_s0_a0.1 (10s): HSC IS=0.739 cov=0.910 | SCP-stage IS=1.046
+[2026-11-15 13:09:31] done main_quick_UCI_s0_a0.05 (6s): HSC IS=0.935 cov=0.959 | SCP-stage IS=1.649
+[2026-11-15 13:09:37] done main_quick_UCI_s0_a0.2 (6s): HSC IS=0.561 cov=0.811 | SCP-stage IS=0.660
+[2026-11-15 13:09:37] train BDG2_BDG2_lso0_s0_w1_f0.1_m1_tb1.0_quick: train=374 cal=179 tgt=248
+[2026-11-15 13:09:37]   training rows 329,567  validation rows 178,891

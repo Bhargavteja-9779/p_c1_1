@@ -8,7 +8,7 @@ Both datasets are converted to a common representation:
 
 Cleaning rules (pre-specified, identical for all methods):
   * gaps of <= 6 consecutive hours are linearly interpolated;
-  * runs of >= 24 consecutive exact zeros are treated as missing (meter outage);
+  * runs of >= 24 consecutive identical readings (zero or constant: outage / stuck meter) are missing;
   * a building is kept if, in every period used (train/calibration/test year), the fraction
     of missing hours is <= 5 % and its mean load is >= 1 kWh/h.
 """
@@ -48,18 +48,22 @@ def download(raw_dir: str) -> None:
 
 
 def _clean_hourly(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply zero-run masking and short-gap interpolation column-wise."""
+    """Stuck-meter masking and short-gap interpolation, column-wise.
+
+    Runs of >= 24 consecutive *identical* readings (zeros or any constant value, i.e. a flat-lined /
+    stuck meter) are set to missing; then gaps of <= 6 h are linearly interpolated.
+    """
     df = df.astype("float64")
     out = df.copy()
     for c in df.columns:
         v = df[c].values.copy()
-        iszero = v == 0
-        if iszero.any():
-            d = np.diff(np.concatenate([[0], iszero.astype(int), [0]]))
+        same = np.concatenate([[False], np.diff(v) == 0])  # equal to previous reading
+        if same.any():
+            d = np.diff(np.concatenate([[0], same.astype(int), [0]]))
             starts, ends = np.where(d == 1)[0], np.where(d == -1)[0]
-            for s, e in zip(starts, ends):
-                if e - s >= 24:  # >= 1 day of exact zeros = outage, not consumption
-                    v[s:e] = np.nan
+            for s_, e_ in zip(starts, ends):
+                if e_ - s_ + 1 >= 24:  # run of >= 24 identical values incl. the first one
+                    v[s_ - 1:e_] = np.nan
         out[c] = v
     out = out.interpolate(limit=6, limit_area="inside", axis=0)
     return out

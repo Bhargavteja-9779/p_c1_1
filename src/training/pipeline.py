@@ -89,7 +89,9 @@ def sample_training(ds, bidx, period, rng, frac):
 def build_xy(ds, B, T, H, use_weather):
     X, y, s = fe.build(ds["load"], ds["temp"], ds["dates"], B, T, H, use_weather)
     yn = y / np.repeat(s, 24)
-    ok = ~np.isnan(yn)
+    # training-only artefact filter: normalised targets > 20 arise from meter restarts after
+    # near-zero/flat-lined history (data errors), not from consumption behaviour
+    ok = ~np.isnan(yn) & (yn <= 20)
     return X[ok], yn[ok]
 
 
@@ -115,9 +117,18 @@ def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, 
     return m
 
 
-def onboard_dates(ds, bidx, period, rng):
+def onboard_dates(ds, bidx, period, rng, min_valid=0.8):
+    """Random onboarding day per building such that >= 80 % of the window's hours are valid."""
     p0, p1 = period
-    return rng.integers(p0, p1 - NH + 1, size=len(bidx))
+    starts = np.arange(p0, p1 - NH + 1)
+    out = np.empty(len(bidx), dtype=int)
+    for i, b in enumerate(bidx):
+        v = (~np.isnan(ds["load"][b, p0:p1 + 1])).mean(axis=1)  # valid share per day
+        cs = np.concatenate([[0], np.cumsum(v)])
+        frac = (cs[starts - p0 + NH + 1] - cs[starts - p0]) / (NH + 1)
+        ok = starts[frac >= min_valid]
+        out[i] = rng.choice(ok) if len(ok) else rng.choice(starts)
+    return out
 
 
 def seasonal_naive(load, B, T, H):
@@ -289,8 +300,15 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     nb = nbrs_by_stage(zt, zc, best["K"])
     q = cb.hsc_quantiles(cc_t, binc, nb, alpha, [best["kappa"]], stages)[0]
     info["t_hsc_apply_per_target_day"] = (time.time() - t0) / (St.shape[0] * NH)
+    info["hsc_store_MB"] = binc.astype(np.float32).nbytes / 1e6 + zc.nbytes / 1e6  # score CDFs + descriptors
     out["HSC"] = band(q)
     info["tune_table"] = tdf
+    # 13 HSC applied to CQR scores (proposed variant)
+    bq, _ = tune_hsc(Scq, PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None], zc, alpha)
+    qq = cb.hsc_quantiles(cb.cum_counts(Stq), bincq, nbrs_by_stage(zt, zc, bq["K"]), alpha, [bq["kappa"]],
+                          stages)[0]
+    out["HSC-CQR"] = band(qq, lo=PT["qlo"], hi=PT["qhi"])
+    info["hsc_cqr"] = bq
     if methods == "all":
         # ablations (each re-tuned on calibration buildings with the component removed)
         b2, _ = tune_hsc(Sc, np.zeros_like(Sc), zc, alpha, stage_matched=False)
@@ -306,12 +324,6 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
         out["HSC -kNN -stage"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [b3["kappa"]], stages,
                                                        stage_matched=False)[0])
         info["ablation_params"] = dict(nostage=b2, noknn=b3, noshrink=b4)
-        # 13 HSC on CQR scores
-        bq, _ = tune_hsc(Scq, PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None], zc, alpha)
-        qq = cb.hsc_quantiles(cb.cum_counts(Stq), bincq, nbrs_by_stage(zt, zc, bq["K"]), alpha, [bq["kappa"]],
-                              stages)[0]
-        out["HSC-CQR"] = band(qq, lo=PT["qlo"], hi=PT["qhi"])
-        info["hsc_cqr"] = bq
     return out, info
 
 
