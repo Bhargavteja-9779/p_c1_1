@@ -112,10 +112,15 @@ def cite(text):
     return text, refs, order
 
 
+DRAFT = False
+
+
 def fill_tokens(text, vals):
     def rep(m):
         k = m.group(1).strip()
         if k not in vals:
+            if DRAFT:
+                return f"[MISSING:{k}]"
             raise KeyError("unfilled token " + k)
         return str(vals[k])
     return re.sub(r"\{\{(.*?)\}\}", rep, text)
@@ -228,5 +233,7 @@ def build(mode="full", out_name="Final_Manuscript"):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", default="full")
+    ap.add_argument("--draft", action="store_true", help="mark missing tokens instead of failing")
     a = ap.parse_args()
+    DRAFT = a.draft
     build(a.mode)

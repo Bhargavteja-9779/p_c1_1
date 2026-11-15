@@ -19,11 +19,12 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   tests/test_core.py (6 passing), run_all.py (--mode quick|full).
 
 ## Experiment status
-- Full run restarted 13:57 UTC after evaluation fix (common evaluation mask; see CHANGELOG). Trainings
-  are cached in results/cache (BDG2 seeds 0-4, UCI seed 0 done). Log: results/experiment_logs/run.log.
-- Interim (pre-fix, BDG2 5 seeds): HSC-CQR MACD 0.018, under-covered 3.4 %; Self-CQR 0.021/6.0 %;
-  ACI-CQR 0.026/9.3 %; CQR 0.038/18.6 %; kNN & stage-matching: no effect (ablation).
-- Background prior-art search agent running (novelty risk).
+- Session limit hit ~14:35 UTC; resumed 21:07 UTC. Full run resumed as two parallel processes
+  (A: main/lso/robust/weak, B: xds); finished parts are skipped. Parts done at resume: main BDG2 s0-4,
+  main UCI s0-1 (all alphas). Log: results/experiment_logs/run.log, full_stdout_{A,B}.log.
+- Sensitivity (E7) + examples still to run after jobs: `python3 -c "...ex.sensitivity('full')"`.
+- Background workflow "pre-review-audit" (prior-art sweep with verification, adversarially verified code
+  audit, journal requirements) running; results to be consolidated in REVIEW/pre_review_audit.md.
 
 ## Manuscript status
 - sections 01 front (tokens), 02 intro, 03 related, 04 method, 05 setup, 09 backmatter drafted.

@@ -1,0 +1,60 @@
+{
+ "t_scp": 0.3079376220703125,
+ "aci_gamma": 0.0005,
+ "hsc_K": 25,
+ "hsc_kappa": 168.0,
+ "t_tune_hsc": 10.986938714981079,
+ "t_hsc_apply_per_target_day": 0.00010919013917277857,
+ "hsc_store_MB": 15.090432,
+ "hsc_cqr": {
+  "K": 100,
+  "kappa": 336.0
+ },
+ "aci_cqr_gamma": 0.001,
+ "ablation_params": {
+  "nostage": {
+   "K": 10,
+   "kappa": 168.0
+  },
+  "noknn": {
+   "K": null,
+   "kappa": 96.0
+  },
+  "noshrink": {
+   "K": 25,
+   "kappa": Infinity
+  }
+ },
+ "ablation_params_cqr": {
+  "nostage": {
+   "K": 50,
+   "kappa": 336.0
+  },
+  "noknn": {
+   "K": null,
+   "kappa": 336.0
+  },
+  "noshrink": {
+   "K": 50,
+   "kappa": Infinity
+  }
+ },
+ "t_calibration_total": 78.40038800239563,
+ "train_total": 221.8168547153473,
+ "lgb": 93.92256879806519,
+ "mlp": 108.36132574081421,
+ "n_train_rows": 1318757,
+ "pred_lgb_per_target_day": 0.00023113370345582537,
+ "point": {
+  "cvrmse": 0.13381264465733766,
+  "nmae": 0.08869028529594616
+ },
+ "point_naive": {
+  "cvrmse": 0.19094935849327863,
+  "nmae": 0.12319720111365608
+ },
+ "point_mlp": {
+  "cvrmse": 0.13100883262645804,
+  "nmae": 0.08656531010838686
+ }
+}

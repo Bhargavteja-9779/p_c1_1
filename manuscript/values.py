@@ -31,6 +31,7 @@ def compute(mode="full"):
     df = df[df.part.str.contains("_quick") == (mode == "quick")]
     s = seed_level(df)
     st = pd.read_csv(os.path.join(RES, "statistics.csv"))
+    st = st[np.isfinite(st.p_holm)] if "p_holm" in st else st
     # seed-level summaries for every experiment/dataset/method
     keys = {("main", "BDG2", "random"): "main_BDG2", ("main", "UCI", "random"): "main_UCI",
             ("lso", "BDG2", "leave-site-out"): "lso_BDG2",
@@ -82,6 +83,8 @@ def compute(mode="full"):
     tag = "_quick" if mode == "quick" else ""
     for d in ["BDG2", "UCI"]:
         parts = [k for k in info if k.startswith(f"main{tag}_{d}_s") and k.endswith("a0.1")]
+        if not parts:
+            continue
         kap = [info[k]["hsc_cqr"]["kappa"] for k in parts]
         K = [info[k]["hsc_cqr"]["K"] for k in parts]
         v[f"tuned_{d}_kappa"] = ", ".join(sorted({("∞" if np.isinf(x) else str(int(x))) for x in kap}))

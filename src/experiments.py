@@ -206,8 +206,10 @@ def plan(mode):
     return jobs, frac, mlp, quick
 
 
-def execute(mode="full"):
+def execute(mode="full", kinds=None):
     jobs, frac, mlp, quick = plan(mode)
+    if kinds is not None:
+        jobs = [j for j in jobs if j["kind"] in kinds]
     tag = "_quick" if quick else ""
     _log(f"=== run_all mode={mode}: {len(jobs)} jobs ===")
     for j in jobs:
