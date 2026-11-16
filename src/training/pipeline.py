@@ -13,6 +13,7 @@ Protocol (manuscript Section 5):
 """
 from __future__ import annotations
 
+import os
 import time
 
 import numpy as np
@@ -157,10 +158,11 @@ def window_predictions(ds, bidx, t0, models, perturb=None):
     srep = np.repeat(s, 24)
     out = dict(y=y.reshape(n, NH, 24), s=s.reshape(n, NH))
     t1 = time.time()
-    out["yhat"] = (models["lgb"].predict(X) * srep).reshape(n, NH, 24)
+    nt_ = int(os.environ.get("OMP_NUM_THREADS", "4"))  # respect single-threaded calibration workers
+    out["yhat"] = (models["lgb"].predict(X, num_threads=nt_) * srep).reshape(n, NH, 24)
     out["t_pred_lgb"] = (time.time() - t1) / (n * NH)
-    out["qlo"] = (models["lgb_lo"].predict(X) * srep).reshape(n, NH, 24)
-    out["qhi"] = (models["lgb_hi"].predict(X) * srep).reshape(n, NH, 24)
+    out["qlo"] = (models["lgb_lo"].predict(X, num_threads=nt_) * srep).reshape(n, NH, 24)
+    out["qhi"] = (models["lgb_hi"].predict(X, num_threads=nt_) * srep).reshape(n, NH, 24)
     if "mlp_g" in models:
         mu, sd = fc.predict_mlp(models["mlp_g"], X)
         out["mu"] = (mu * srep).reshape(n, NH, 24)

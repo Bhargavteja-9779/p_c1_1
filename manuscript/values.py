@@ -13,7 +13,7 @@ RES = os.path.join(ROOT, "results")
 
 
 def _san(m):
-    return m.replace("-", "").replace("+", "").replace(" ", "_")
+    return m.replace("-", "").replace("+", "").replace(" ", "_").replace("(", "").replace(")", "")
 
 
 def compute(mode="full"):

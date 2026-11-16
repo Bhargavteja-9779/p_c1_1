@@ -230,10 +230,14 @@ def train_only(mode="full"):
     _log("=== all trainings cached ===")
 
 
-def execute(mode="full", kinds=None):
+def execute(mode="full", kinds=None, select=None):
+    """Run the experiment plan. kinds: restrict to job kinds; select: optional predicate on the job dict
+    (used to split the calibration pass over several single-threaded processes)."""
     jobs, frac, mlp, quick = plan(mode)
     if kinds is not None:
         jobs = [j for j in jobs if j["kind"] in kinds]
+    if select is not None:
+        jobs = [j for j in jobs if select(j)]
     tag = "_quick" if quick else ""
     _log(f"=== run_all mode={mode}: {len(jobs)} jobs ===")
     for j in jobs:
