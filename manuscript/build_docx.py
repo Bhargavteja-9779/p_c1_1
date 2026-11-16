@@ -220,7 +220,8 @@ def build(mode="full", out_name="Final_Manuscript"):
     refdoc = os.path.join(HERE, "reference_style.docx")
     make_reference_docx(refdoc)
     out = os.path.join(HERE, out_name + ".docx")
-    subprocess.run(["pandoc", md, "-o", out, "--reference-doc", refdoc, "--resource-path", ROOT,
+    # --columns large: pandoc then does not impose relative column widths on pipe tables (auto-fit in Word)
+    subprocess.run(["pandoc", md, "-o", out, "--reference-doc", refdoc, "--resource-path", ROOT, "--columns", "1000",
                     "-f", "markdown+tex_math_dollars+pipe_tables+implicit_figures"], check=True, cwd=ROOT)
     postprocess(out)
     # PDF: standalone HTML with MathML printed by headless Chromium (LibreOffice drops OMML without its Math
