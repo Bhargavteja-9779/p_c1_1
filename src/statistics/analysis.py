@@ -33,7 +33,8 @@ ORDER = ["HSC-CQR", "HSC-CQR simple", "HSC", "HSC simple", "CQR", "Self-CQR", "A
 
 
 def load():
-    df = pd.read_csv(os.path.join(RES, "raw_results.csv"))
+    f = os.path.join(RES, "raw_results.csv")
+    df = pd.read_csv(f if os.path.exists(f) else f + ".gz")
     df["nominal"] = df["alpha"].map(NOM)
     df["abs_dev"] = (df["coverage"] - df["nominal"]).abs()
     df["under"] = (df["coverage"] < df["nominal"] - 0.05).astype(float)

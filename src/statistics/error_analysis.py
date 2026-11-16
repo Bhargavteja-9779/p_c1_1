@@ -40,7 +40,8 @@ def _indicators(ds_name, seed, frac=0.4):
 
 
 def run():
-    df = pd.read_csv(os.path.join(RES, "raw_results.csv"))
+    f = os.path.join(RES, "raw_results.csv")
+    df = pd.read_csv(f if os.path.exists(f) else f + ".gz")
     out = {}
     for ds in ["BDG2", "UCI"]:
         d = df[(df.exp == "main") & (df.dataset == ds) & (df.alpha == 0.1)]

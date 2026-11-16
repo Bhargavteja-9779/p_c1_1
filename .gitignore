@@ -8,3 +8,4 @@ checkpoints/
 # live, regenerated intermediates (consolidated outputs are committed: results/raw_results.csv etc.)
 results/parts/
 results/experiment_logs/*.log
+results/raw_results.csv
