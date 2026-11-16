@@ -64,7 +64,7 @@ def summary_table(s, exp, dataset=None, protocol=None, perturb="none", alpha=0.1
         out[c] = agg[(c, "mean")]
         out[c + "_sd"] = agg[(c, "std")].fillna(0)
     out["n_seeds"] = t.groupby("method").seed.nunique()
-    order = [m for m in (methods or ORDER) if m in out.index]
+    order = list(dict.fromkeys(m for m in (methods or ORDER) if m in out.index))  # unique, ordered
     return out.loc[order]
 
 

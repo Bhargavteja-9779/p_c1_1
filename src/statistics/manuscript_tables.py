@@ -64,23 +64,29 @@ def main_table(s, ds, quick=False):
 def tests_table(st):
     rows = []
     t = st[(st.perturb == "none") & (st.alpha == 0.1) & (st.proposed == "HSC-CQR") & (st.protocol == "random")]
-    for _, r in t.iterrows():
-        if r.baseline in ("HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "HSC-CQR simple", "SCP-stage", "ACI",
-                          "Self-CP", "Mondrian-usage", "Naive+SCP", "HSC"):
-            continue
-        ci = ([float(x) for x in r.ci95_mean_diff.strip("[]").split(",")] if isinstance(r.ci95_mean_diff, str)
-              else r.ci95_mean_diff)
-        rows.append({"Data": r.dataset, "Baseline": r.baseline,
-                     "Metric": "Rel. IS" if r.metric == "rel_IS" else "|cov − 0.9|",
-                     "n": int(r.n_buildings), "Mean diff. [95 % CI]": f"{r.mean_diff:+.4f} [{ci[0]:+.4f}, {ci[1]:+.4f}]",
-                     "HSC-CQR better (%)": f"{100 * r.share_proposed_better:.0f}",
-                     "r_rb": f"{r.rank_biserial:+.2f}",
-                     "p (Holm)": "<0.001" if r.p_holm < 0.001 else f"{r.p_holm:.3f}"})
+    keep = ["CQR", "QShrink-CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss",
+            "HSC-CQR fixed-κ"]
+    for ds in ["BDG2", "UCI"]:
+        for bl in keep:
+            for metric, lab in [("abs_dev", "CD"), ("rel_IS", "IS")]:
+                r = t[(t.dataset == ds) & (t.baseline == bl) & (t.metric == metric)]
+                if not len(r):
+                    continue
+                r = r.iloc[0]
+                ci = ([float(x) for x in r.ci95_mean_diff.strip("[]").split(",")] if isinstance(r.ci95_mean_diff, str)
+                      else r.ci95_mean_diff)
+                rows.append({"Data": ds, "Baseline": bl, "Metric": lab, "n": int(r.n_buildings),
+                             "Mean diff.": f"{r.mean_diff:+.4f}", "95 % CI": f"[{ci[0]:+.4f}, {ci[1]:+.4f}]",
+                             "Better (%)": f"{100 * r.share_proposed_better:.0f}",
+                             "r_rb": f"{r.rank_biserial:+.2f}",
+                             "p (Holm)": "<0.001" if r.p_holm < 0.001 else f"{r.p_holm:.3f}"})
     _write("MS_tests", pd.DataFrame(rows),
-           "Paired per-building comparison of HSC-CQR with each baseline (random-building protocol, 90 %). Mean diff. = "
-           "HSC-CQR minus baseline (negative = HSC-CQR better), averaged over buildings; 95 % CI by site-cluster bootstrap "
-           "(BDG2) or building bootstrap (UCI); r_rb = matched-pairs rank-biserial correlation (positive = HSC-CQR "
-           "better); p = two-sided Wilcoxon signed-rank, Holm-adjusted within dataset and metric.")
+           "Paired per-building comparison of HSC-CQR with each baseline (random-building protocol, nominal 90 %). "
+           "CD = absolute coverage deviation |cov_b − 0.9|; IS = relative interval score. Mean diff. = HSC-CQR minus "
+           "baseline, averaged over buildings (negative = HSC-CQR better); 95 % CI by site-cluster bootstrap (BDG2) or "
+           "building bootstrap (UCI); Better = share of buildings for which HSC-CQR is better; r_rb = matched-pairs "
+           "rank-biserial correlation (positive = HSC-CQR better); p = two-sided Wilcoxon signed-rank, Holm-adjusted "
+           "within dataset and metric.")
 
 
 def ablation_table(s):

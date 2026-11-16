@@ -1,0 +1,3 @@
+Data,Training rows (M),"LightGBM training, 3 models (s)","MLP training, 2 models (s)",LightGBM inference (ms / building-day),"HSC tuning, LOBO (s)",HSC update (ms / building-day),HSC store (MB)
+BDG2,1.32,106,92,0.668,36.7,0.437,19.8
+UCI,1.00,298,239,0.106,9.6,0.172,7.4

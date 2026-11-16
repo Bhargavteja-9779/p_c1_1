@@ -37,6 +37,11 @@ with $\hat y^{\mathrm{lo}}=\hat y^{\mathrm{hi}}=\hat y$ for the absolute score. 
 
 ## Hierarchical shrinkage conformal calibration (HSC)
 
+Fig. [-@fig:method] summarises the calibration layer.
+
+![Calibration layer for newly metered buildings. A global forecaster is trained on scale-normalised loads of training buildings; calibration buildings provide nonconformity scores per onboarding stage; for a new building, a population prior (optionally stage-matched and similarity-localised) is shrunk toward the building's own accumulating scores with pseudo-count κ; κ and K are chosen by leave-one-building-out on calibration buildings only.](figures/Fig1_method.png){#fig:method}
+
+
 Split conformal prediction [@vovk2005; @lei2018] would set $q$ to the $\lceil(1-\alpha)(N+1)\rceil$-th smallest of $N$ pooled calibration scores. This gives coverage that is valid on average over exchangeable test points. It cannot adapt to an individual building whose errors are systematically larger or smaller than average, which is precisely the situation of a building that has just been metered. HSC combines three elements.
 
 **(i) Onboarding-stage matching.** Forecast errors depend on how much history is available. Calibration scores are therefore grouped into stage bins $\mathcal B\in\{\{1\},\{2\},\{3\},\{4..6\},\{7..13\},\{14..27\},\{28..56\}\}$, and a forecast at stage $h$ is calibrated with scores from the bin $\mathcal B(h)$ containing $h$.

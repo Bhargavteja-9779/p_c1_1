@@ -142,24 +142,25 @@ def make_reference_docx(path):
         if f is not None:
             f.name = "Times New Roman"
             f.color.rgb = None
+    by = {st.name: st for st in d.styles}
     for name in ["Normal", "Body Text", "First Paragraph", "Compact", "Bibliography", "Block Text"]:
-        if name in [s.name for s in d.styles]:
-            s = d.styles[name]
+        if name in by:
+            s = by[name]
             s.font.size = Pt(12)
             s.paragraph_format.line_spacing_rule = WD_LINE_SPACING.DOUBLE
             s.paragraph_format.space_after = Pt(0)
     for name, size in [("Heading 1", 13), ("Heading 2", 12), ("Heading 3", 12), ("Title", 16)]:
-        if name in [s.name for s in d.styles]:
-            s = d.styles[name]
+        if name in by:
+            s = by[name]
             s.font.size = Pt(size)
             s.font.bold = True
             s.font.italic = name == "Heading 3"
             s.paragraph_format.space_before = Pt(12)
             s.paragraph_format.space_after = Pt(6)
     for name in ["Caption", "Image Caption", "Table Caption"]:
-        if name in [s.name for s in d.styles]:
-            d.styles[name].font.size = Pt(10)
-            d.styles[name].font.italic = False
+        if name in by:
+            by[name].font.size = Pt(10)
+            by[name].font.italic = False
     for sec in d.sections:
         sec.left_margin = sec.right_margin = Cm(2.5)
         sec.top_margin = sec.bottom_margin = Cm(2.5)
@@ -193,7 +194,8 @@ def postprocess(path):
                 it.text = txt
                 r._r.append(it)
     for tb in d.tables:
-        tb.style = d.styles["Table"] if "Table" in [s.name for s in d.styles] else tb.style
+        sty = {st.name: st for st in d.styles}
+        tb.style = sty["Table"] if "Table" in sty else tb.style
         for row in tb.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
@@ -221,9 +223,17 @@ def build(mode="full", out_name="Final_Manuscript"):
     subprocess.run(["pandoc", md, "-o", out, "--reference-doc", refdoc, "--resource-path", ROOT,
                     "-f", "markdown+tex_math_dollars+pipe_tables+implicit_figures"], check=True, cwd=ROOT)
     postprocess(out)
+    # PDF: standalone HTML with MathML printed by headless Chromium (LibreOffice drops OMML without its Math
+    # module; no LaTeX engine is assumed). The DOCX remains the primary submission file.
     try:
-        subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", HERE, out], check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+        html = os.path.join(HERE, out_name + ".html")
+        subprocess.run(["pandoc", md, "-o", html, "--mathml", "--standalone", "--embed-resources",
+                        "--css", os.path.join(HERE, "print.css"), "--resource-path", ROOT,
+                        "--metadata", "pagetitle=Manuscript",
+                        "-f", "markdown+tex_math_dollars+pipe_tables+implicit_figures"], check=True, cwd=ROOT)
+        subprocess.run(["node", os.path.join(ROOT, "scripts", "html2pdf.js"), html,
+                        os.path.join(HERE, out_name + ".pdf")], check=True, cwd=ROOT, timeout=600)
+        os.remove(html)
     except Exception as e:  # PDF is optional
         print("PDF conversion failed:", e)
     print("built", out)

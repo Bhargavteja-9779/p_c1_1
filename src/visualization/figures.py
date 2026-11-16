@@ -115,7 +115,8 @@ def fig_stage_curves(cv, tag):
     fig.subplots_adjust(hspace=0.32, wspace=0.22)
     for j, ds in enumerate(["BDG2", "UCI"]):
         d = cv[cv.part.str.startswith(f"main{tag}_{ds}_s") & cv.part.str.endswith("a0.1")]
-        g = d.groupby(["method", "stage"])[["coverage", "rel_IS"]].mean().reset_index()
+        col_is = "rel_IS_median" if "rel_IS_median" in d.columns else "rel_IS"
+        g = d.groupby(["method", "stage"])[["coverage", col_is]].mean().reset_index().rename(columns={col_is: "rel_IS"})
         for m in meths:
             gm = g[g.method == m]
             if not len(gm):
@@ -127,12 +128,12 @@ def fig_stage_curves(cv, tag):
             axs[1, j].plot(gb.x, gb.rel_IS, **kw)
         axs[0, j].axhline(0.9, color=INK, lw=0.8, ls="--")
         axs[0, j].set_title(f"{'ab'[j]}  {ds}: mean coverage", loc="left")
-        axs[1, j].set_title(f"{'cd'[j]}  {ds}: mean relative interval score", loc="left")
+        axs[1, j].set_title(f"{'cd'[j]}  {ds}: median relative interval score", loc="left")
         axs[1, j].set_xlabel("Days of own history h (daily to h = 7, then weekly means)")
         axs[0, j].axvspan(0.5, 7.5, color="#f0efec", zorder=0)
         axs[1, j].axvspan(0.5, 7.5, color="#f0efec", zorder=0)
     axs[0, 0].set_ylabel("Coverage (nominal 0.90)")
-    axs[1, 0].set_ylabel("Relative interval score")
+    axs[1, 0].set_ylabel("Median relative interval score")
     h, l = axs[0, 0].get_legend_handles_labels()
     fig.legend(h, l, ncol=4, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.05))
     fig.subplots_adjust(bottom=0.14)
@@ -160,24 +161,32 @@ def fig_cov_dist(df):
 
 
 def fig_tradeoff(s):
-    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 70 * MM))
-    for j, ds in enumerate(["BDG2", "UCI"]):
-        d = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
-        g = d.groupby("method")[["macd", "rel_IS"]].agg(["mean", "std"])
-        for m in g.index:
-            if m.startswith(("HSC ", "HSC-CQR -")) or m in ("Raw-SCP", "SCP", "Mondrian-usage", "HSC-CQR fixed-κ"):
-                continue
-            x, y = g.loc[m, ("rel_IS", "mean")], g.loc[m, ("macd", "mean")]
-            axs[j].errorbar(x, y, xerr=g.loc[m, ("rel_IS", "std")], yerr=g.loc[m, ("macd", "std")], fmt=MARK.get(m, "o"),
-                            color=_c(m), ms=5 if m in COL else 3.5, elinewidth=0.6, capsize=1.5)
-            off = {"QR-LGBM": (-34, 6), "MLP-QR": (5, 3), "CQR": (5, -9), "Self-CP": (5, -2), "HSC": (5, 3),
-                   "MLP-Gauss": (5, -8), "HSC-CQR simple": (5, -9), "Self-CQR": (5, 2), "ACI-CQR": (5, -8),
-                   "QShrink-CQR": (5, 3), "GHCP-CQR": (5, 3), "TQA-B-CQR": (5, 3), "CQR (MLP)": (-38, -9),
-                   "HSC-CQR (MLP)": (5, -2)}.get(m, (5, 3))
-            axs[j].annotate(m, (x, y), xytext=off, textcoords="offset points", fontsize=6, color=INK)
-        axs[j].set_xlabel("Median relative interval score (lower = sharper & valid)")
-        axs[j].set_title(f"{'ab'[j]}  {ds}", loc="left")
-    axs[0].set_ylabel("MACD = mean |coverage_b − 0.90| (lower = more reliable)")
+    """Dot plot (no label overlap): methods sorted by BDG2 MACD; MACD and median relative IS; both datasets."""
+    meths = ["HSC-CQR simple", "HSC-CQR", "HSC-CQR (MLP)", "QShrink-CQR", "Self-CQR", "ACI-CQR", "Self-CP", "HSC",
+             "TQA-B-CQR", "GHCP-CQR", "CQR", "CQR (MLP)", "MLP-QR", "MLP-Gauss", "QR-LGBM", "ACI", "SCP-stage",
+             "Mondrian-usage", "Naive+SCP"]
+    d = s[(s.exp == "main") & (s.alpha == 0.1) & (s.perturb == "none")]
+    g = d.groupby(["dataset", "method"])[["macd", "rel_IS"]].agg(["mean", "std"])
+    meths = [m for m in meths if ("BDG2", m) in g.index]
+    meths = sorted(meths, key=lambda m: g.loc[("BDG2", m), ("macd", "mean")])
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 95 * MM), sharey=True)
+    y = np.arange(len(meths))[::-1]
+    for j, (metric, lab) in enumerate([("macd", "MACD (lower = more reliable per building)"),
+                                       ("rel_IS", "Median relative interval score (lower = better)")]):
+        for k, (ds, col, mk) in enumerate([("BDG2", "#2a78d6", "o"), ("UCI", "#eb6834", "s")]):
+            mu = [g.loc[(ds, m), (metric, "mean")] if (ds, m) in g.index else np.nan for m in meths]
+            sd = [g.loc[(ds, m), (metric, "std")] if (ds, m) in g.index else np.nan for m in meths]
+            axs[j].errorbar(mu, y + (0.15 if k == 0 else -0.15), xerr=sd, fmt=mk, color=col, ms=3.5, elinewidth=0.6,
+                            capsize=1.2, label=ds)
+        axs[j].set_xlabel(lab)
+        axs[j].set_title(f"{'ab'[j]}", loc="left")
+        axs[j].grid(axis="y", color="#f0efec")
+    axs[0].set_yticks(y)
+    axs[0].set_yticklabels(meths)
+    for t in axs[0].get_yticklabels():
+        if t.get_text().startswith("HSC-CQR"):
+            t.set_fontweight("bold")
+    axs[0].legend(frameon=False, loc="upper right")
     _save(fig, "Fig5_tradeoff")
 
 

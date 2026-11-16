@@ -19,21 +19,17 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   tests/test_core.py (6 passing), run_all.py (--mode quick|full).
 
 ## Experiment status
-- Session limit hit ~14:35 UTC; resumed 21:07 UTC. Full run resumed as two parallel processes
-  (A: main/lso/robust/weak, B: xds); finished parts are skipped. Parts done at resume: main BDG2 s0-4,
-  main UCI s0-1 (all alphas). Log: results/experiment_logs/run.log, full_stdout_{A,B}.log.
-- Sensitivity (E7) + examples still to run after jobs: `python3 -c "...ex.sensitivity('full')"`.
-- Background workflow "pre-review-audit" (prior-art sweep with verification, adversarially verified code
-  audit, journal requirements) running; results to be consolidated in REVIEW/pre_review_audit.md.
+- FINAL calibration pass complete (2026-11-16 17:19-18:00 UTC): 74 parts (main 30, LSO 5, cross-dataset 9,
+  robustness 30) + sensitivity + examples, all with the audited code. Analysis/tables/figures regenerated.
 
 ## Manuscript status
-- sections 01 front (tokens), 02 intro, 03 related, 04 method, 05 setup, 09 backmatter drafted.
-- Results/discussion/conclusion to be written from full results (tokens via manuscript/values.py).
+- v1 built 2026-11-16 ~18:20 UTC: manuscript/Final_Manuscript.{docx,pdf,md}, supplementary, highlights,
+  title page, claim-evidence map (REVIEW/claim_evidence_map.md). Novelty re-scoped (comparison study +
+  design evidence; no new-mechanism claim).
 
 ## Exact next step
-1. Wait for full run; then `python run_all.py --mode full --skip-experiments`.
-2. Write 06_results, 07_discussion, 08_conclusion; build DOCX (manuscript/build_docx.py).
-3. Start review cycle 1 (10 reviewer agents) -> REVIEW/review_01.md.
+Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
+consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
