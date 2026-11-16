@@ -69,9 +69,21 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
         rng = np.random.default_rng(500 + seed)
         sp["train"] = np.sort(rng.choice(sp["train"], max(10, int(train_frac_buildings * len(sp["train"]))), replace=False))
     tgt_idx = sp["tgt"] if src == tgt else pl.split(dsT, seed, "random")["tgt"]
-    _log(f"train {key}: train={len(sp['train'])} cal={len(sp['cal'])} tgt={len(tgt_idx)}")
+    # trained models depend only on the source configuration (not on the target dataset): cache them separately
+    mkey = f"MODELS_{src}_{protocol}{'' if fold is None else fold}_s{seed}_w{int(use_weather)}_f{frac}_m{int(with_mlp)}_tb{train_frac_buildings}{tag}"
+    mpath = os.path.join(CACHE, mkey + ".pkl")
     t0 = time.time()
-    models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log)
+    if os.path.exists(mpath):
+        with open(mpath, "rb") as f:
+            models = pickle.load(f)
+        _log(f"reuse models {mkey} for {key}")
+    else:
+        _log(f"train {key}: train={len(sp['train'])} cal={len(sp['cal'])} tgt={len(tgt_idx)}")
+        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log)
+        models["time_train_total"] = time.time() - t0
+        os.makedirs(CACHE, exist_ok=True)
+        with open(mpath, "wb") as f:
+            pickle.dump(models, f)
     rng = np.random.default_rng(2000 + seed)
     trS, _ = pl.periods(dsS)
     _, teT = pl.periods(dsT)
@@ -80,7 +92,8 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
     PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
     PT = pl.window_predictions(dsT, tgt_idx, t0t, models)
     obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, t0c=t0c, t0t=t0t, models=models,
-               timing=dict(train_total=time.time() - t0, lgb=models["time_lgb"], mlp=models.get("time_mlp"),
+               timing=dict(train_total=models.get("time_train_total", time.time() - t0), lgb=models["time_lgb"],
+                           mlp=models.get("time_mlp"),
                            n_train_rows=models["n_train_rows"], pred_lgb_per_target_day=PT["t_pred_lgb"]))
     os.makedirs(CACHE, exist_ok=True)
     with open(path, "wb") as f:
