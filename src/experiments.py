@@ -108,7 +108,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
                                    methods=methods)
     if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
         for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR", "Self-CQR", "ACI-CQR", "HSC-CQR -stage", "HSC-CQR -kNN",
-                  "HSC-CQR -shrink"]:
+                  "HSC-CQR -shrink", "GHCP-CQR", "QShrink-CQR", "TQA-B-CQR", "HSC-CQR simple", "CQR (MLP)",
+                  "HSC-CQR (MLP)"]:
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     ok = pl.common_mask(out, PT)
@@ -204,6 +205,29 @@ def plan(mode):
         jobs.append(dict(kind="robust", ds="BDG2", seed=s))
         jobs.append(dict(kind="weak", ds="BDG2", seed=s))
     return jobs, frac, mlp, quick
+
+
+def train_only(mode="full"):
+    """Train (and cache) every model/prediction set needed by the plan, without calibration."""
+    jobs, frac, mlp, quick = plan(mode)
+    tag = "_quick" if quick else ""
+    for j in jobs:
+        try:
+            k = j["kind"]
+            if k in ("main", "robust"):
+                ds = get_ds(j["ds"])
+                prepared(j["ds"], j["ds"], j["seed"], "random", None, ds["temp"] is not None, frac, mlp, tag=tag)
+            elif k == "lso":
+                prepared("BDG2", "BDG2", j["seed"], "lso", j["seed"], True, frac, mlp, tag=tag)
+            elif k == "xds":
+                prepared(j["src"], j["tgt"], j["seed"], "random", None, False, frac, mlp, tag=tag)
+            elif k == "weak":
+                prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, train_frac_buildings=0.1,
+                         tag=tag)
+        except Exception as e:
+            import traceback
+            _log(f"FAILED training {j}: {e}\n{traceback.format_exc()}")
+    _log("=== all trainings cached ===")
 
 
 def execute(mode="full", kinds=None):

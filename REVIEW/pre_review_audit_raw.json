@@ -1,0 +1,547 @@
+{
+ "prior": {
+  "raw_count": 30,
+  "unique": [
+   {
+    "citation": "Shahid NF. When Average Calibration Fails: Site-Conditional Federated Conformal Risk Control. arXiv preprint (v1 18 Jun 2026, v3 24 Jul 2026); arXiv comment: 'Submitted to the DeCaF Workshop at MICCAI 2026'.",
+    "identifier": "arXiv:2606.20115",
+    "what_it_does": "Uses FeTS-2022 brain-tumour data (1,251 subjects, 20 institutions). A single pooled conformal-risk-control threshold misses the FNR target at 40% of sites. The paper proposes 'risk-curve shrinkage': R_k^shrink(lambda) = w_k*R_k(lambda) + (1-w_k)*R_global(lambda) + corr_k, with w_k = n_k/(n_k+n0). The paper calls this 'the standard empirical Bayes form where n0 acts as prior precision'. n0 is picked by leave-one-site-out sensitivity analysis (n0=19 gives 2.7/20 violating sites at a 2.0x stretch). Results are reported per site (violation counts, worst-site FNR).",
+    "closeness": "High",
+    "difference_to_HSC": "The mechanism is essentially HSC's: one pseudo-count weight n/(n+n0) mixes a unit's own calibration curve with a pooled curve (for coverage, a risk curve is 1 minus the score CDF). It also uses leave-one-unit-out tuning and per-unit evaluation. Differences: (1) it is conformal risk control for segmentation FNR, not regression intervals. (2) The units are existing sites with fixed calibration sets; the paper does not address a new site joining with few samples. (3) The prior is the sample-size-weighted global pool, with no similarity (kNN) prior and no stage matching. This fits HSC's own ablation finding that shrinkage, not the prior, is the active ingredient. (4) It adds an ad hoc correction term, the paper calls it 'a heuristic interpolation', there is no guarantee, and n0 is chosen on the same test partitions. It is a workshop preprint. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract; arXiv abs page (versions/comments); arXiv HTML full text v3 read via WebFetch (Eq. 2, weight definition, LOSO selection, per-site metrics)"
+   },
+   {
+    "citation": "Mallick S, Tchetgen Tchetgen E, Dobriban E, Lee Y. Generalized Hierarchical Conformal Prediction. arXiv preprint, 16 Aug 2026 (stat.ME).",
+    "identifier": "arXiv:2608.15500",
+    "what_it_does": "Covers prediction for a group after a few (o) of its observations are already collected. Standard hierarchical conformal prediction (HCP) cannot use these, and within-group conformal is uninformative at small o. GHCP restores exchangeability by giving the test group a randomly 'donated' group size. It splits the o observations: floor(o/2) fit a local predictor that is shrunk toward the global one (lambda = floor(o/2)/(|S_train|+floor(o/2))). The rest are held-out scores, pooled with the reference groups' scores in one weighted empirical distribution (Eq. 5). Each reference group gets total weight 1/(|S_cal|+1); the test group gets the same share, with its unobserved part placed at +infinity. Theorem 2.1 proves a finite-sample marginal guarantee. A restricted-donor variant is included. Evaluation uses simulations and the American Community Survey with o in {0,5,10,15,20}.",
+    "closeness": "High",
+    "difference_to_HSC": "Same problem as HSC: a new unit with a few of its own observations, whose own scores are pooled with population scores. GHCP has a finite-sample marginal guarantee; HSC has none. In GHCP the test group's own scores never weigh more than one group's share (1/(K+1)). In HSC the own-score weight n_b/(kappa+n_b+1) grows until the own scores dominate. GHCP has no tuned kappa, no similarity prior and no stage matching. It shrinks the predictor rather than the score CDF, uses unnormalised absolute residuals, and treats o as fixed rather than a growing sequence; there is no time series. Only marginal coverage is reported; I saw no per-group coverage distribution, but the appendix was not fully read. This is the principled counterpart HSC should discuss, and ideally run as a baseline. Not cited in manuscript/references.py; its predecessor Lee et al. 2023 (lee2023hier) is cited.",
+    "evidence_source": "arXiv API abstract; arXiv abs page; arXiv HTML full text v1 read via WebFetch (Eq. 3 and 5, Theorem 2.1, experimental settings). The last ~106k characters were not read."
+   },
+   {
+    "citation": "Rafe A, Das S. Socio-Conformal Calibration in Complex Survey Data: Marginal Validity Is Not Enough for Subgroup Reliability. arXiv preprint, 7 May 2026.",
+    "identifier": "arXiv:2605.05562",
+    "what_it_does": "Ordinal conformal prediction on the Pew American Trends Panel (Wave 152; n=4,591; 12 race x education subgroups) over 100 respondent-disjoint splits. It compares split conformal, Mondrian, and a 'regularized Mondrian' comparator: q_g^reg = w_g*q_g + (1-w_g)*q_global, with w_g = n_g/(n_g+lambda) and lambda = 50 fixed. The comparator is motivated by James-Stein shrinkage and 'partial pooling in hierarchical models'. The authors call it 'an empirical comparator, not a theorem-backed contribution'. It reduces threshold instability but gives no decisive fairness gain. The main metric is the survey-weighted subgroup coverage gap.",
+    "closeness": "High",
+    "difference_to_HSC": "Same n/(n+lambda) shrinkage toward a pooled calibration, but applied to quantile thresholds rather than score CDFs. lambda is fixed rather than tuned leave-one-building-out. The groups are static demographic cells, not new units accumulating data; the prior is global with no neighbour prior; the task is classification sets. The neutral or negative result contrasts with HSC's gains and shows the benefit of shrinkage depends on the setting. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract; arXiv HTML full text read via WebFetch (Eq. 4, Appendix B on lambda); first surfaced by a WebSearch for empirical-Bayes Mondrian shrinkage"
+   },
+   {
+    "citation": "Lin Z, Trivedi S, Sun J. Conformal Prediction with Temporal Quantile Adjustments. Advances in Neural Information Processing Systems 35 (NeurIPS 2022), pp. 31017-31030.",
+    "identifier": "arXiv:2205.09940; https://proceedings.neurips.cc/paper_files/paper/2022/hash/c8d2860e1b51a1ffadc7ed0a06f8d8f5-Abstract.html",
+    "what_it_does": "Prediction intervals for cross-sectional time series (for example, patients). The split-conformal quantile is taken over other series' scores at the same time step. TQA adjusts the queried quantile for each series using its own past: TQA-B predicts a rank from an exponentially decayed mean of the series' own residuals; TQA-E uses an ACI-like update delta <- delta + gamma*(err - alpha) on the series' own miscoverages. The paper separates cross-sectional from longitudinal (per-series) coverage. It reports 'tail coverage' = average coverage of the least-covered 10% of series.",
+    "closeness": "High",
+    "difference_to_HSC": "Same evaluation lens: per-unit (longitudinal) coverage and its lower tail, close in spirit to HSC's P10 coverage and share of buildings under 0.85. Also the same structure of population calibration plus the unit's own history. TQA moves the quantile level instead of mixing population and own score distributions with a pseudo-count, and has no similarity prior or onboarding-stage indexing. Its data are health, insurance, COVID, EEG and GEFCom2014 load (days as units). TQA-E is close to HSC's ACI baseline; TQA-B would be a distinct, relevant baseline. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract; WebSearch result giving the NeurIPS 2022 proceedings entry and pages; ar5iv full text read via WebFetch (TQA-B/TQA-E definitions, tail-coverage metric, datasets)"
+   },
+   {
+    "citation": "Lin Z, Trivedi S, Sun J. Conformal Prediction Intervals with Temporal Dependence. Transactions on Machine Learning Research (September 2022), per the arXiv comments field.",
+    "identifier": "arXiv:2205.12940",
+    "what_it_does": "Defines cross-sectional and longitudinal validity for time-series regression across a cross-section, and shows distribution-free longitudinal validity is theoretically impossible. CPTD keeps strict cross-sectional validity while improving longitudinal coverage. The test series S_{N+1} is a new unit, exchangeable with the calibration series. Scores are normalised by the series' own past mean absolute residual (CPTD-M) or by a rank-based normaliser (CPTD-R). In CPTD-R a 'prior' rank-percentile of 0.5 'has the same weight as any actual observation'. The interval comes from the cross-sectional quantile of these normalised scores. The metric is mean coverage of the least-covered 10% of series.",
+    "closeness": "High",
+    "difference_to_HSC": "Same evaluation (per-series coverage of new series calibrated on other series), and the impossibility result bounds what HSC can claim per building. The mechanism is related: population calibration of scores normalised by the unit's own history, plus a one-pseudo-observation prior on the rank. HSC instead normalises by mean load and mixes score CDFs with a tuned kappa and a neighbour prior. CPTD is not stage-indexed and its load data is the GEFCom2014 single series with days as units. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract; arXiv abs page comments (TMLR Sept 2022); ar5iv full text read via WebFetch (CPTD-M/R, prior weight, tail coverage, datasets)"
+   },
+   {
+    "citation": "Zhang Z, Lu Z, Yang H. The Benefit of Being Bayesian in Online Conformal Prediction. arXiv preprint (v1 Oct 2024, v2 May 2025).",
+    "identifier": "arXiv:2410.02561",
+    "what_it_does": "Online conformal prediction that keeps a belief over the score distribution, regularised by a prior: P_t = lambda_t*P_0 + (1-lambda_t)*empirical distribution of past scores. The paper links this to a Dirichlet-process posterior mean with lambda = alpha/(alpha+n). P_0 is an arbitrary distribution on [0,R], uniform in the main analysis; the theory uses lambda_t = 1/sqrt(t). One belief serves several confidence levels; regret bounds hold in the adversarial case and correct coverage when data are iid.",
+    "closeness": "Medium",
+    "difference_to_HSC": "The functional form is the same as HSC's mixture F = (kappa*F_prior + #{e_i<=e})/(kappa+n_b+1): a DP-posterior-mean or prior-regularised empirical belief. The difference is the prior: here it is a fixed uninformative distribution, not learned from similar units or matched by stage. There is a single sequence with no population or new-unit structure, and lambda_t follows a theoretical schedule rather than leave-one-building-out tuning. HSC should acknowledge its update as this Bayesian-regularised empirical belief and cite this as the online-conformal precedent. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract (from a title query for 'Bayesian' AND 'conformal'); arXiv HTML v2 read via WebFetch (Eq. 6 belief form, DP link, prior choice)"
+   },
+   {
+    "citation": "Dunn R, Wasserman L, Ramdas A. Distribution-Free Prediction Sets for Two-Layer Hierarchical Models. Journal of the American Statistical Association 2023;118(544):2491-2502.",
+    "identifier": "DOI 10.1080/01621459.2022.2060112; arXiv:1809.07441",
+    "what_it_does": "Conformal methods for grouped data. CDF pooling is an equal-weight average of the groups' empirical CDFs, with coverage only asymptotic as k grows. Single and repeated subsampling give finite-sample guarantees. Task 1 predicts for a new group. Task 2 predicts a new observation for an existing subject, using a James-Stein shrinkage estimate of that subject's mean in the nonconformity score (finite-sample guarantee from within-subject conformal, non-trivial only if n1 > 1/alpha - 1). The paper states 'supervised conformal methods that borrow strength across subjects to construct prediction sets for an existing subject remain an open problem.'",
+    "closeness": "Medium",
+    "difference_to_HSC": "HSC's F_prior is a CDF pooling restricted to K neighbour buildings. HSC's problem is Task 2 in a supervised, sequential setting, which is the open problem Dunn et al. name, and that sentence is a good positioning hook. Dunn et al. shrink the location, not the score distribution, and have no time series. Already cited in the manuscript (key dunn2023).",
+    "evidence_source": "arXiv API abstract; ar5iv full text read via WebFetch (CDF pooling definition, Task 2 shrinkage formula, 'open problem' quote); WebSearch result giving the JASA volume, pages and DOI"
+   },
+   {
+    "citation": "Ding T, Fermanian J-B, Salmon J. Conformal Prediction for Long-Tailed Classification. arXiv preprint (v1 Jul 2025; v3 revised 26 Feb 2026).",
+    "identifier": "arXiv:2507.06867",
+    "what_it_does": "Interp-Q interpolates between class-wise and marginal conformal thresholds: q_y = tau*q_y^CW + (1-tau)*q_hat. A single tau is used for every class, and marginal coverage is at least 1-2*alpha. Fuzzy Classwise CP pools calibration scores across classes with kernel weights on a class embedding (default based on training prevalence), then reconformalises for 1-alpha marginal coverage. The paper also adds a prevalence-adjusted softmax score that targets macro-coverage.",
+    "closeness": "Medium",
+    "difference_to_HSC": "Its two devices match HSC's two ingredients: interpolating between group-specific and pooled calibration, and similarity-kernel borrowing from other groups. But tau does not depend on a group's sample size, whereas HSC's own-score weight grows with n_b. Classes are not new units accumulating data, the task is classification, and there is no time series or onboarding. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract; arXiv HTML v3 read via WebFetch (Interp-Q formula, Fuzzy CP weights, guarantees)"
+   },
+   {
+    "citation": "Ding T, Angelopoulos AN, Bates S, Jordan MI, Tibshirani RJ. Class-Conditional Conformal Prediction with Many Classes. Advances in Neural Information Processing Systems 36 (NeurIPS 2023).",
+    "identifier": "arXiv:2306.09335; https://proceedings.neurips.cc/paper_files/paper/2023/hash/cb931eddd563f8d473c355518ce8601c-Abstract.html",
+    "what_it_does": "Clustered conformal prediction: groups classes whose conformal score distributions look similar and calibrates at the cluster level. This improves class-conditional coverage and set size when each class has few calibration points (up to 1000 classes).",
+    "closeness": "Medium",
+    "difference_to_HSC": "Hard pooling of similar groups, with no shrinkage toward a unit's own scores and no pseudo-count. HSC's kNN prior is a soft, unit-specific version, but HSC's ablations find the similarity prior adds nothing measurable. Classes have fixed calibration samples, with no sequential onboarding. Already cited in the manuscript (key ding2023).",
+    "evidence_source": "arXiv API abstract; WebSearch result giving the NeurIPS 2023 proceedings page"
+   },
+   {
+    "citation": "Bersson E, Hoff PD. Optimal Conformal Prediction for Small Areas. Journal of Survey Statistics and Methodology 2024;12(5):1464-1488.",
+    "identifier": "DOI 10.1093/jssam/smae010; arXiv:2204.08122",
+    "what_it_does": "Builds an area-level prediction region for a future observation with guaranteed area-level frequentist coverage. The conformity measure is the posterior predictive density of a working model that brings in indirect information from other areas. The region is valid whatever the working model, and has minimum expected volume if the working model is correct. Under a normal working model it is an interval. Applied to EPA radon survey data.",
+    "closeness": "Medium",
+    "difference_to_HSC": "Borrows strength across units through the conformity score while keeping calibration within each area, which preserves exact per-area coverage. HSC borrows in the calibration distribution, which helps when n_b is tiny but gives up exact per-unit validity. A reviewer may raise it as the alternative design. No time series and no new-unit onboarding. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract; WebSearch result giving the JSSAM volume, issue, pages and DOI (Duke Scholars listing)"
+   },
+   {
+    "citation": "Bashari M, Lotan RM, Lee Y, Dobriban E, Romano Y. Synthetic-Powered Predictive Inference. arXiv preprint, 19 May 2025.",
+    "identifier": "arXiv:2505.13432",
+    "what_it_does": "SPI adds synthetic or auxiliary data to a scarce real calibration set. A 'score transporter', an empirical quantile mapping, aligns the trusted real scores with the synthetic scores. It achieves finite-sample coverage without assumptions about the synthetic distribution, and gives much tighter sets when the two score distributions are well aligned.",
+    "closeness": "Medium",
+    "difference_to_HSC": "A principled counterpart to HSC's 'small own score set plus large auxiliary pool' mixture: neighbour-building scores would play the role of the synthetic scores. SPI keeps a finite-sample guarantee; HSC's convex CDF mixture with tuned kappa has none. SPI does not work per unit or sequentially. The follow-up GESPI (arXiv:2509.20345) adaptively falls back to real data only when the auxiliary data are poor. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract (title query 'synthetic-powered'); arXiv abs page"
+   },
+   {
+    "citation": "Fisch A, Schuster T, Jaakkola T, Barzilay R. Few-shot Conformal Prediction with Auxiliary Tasks. ICML 2021 (arXiv comment: 'ICML camera ready').",
+    "identifier": "arXiv:2102.08898",
+    "what_it_does": "Treats conformal prediction for a target task with little data as meta-learning over exchangeable auxiliary tasks. This gives much tighter prediction sets for few-shot classification and regression while keeping marginal guarantees.",
+    "closeness": "Medium",
+    "difference_to_HSC": "Same framing of a new unit with few examples that learns from other units. It meta-learns a conformal predictor rather than using a closed-form shrinkage mixture, its guarantees are marginal over tasks, and it has no time-series onboarding or per-unit coverage evaluation. Already cited in the manuscript (key fisch2021).",
+    "evidence_source": "arXiv API abstract; arXiv abs page comments"
+   },
+   {
+    "citation": "Min Y, Zhang C, Peng L, Zou C. Personalized Federated Conformal Prediction with Localization. Advances in Neural Information Processing Systems 38 (NeurIPS 2025), Main Conference Track.",
+    "identifier": "DOI 10.52202/085713-3400; https://papers.neurips.cc/paper_files/paper/2025/hash/930a720c815416c263b0a090448ee901-Abstract-Conference.html",
+    "what_it_does": "PFCP gives agent-specific, instance-adaptive prediction sets by transferring knowledge privately from other source agents. It keeps marginal coverage for the target agent and improves conditional coverage on individual test instances.",
+    "closeness": "Medium",
+    "difference_to_HSC": "Calibration for a target unit borrows from other units, as HSC borrows from other buildings. It does so through localisation and weighting with a guarantee, not a pseudo-count CDF mixture, and the agents have their own calibration data rather than onboarding sequentially. Not energy. Not cited in manuscript/references.py.",
+    "evidence_source": "WebSearch result, then the NeurIPS proceedings abstract page read via WebFetch"
+   },
+   {
+    "citation": "Octadion O, Yudistira N, Nakashima Y. Predicted Class Correction: Conformal Thresholds for Classes with No Calibration Data. arXiv preprint, 18 Oct 2026.",
+    "identifier": "arXiv:2610.25349",
+    "what_it_does": "PCC regresses the offset between per-class and marginal conformal quantiles on label-free descriptors of the classifier head. It shrinks the predicted offset by one scalar chosen on the labelled classes, then refits a single marginal offset, so the marginal guarantee is kept. This gives classes with zero calibration examples their own thresholds and improves worst-class coverage on ImageNet. It also notes that below about 35 test examples per class, worst-class coverage 'becomes unmeasurable before it becomes unachievable'.",
+    "closeness": "Medium",
+    "difference_to_HSC": "Similar to HSC's descriptor-based prior for units with no own data (descriptor to expected calibration level), with shrinkage tuned on other units. PCC predicts a threshold offset by regression instead of pooling neighbour CDFs, and has no accumulation of own scores and no time series. Its evaluation caveat applies to HSC's per-building coverage over 56 days: few target days make per-unit coverage noisy. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract (query on long-tailed conformal); arXiv abs page"
+   },
+   {
+    "citation": "Batra D, Mercuri S, Khraishi R. Conformal Predictions for Longitudinal Data. arXiv preprint, 4 Oct 2023.",
+    "identifier": "arXiv:2310.02863",
+    "what_it_does": "LPCI is a conformal method for longitudinal (panel) data that targets both cross-sectional and longitudinal coverage without infinitely wide intervals. It models the residuals as a quantile fixed-effects regression, a quantile regressor with unit effects, and proves asymptotic coverage in both dimensions.",
+    "closeness": "Medium",
+    "difference_to_HSC": "Same goal of per-series (longitudinal) coverage in a panel, pooled across units. LPCI pools through a quantile regression with unit fixed effects, which needs residual history for each unit, rather than a pseudo-count mixture with a neighbour prior for new units. Guarantees are asymptotic, and there is no onboarding-stage evaluation. Not cited in manuscript/references.py.",
+    "evidence_source": "arXiv API abstract (query on longitudinal / random-effects conformal); arXiv abs page"
+   },
+   {
+    "citation": "Jeon, Byung-ki (2026). coldstart-conformal-solar: analysis code for auditing cold-start conformal prediction intervals of solar irradiance forecasts at unseen stations (v1.2). Zenodo code record, published 2026-11-06. It accompanies the manuscript \"A two-network audit shows when conformal prediction intervals for solar irradiance forecasts remain valid at newly commissioned stations\" (Scientific Reports, under review, second revision).",
+    "identifier": "https://doi.org/10.5281/zenodo.24002627 (concept DOI 10.5281/zenodo.24002626; only one version listed)",
+    "what_it_does": "A leave-one-station-out audit of conformal intervals for short-term solar irradiance (GHI) forecasts at a newly commissioned station with no local calibration data. It covers 13 NOAA SURFRAD/SOLRAD stations and 28 PV-Live stations, four base forecasters (including gradient-boosted QR and a multi-quantile NN), horizons from 15 min to 6 h, and nominal levels 80/90/95%. It uses CQR scores max(lo-y, y-hi). It compares eight calibration strategies: raw quantiles; pooled donors; distance-weighted donors; Wasserstein-weighted donors; selected/nearest donors; local-only windows of 1-182 days; a donor+local mixture; delayed-feedback ACI seeded with donor scores; and a full-local-year oracle. It also estimates a 'calibration-budget law' B* (days of local data needed for coverage within 1 pp) and a prospective self-certification rule. In the released code (src/run_cp_matrix.py, src/cp_core.py), the mixture M4_mix gives the donor scores a total mass m (main 150, sensitivity 50 and 400) and each local score weight 1, then takes a weighted CP quantile with test weight 1: Q = inf{q : m*F_donor(q) + #{local <= q} >= (1-alpha)(m + n_local + 1)}. The bundled results digest (NUMBERS.md) shows the mixture beating local-only on Winkler score at budgets of 1, 5 and 21 days, with the gap vanishing by about 91 days. It also shows donor similarity (distance, kt-Wasserstein) not predicting donor suitability: within-fold Spearman rho is about 0, and nearest-donor and pooled give similar shares of stations within 2 pp.",
+    "closeness": "High",
+    "difference_to_HSC": "The mixture formula is algebraically the same as HSC's, with kappa = m. Their m is fixed a priori with a sensitivity grid; it is not chosen by leave-one-unit-out. The domain is solar irradiance at 41 stations, not building or customer load at 842 buildings and 315 clients. Donors are pooled or weighted by geographic or kt distance, not kNN in a load-shape descriptor, and there is no stage-matched prior. Normalisation is clear-sky, not by mean load. The work is not yet peer-reviewed. The record has been public only since 6 Nov 2026, so the two are nearly simultaneous, but the code files carry 1-2 Aug 2026 timestamps. Its finding that similarity weighting does not help matches HSC's null kNN-prior ablation. HSC must cite it and position against it.",
+    "evidence_source": "Zenodo record page, Zenodo REST API metadata, and the downloaded code archive (read as text, not executed): research/DESIGN.md, src/cp_core.py, src/run_cp_matrix.py, results/NUMBERS.md, results/revision_r1/NUMBERS_R1.md, revision2/results/NUMBERS_R2.md"
+   },
+   {
+    "citation": "Hao, Yunkai; Yang, Jian; Ji, Zhigang (2026). Evaluating the Reliability of Cross-Building Load Forecasting Under Distribution Shift and Sensor Missingness. Applied Sciences 16(16), 7984 (published 2026-08-11).",
+    "identifier": "doi:10.3390/app16167984",
+    "what_it_does": "An empirical reliability framework on the HEEW dataset with five-fold cross-building validation (55 main buildings plus 27 extra). It uses a LightGBM residual model against a Lag-1 baseline and tests split-conformal intervals, including variants that scale residuals. 90% intervals cover about 89.0-89.2% for seen buildings and drop to 87.1-87.2% for unseen buildings. Held-out buildings were not used for conformal calibration. PINAW is normalised per building and then averaged. The authors conclude that intervals should be recalibrated before deployment to unseen buildings.",
+    "closeness": "Medium",
+    "difference_to_HSC": "This is the closest building-domain evidence for the problem HSC addresses: pooled calibration under-covers new buildings. It proposes no remedy that uses the new building's own accumulating scores, has no onboarding stages, and reports coverage in aggregate rather than as a per-building distribution or under-covered share.",
+    "evidence_source": "Crossref API abstract; web search result snippets (MDPI page returned 403 to WebFetch)"
+   },
+   {
+    "citation": "Zaregarizi, Shadmehr; Yavari, Khashayar (2026). Uncertainty-Aware Transfer Learning for Cross-Building Energy Forecasting: Toward Robust and Scalable District-Level Energy Management. arXiv preprint, 28 May 2026.",
+    "identifier": "arXiv:2605.29733",
+    "what_it_does": "Transfers a Temporal Fusion Transformer from a source building at Aalborg University to the NEST building at EMPA. Uncertainty comes from a quantile-loss head plus MC Dropout, giving PICP 93.2% at nominal 95%. Updating only the output layer beat full fine-tuning. It introduces a Transfer Robustness Index and analyses performance as target-domain data grows.",
+    "closeness": "Medium",
+    "difference_to_HSC": "There is one target building and no population of new buildings. Uncertainty is MC-dropout, not conformal, with no per-building coverage distribution. It does not shrink calibration toward the target's own scores.",
+    "evidence_source": "arXiv abstract page (WebFetch) and web search snippets"
+   },
+   {
+    "citation": "Moradi, Alireza; Tanneau, Mathieu; Zandehshahvar, Reza; Van Hentenryck, Pascal (2025). Enhanced Renewable Energy Forecasting using Context-Aware Conformal Prediction. arXiv preprint (v1 17 Oct 2025; v2 1 Jun 2026).",
+    "identifier": "arXiv:2510.15780",
+    "what_it_does": "Context-Aware Conformal Prediction (CACP) is a model-agnostic recalibration of renewable forecasts. Calibration scores get higher weight when the historical observation is more similar to the target forecasting condition. It is evaluated on NREL day-ahead solar forecasts across MISO, ERCOT and SPP at site and system level.",
+    "closeness": "Medium",
+    "difference_to_HSC": "It uses similarity-weighted calibration, which is related to HSC's kNN prior, but weights historical conditions within existing sites. It does not partially pool a new unit's own scores with a population prior, and it has no cold-start or onboarding analysis.",
+    "evidence_source": "arXiv abstract page (WebFetch)"
+   },
+   {
+    "citation": "Faghih Niresi, Keivan; Cicirello, Alice; Fink, Olga (2026). Relational and Sequential Conformal Inference for Energy Time Series over Graphs via Foundation Models (STOIC). arXiv preprint.",
+    "identifier": "arXiv:2606.31804",
+    "what_it_does": "An STGNN produces point forecasts. Its spatio-temporal residuals are recast as a table, and a tabular foundation model calibrates the intervals by in-context learning, without task-specific retraining. The aim is to capture sequential and relational dependence across energy-network nodes. Benchmarks include a CKW smart-meter dataset, Electricity Consumption Load (ECL) and EWZ district heating. Coverage is reported per dataset, for example 90.52 on ECL.",
+    "closeness": "Medium",
+    "difference_to_HSC": "It shares information across related series for calibration, but for existing nodes; there are no newly metered units or onboarding stages. The mechanism is in-context learning on residual tables, not a kappa-weighted mixture of score CDFs. Per-series coverage was not visible.",
+    "evidence_source": "sota2.com paper page reached by redirect from wizwand (title, authors, arXiv id, datasets), plus web search snippet"
+   },
+   {
+    "citation": "Emami, Patrick; Sahu, Abhijeet; Graf, Peter (2023). BuildingsBench: A Large-Scale Dataset of 900K Buildings and Benchmark for Short-Term Load Forecasting. NeurIPS 2023 Datasets and Benchmarks.",
+    "identifier": "arXiv:2307.00142",
+    "what_it_does": "Benchmarks zero-shot short-term load forecasting on unseen buildings, plus transfer learning. Models predict a conditional distribution over future loads and are pretrained on the simulated Buildings-900K set from NREL End-Use Load Profiles. Evaluation covers more than 1,900 real residential and commercial buildings from 7 open datasets. A snippet mentions RPS as the uncertainty metric.",
+    "closeness": "Medium",
+    "difference_to_HSC": "It shares the setting (forecasting for unseen buildings) but has no conformal calibration. No per-building coverage or under-coverage evaluation was seen, and there is no use of a new building's accumulating residuals.",
+    "evidence_source": "Web search results (arXiv, NeurIPS proceedings pages); full text not opened"
+   },
+   {
+    "citation": "Zhang, Ce; Li, Ting; Xie, Jinhan; Kong, Linglong; Jiang, Bei (2026). Transfer Conformal Predictive Inference for Regression. Journal of Machine Learning Research 27(90):1-68.",
+    "identifier": "https://jmlr.org/papers/v27/24-1899.html",
+    "what_it_does": "Transfer learning for conformal prediction when target data are scarce, using related source datasets to narrow target intervals. Source and target need not be exchangeable. There are two algorithms, for known and unknown informative sources, with sources selected by conditional KL divergence. Non-asymptotic coverage and width theory is given, with simulations and real data.",
+    "closeness": "Medium",
+    "difference_to_HSC": "This is a general ML method, not energy; its real-data domain was not stated on the abstract page. It borrows strength from source data for a scarce target, which is conceptually related, but the page did not say how scores are combined. It has no sequential onboarding and no per-unit coverage evaluation of many new units.",
+    "evidence_source": "JMLR abstract page (WebFetch); author list confirmed by web search of JMLR bib"
+   },
+   {
+    "citation": "Vejling, Martin V.; Biscio, Christophe A. N.; Mazoyer, Adrien; Popovski, Petar; Pandey, Shashi Raj (2026). Multi-Agent Conformal Prediction with Personalized Statistical Validity. arXiv preprint, 30 May 2026.",
+    "identifier": "arXiv:2606.00717",
+    "what_it_does": "Personalized federated weighted conformal prediction (PFWCP) for agents with limited local calibration data, privacy constraints and heterogeneity. It combines local density-ratio weighting with weighted quantile aggregation of other agents' scores. It claims asymptotically valid marginal and calibration-conditional coverage for each agent, plus a coverage-variance adjustment based on effective sample size.",
+    "closeness": "Medium",
+    "difference_to_HSC": "It targets per-unit validity when local calibration is small by combining other units' scores, which is close in spirit. But it uses density-ratio weighting rather than a kappa-shrinkage mixture tuned by leave-one-unit-out. It is not energy-specific and has no onboarding-over-time evaluation.",
+    "evidence_source": "arXiv abstract page (WebFetch)"
+   },
+   {
+    "citation": "Ristovska, ...; Gonzalez-Vidal, ...; Skarmeta, ...; Kovatcheva, ... et al. (2026). Federated Transfer Learning for cold-start building energy prediction under data scarcity and privacy constraints. Energy and AI.",
+    "identifier": "doi:10.1016/j.egyai.2026.100815",
+    "what_it_does": "Federated transfer learning for cold-start buildings. A search snippet reports that cold-start buildings need only 21-30 days of local data to approach warm-start performance when they use pretrained models.",
+    "closeness": "Medium",
+    "difference_to_HSC": "It analyses how many days of own data a new building needs, but for point accuracy. No interval calibration or coverage evaluation was seen.",
+    "evidence_source": "Web search snippet (ScienceDirect) and Crossref search (title, journal, DOI, surnames)"
+   },
+   {
+    "citation": "Orji, Ugochukwu; Guven, Cicek; Stowell, Dan (2026). A grid-aware spatio-temporal framework for probabilistic load forecasting with Mondrian conformal calibration. IEEE PES ISGT Europe 2026 (accepted/in press).",
+    "identifier": "https://research.tilburguniversity.edu/en/publications/a-grid-aware-spatio-temporal-framework-for-probabilistic-load-for/",
+    "what_it_does": "A frozen Graph Attention Network spatial encoder and an LSTM quantile predictor, with Mondrian CP calibrated separately for each spatio-temporal partition. It reports near-nominal 90% coverage and sharper intervals on the Brazilian power system at 1, 6 and 24 h.",
+    "closeness": "Low",
+    "difference_to_HSC": "This is a Mondrian (group-conditional) conformal analogue in load forecasting, comparable to HSC's Mondrian baseline. It works on grid nodes, has no new units or cold start, and reports only overall coverage.",
+    "evidence_source": "Tilburg University research portal page (WebFetch)"
+   },
+   {
+    "citation": "Hong, Liang (2023; online 2022). Conformal Prediction Credibility Intervals. North American Actuarial Journal 27(4):675-688.",
+    "identifier": "doi:10.1080/10920277.2022.2123364",
+    "what_it_does": "Builds a conformal prediction interval around the actuarial credibility estimator, which shrinks a unit's own experience toward the collective. The interval contains the credibility estimator, is simple to compute, and has finite-sample coverage at a pre-set level.",
+    "closeness": "Low",
+    "difference_to_HSC": "This is actuarial, not energy. HSC's weight kappa/(kappa+n) has the form of a Buhlmann credibility factor, so reviewers may raise this line of work. According to the abstract, Hong conformalises around a credibility point estimator rather than mixing a population score CDF with the unit's own scores; the full text was not seen.",
+    "evidence_source": "Crossref metadata; web search of RePEc/IDEAS abstract"
+   },
+   {
+    "citation": "Jin, Yuwei; Acquah, Moses Amoasi; Seo, Mingyu; Han, Sekyung (2022). Short-term electric load prediction using transfer learning with interval estimate adjustment. Energy and Buildings 258.",
+    "identifier": "doi:10.1016/j.enbuild.2022.111846",
+    "what_it_does": "A CNN-GRU model with parameter-based transfer learning for buildings with scarce data, plus a kernel-based method for building the prediction interval (per search summary).",
+    "closeness": "Low",
+    "difference_to_HSC": "It combines transfer and intervals for data-scarce buildings, but it is not conformal, has no partial pooling of scores and no per-building coverage evaluation over onboarding.",
+    "evidence_source": "Crossref metadata (title, authors, volume); method details from a web search summary"
+   },
+   {
+    "citation": "Almeida, Vania; Gama, Joao (2015). Prediction Intervals for Electric Load Forecast: Evaluation for Different Profiles. IEEE conference paper (INESC TEC / University of Porto).",
+    "identifier": "https://repositorio.inesctec.pt/handle/123456789/5328",
+    "what_it_does": "Compares dual perturb-and-combine with conformal prediction for electric-load prediction intervals. It finds that interval reliability and width differ significantly across load profiles, which a related version groups by KL-divergence hierarchical clustering. Profile knowledge is used to pick the interval method per location.",
+    "closeness": "Low",
+    "difference_to_HSC": "This is an early demonstration that conformal reliability varies across customers or locations, which motivates per-unit evaluation. It does not address cold start or own-score shrinkage.",
+    "evidence_source": "Web search results (INESC TEC repository listing and summary); the repository page itself returned no content to WebFetch"
+   },
+   {
+    "citation": "Borrotti, Matteo (2024). Quantifying Uncertainty with Conformal Prediction for Heating and Cooling Load Forecasting in Building Performance Simulation. Energies 17(17):4348.",
+    "identifier": "doi:10.3390/en17174348",
+    "what_it_does": "Applies split conformal prediction (on a random forest) to heating and cooling load predictions for 768 simulated buildings, as a model-agnostic UQ wrapper.",
+    "closeness": "Low",
+    "difference_to_HSC": "It is background for conformal prediction in building energy. It uses simulated, static building data, with no new-building onboarding, time-series day-ahead setting, pooling, or per-building coverage.",
+    "evidence_source": "Semantic Scholar API result (the one successful call) and web search results"
+   }
+  ],
+  "verified": [
+   {
+    "claimed": {
+     "citation": "Shahid NF. When Average Calibration Fails: Site-Conditional Federated Conformal Risk Control. arXiv preprint (v1 18 Jun 2026, v3 24 Jul 2026); arXiv comment: 'Submitted to the DeCaF Workshop at MICCAI 2026'.",
+     "identifier": "arXiv:2606.20115",
+     "what_it_does": "Uses FeTS-2022 brain-tumour data (1,251 subjects, 20 institutions). A single pooled conformal-risk-control threshold misses the FNR target at 40% of sites. The paper proposes 'risk-curve shrinkage': R_k^shrink(lambda) = w_k*R_k(lambda) + (1-w_k)*R_global(lambda) + corr_k, with w_k = n_k/(n_k+n0). The paper calls this 'the standard empirical Bayes form where n0 acts as prior precision'. n0 is picked by leave-one-site-out sensitivity analysis (n0=19 gives 2.7/20 violating sites at a 2.0x stretch). Results are reported per site (violation counts, worst-site FNR).",
+     "closeness": "High",
+     "difference_to_HSC": "The mechanism is essentially HSC's: one pseudo-count weight n/(n+n0) mixes a unit's own calibration curve with a pooled curve (for coverage, a risk curve is 1 minus the score CDF). It also uses leave-one-unit-out tuning and per-unit evaluation. Differences: (1) it is conformal risk control for segmentation FNR, not regression intervals. (2) The units are existing sites with fixed calibration sets; the paper does not address a new site joining with few samples. (3) The prior is the sample-size-weighted global pool, with no similarity (kNN) prior and no stage matching. This fits HSC's own ablation finding that shrinkage, not the prior, is the active ingredient. (4) It adds an ad hoc correction term, the paper calls it 'a heuristic interpolation', there is no guarantee, and n0 is chosen on the same test partitions. It is a workshop preprint. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract; arXiv abs page (versions/comments); arXiv HTML full text v3 read via WebFetch (Eq. 2, weight definition, LOSO selection, per-site metrics)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Mallick S, Tchetgen Tchetgen E, Dobriban E, Lee Y. Generalized Hierarchical Conformal Prediction. arXiv preprint, 16 Aug 2026 (stat.ME).",
+     "identifier": "arXiv:2608.15500",
+     "what_it_does": "Covers prediction for a group after a few (o) of its observations are already collected. Standard hierarchical conformal prediction (HCP) cannot use these, and within-group conformal is uninformative at small o. GHCP restores exchangeability by giving the test group a randomly 'donated' group size. It splits the o observations: floor(o/2) fit a local predictor that is shrunk toward the global one (lambda = floor(o/2)/(|S_train|+floor(o/2))). The rest are held-out scores, pooled with the reference groups' scores in one weighted empirical distribution (Eq. 5). Each reference group gets total weight 1/(|S_cal|+1); the test group gets the same share, with its unobserved part placed at +infinity. Theorem 2.1 proves a finite-sample marginal guarantee. A restricted-donor variant is included. Evaluation uses simulations and the American Community Survey with o in {0,5,10,15,20}.",
+     "closeness": "High",
+     "difference_to_HSC": "Same problem as HSC: a new unit with a few of its own observations, whose own scores are pooled with population scores. GHCP has a finite-sample marginal guarantee; HSC has none. In GHCP the test group's own scores never weigh more than one group's share (1/(K+1)). In HSC the own-score weight n_b/(kappa+n_b+1) grows until the own scores dominate. GHCP has no tuned kappa, no similarity prior and no stage matching. It shrinks the predictor rather than the score CDF, uses unnormalised absolute residuals, and treats o as fixed rather than a growing sequence; there is no time series. Only marginal coverage is reported; I saw no per-group coverage distribution, but the appendix was not fully read. This is the principled counterpart HSC should discuss, and ideally run as a baseline. Not cited in manuscript/references.py; its predecessor Lee et al. 2023 (lee2023hier) is cited.",
+     "evidence_source": "arXiv API abstract; arXiv abs page; arXiv HTML full text v1 read via WebFetch (Eq. 3 and 5, Theorem 2.1, experimental settings). The last ~106k characters were not read."
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Rafe A, Das S. Socio-Conformal Calibration in Complex Survey Data: Marginal Validity Is Not Enough for Subgroup Reliability. arXiv preprint, 7 May 2026.",
+     "identifier": "arXiv:2605.05562",
+     "what_it_does": "Ordinal conformal prediction on the Pew American Trends Panel (Wave 152; n=4,591; 12 race x education subgroups) over 100 respondent-disjoint splits. It compares split conformal, Mondrian, and a 'regularized Mondrian' comparator: q_g^reg = w_g*q_g + (1-w_g)*q_global, with w_g = n_g/(n_g+lambda) and lambda = 50 fixed. The comparator is motivated by James-Stein shrinkage and 'partial pooling in hierarchical models'. The authors call it 'an empirical comparator, not a theorem-backed contribution'. It reduces threshold instability but gives no decisive fairness gain. The main metric is the survey-weighted subgroup coverage gap.",
+     "closeness": "High",
+     "difference_to_HSC": "Same n/(n+lambda) shrinkage toward a pooled calibration, but applied to quantile thresholds rather than score CDFs. lambda is fixed rather than tuned leave-one-building-out. The groups are static demographic cells, not new units accumulating data; the prior is global with no neighbour prior; the task is classification sets. The neutral or negative result contrasts with HSC's gains and shows the benefit of shrinkage depends on the setting. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract; arXiv HTML full text read via WebFetch (Eq. 4, Appendix B on lambda); first surfaced by a WebSearch for empirical-Bayes Mondrian shrinkage"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Lin Z, Trivedi S, Sun J. Conformal Prediction with Temporal Quantile Adjustments. Advances in Neural Information Processing Systems 35 (NeurIPS 2022), pp. 31017-31030.",
+     "identifier": "arXiv:2205.09940; https://proceedings.neurips.cc/paper_files/paper/2022/hash/c8d2860e1b51a1ffadc7ed0a06f8d8f5-Abstract.html",
+     "what_it_does": "Prediction intervals for cross-sectional time series (for example, patients). The split-conformal quantile is taken over other series' scores at the same time step. TQA adjusts the queried quantile for each series using its own past: TQA-B predicts a rank from an exponentially decayed mean of the series' own residuals; TQA-E uses an ACI-like update delta <- delta + gamma*(err - alpha) on the series' own miscoverages. The paper separates cross-sectional from longitudinal (per-series) coverage. It reports 'tail coverage' = average coverage of the least-covered 10% of series.",
+     "closeness": "High",
+     "difference_to_HSC": "Same evaluation lens: per-unit (longitudinal) coverage and its lower tail, close in spirit to HSC's P10 coverage and share of buildings under 0.85. Also the same structure of population calibration plus the unit's own history. TQA moves the quantile level instead of mixing population and own score distributions with a pseudo-count, and has no similarity prior or onboarding-stage indexing. Its data are health, insurance, COVID, EEG and GEFCom2014 load (days as units). TQA-E is close to HSC's ACI baseline; TQA-B would be a distinct, relevant baseline. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract; WebSearch result giving the NeurIPS 2022 proceedings entry and pages; ar5iv full text read via WebFetch (TQA-B/TQA-E definitions, tail-coverage metric, datasets)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Lin Z, Trivedi S, Sun J. Conformal Prediction Intervals with Temporal Dependence. Transactions on Machine Learning Research (September 2022), per the arXiv comments field.",
+     "identifier": "arXiv:2205.12940",
+     "what_it_does": "Defines cross-sectional and longitudinal validity for time-series regression across a cross-section, and shows distribution-free longitudinal validity is theoretically impossible. CPTD keeps strict cross-sectional validity while improving longitudinal coverage. The test series S_{N+1} is a new unit, exchangeable with the calibration series. Scores are normalised by the series' own past mean absolute residual (CPTD-M) or by a rank-based normaliser (CPTD-R). In CPTD-R a 'prior' rank-percentile of 0.5 'has the same weight as any actual observation'. The interval comes from the cross-sectional quantile of these normalised scores. The metric is mean coverage of the least-covered 10% of series.",
+     "closeness": "High",
+     "difference_to_HSC": "Same evaluation (per-series coverage of new series calibrated on other series), and the impossibility result bounds what HSC can claim per building. The mechanism is related: population calibration of scores normalised by the unit's own history, plus a one-pseudo-observation prior on the rank. HSC instead normalises by mean load and mixes score CDFs with a tuned kappa and a neighbour prior. CPTD is not stage-indexed and its load data is the GEFCom2014 single series with days as units. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract; arXiv abs page comments (TMLR Sept 2022); ar5iv full text read via WebFetch (CPTD-M/R, prior weight, tail coverage, datasets)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Zhang Z, Lu Z, Yang H. The Benefit of Being Bayesian in Online Conformal Prediction. arXiv preprint (v1 Oct 2024, v2 May 2025).",
+     "identifier": "arXiv:2410.02561",
+     "what_it_does": "Online conformal prediction that keeps a belief over the score distribution, regularised by a prior: P_t = lambda_t*P_0 + (1-lambda_t)*empirical distribution of past scores. The paper links this to a Dirichlet-process posterior mean with lambda = alpha/(alpha+n). P_0 is an arbitrary distribution on [0,R], uniform in the main analysis; the theory uses lambda_t = 1/sqrt(t). One belief serves several confidence levels; regret bounds hold in the adversarial case and correct coverage when data are iid.",
+     "closeness": "Medium",
+     "difference_to_HSC": "The functional form is the same as HSC's mixture F = (kappa*F_prior + #{e_i<=e})/(kappa+n_b+1): a DP-posterior-mean or prior-regularised empirical belief. The difference is the prior: here it is a fixed uninformative distribution, not learned from similar units or matched by stage. There is a single sequence with no population or new-unit structure, and lambda_t follows a theoretical schedule rather than leave-one-building-out tuning. HSC should acknowledge its update as this Bayesian-regularised empirical belief and cite this as the online-conformal precedent. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract (from a title query for 'Bayesian' AND 'conformal'); arXiv HTML v2 read via WebFetch (Eq. 6 belief form, DP link, prior choice)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Dunn R, Wasserman L, Ramdas A. Distribution-Free Prediction Sets for Two-Layer Hierarchical Models. Journal of the American Statistical Association 2023;118(544):2491-2502.",
+     "identifier": "DOI 10.1080/01621459.2022.2060112; arXiv:1809.07441",
+     "what_it_does": "Conformal methods for grouped data. CDF pooling is an equal-weight average of the groups' empirical CDFs, with coverage only asymptotic as k grows. Single and repeated subsampling give finite-sample guarantees. Task 1 predicts for a new group. Task 2 predicts a new observation for an existing subject, using a James-Stein shrinkage estimate of that subject's mean in the nonconformity score (finite-sample guarantee from within-subject conformal, non-trivial only if n1 > 1/alpha - 1). The paper states 'supervised conformal methods that borrow strength across subjects to construct prediction sets for an existing subject remain an open problem.'",
+     "closeness": "Medium",
+     "difference_to_HSC": "HSC's F_prior is a CDF pooling restricted to K neighbour buildings. HSC's problem is Task 2 in a supervised, sequential setting, which is the open problem Dunn et al. name, and that sentence is a good positioning hook. Dunn et al. shrink the location, not the score distribution, and have no time series. Already cited in the manuscript (key dunn2023).",
+     "evidence_source": "arXiv API abstract; ar5iv full text read via WebFetch (CDF pooling definition, Task 2 shrinkage formula, 'open problem' quote); WebSearch result giving the JASA volume, pages and DOI"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Ding T, Fermanian J-B, Salmon J. Conformal Prediction for Long-Tailed Classification. arXiv preprint (v1 Jul 2025; v3 revised 26 Feb 2026).",
+     "identifier": "arXiv:2507.06867",
+     "what_it_does": "Interp-Q interpolates between class-wise and marginal conformal thresholds: q_y = tau*q_y^CW + (1-tau)*q_hat. A single tau is used for every class, and marginal coverage is at least 1-2*alpha. Fuzzy Classwise CP pools calibration scores across classes with kernel weights on a class embedding (default based on training prevalence), then reconformalises for 1-alpha marginal coverage. The paper also adds a prevalence-adjusted softmax score that targets macro-coverage.",
+     "closeness": "Medium",
+     "difference_to_HSC": "Its two devices match HSC's two ingredients: interpolating between group-specific and pooled calibration, and similarity-kernel borrowing from other groups. But tau does not depend on a group's sample size, whereas HSC's own-score weight grows with n_b. Classes are not new units accumulating data, the task is classification, and there is no time series or onboarding. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract; arXiv HTML v3 read via WebFetch (Interp-Q formula, Fuzzy CP weights, guarantees)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Ding T, Angelopoulos AN, Bates S, Jordan MI, Tibshirani RJ. Class-Conditional Conformal Prediction with Many Classes. Advances in Neural Information Processing Systems 36 (NeurIPS 2023).",
+     "identifier": "arXiv:2306.09335; https://proceedings.neurips.cc/paper_files/paper/2023/hash/cb931eddd563f8d473c355518ce8601c-Abstract.html",
+     "what_it_does": "Clustered conformal prediction: groups classes whose conformal score distributions look similar and calibrates at the cluster level. This improves class-conditional coverage and set size when each class has few calibration points (up to 1000 classes).",
+     "closeness": "Medium",
+     "difference_to_HSC": "Hard pooling of similar groups, with no shrinkage toward a unit's own scores and no pseudo-count. HSC's kNN prior is a soft, unit-specific version, but HSC's ablations find the similarity prior adds nothing measurable. Classes have fixed calibration samples, with no sequential onboarding. Already cited in the manuscript (key ding2023).",
+     "evidence_source": "arXiv API abstract; WebSearch result giving the NeurIPS 2023 proceedings page"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Bersson E, Hoff PD. Optimal Conformal Prediction for Small Areas. Journal of Survey Statistics and Methodology 2024;12(5):1464-1488.",
+     "identifier": "DOI 10.1093/jssam/smae010; arXiv:2204.08122",
+     "what_it_does": "Builds an area-level prediction region for a future observation with guaranteed area-level frequentist coverage. The conformity measure is the posterior predictive density of a working model that brings in indirect information from other areas. The region is valid whatever the working model, and has minimum expected volume if the working model is correct. Under a normal working model it is an interval. Applied to EPA radon survey data.",
+     "closeness": "Medium",
+     "difference_to_HSC": "Borrows strength across units through the conformity score while keeping calibration within each area, which preserves exact per-area coverage. HSC borrows in the calibration distribution, which helps when n_b is tiny but gives up exact per-unit validity. A reviewer may raise it as the alternative design. No time series and no new-unit onboarding. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract; WebSearch result giving the JSSAM volume, issue, pages and DOI (Duke Scholars listing)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Bashari M, Lotan RM, Lee Y, Dobriban E, Romano Y. Synthetic-Powered Predictive Inference. arXiv preprint, 19 May 2025.",
+     "identifier": "arXiv:2505.13432",
+     "what_it_does": "SPI adds synthetic or auxiliary data to a scarce real calibration set. A 'score transporter', an empirical quantile mapping, aligns the trusted real scores with the synthetic scores. It achieves finite-sample coverage without assumptions about the synthetic distribution, and gives much tighter sets when the two score distributions are well aligned.",
+     "closeness": "Medium",
+     "difference_to_HSC": "A principled counterpart to HSC's 'small own score set plus large auxiliary pool' mixture: neighbour-building scores would play the role of the synthetic scores. SPI keeps a finite-sample guarantee; HSC's convex CDF mixture with tuned kappa has none. SPI does not work per unit or sequentially. The follow-up GESPI (arXiv:2509.20345) adaptively falls back to real data only when the auxiliary data are poor. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract (title query 'synthetic-powered'); arXiv abs page"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Fisch A, Schuster T, Jaakkola T, Barzilay R. Few-shot Conformal Prediction with Auxiliary Tasks. ICML 2021 (arXiv comment: 'ICML camera ready').",
+     "identifier": "arXiv:2102.08898",
+     "what_it_does": "Treats conformal prediction for a target task with little data as meta-learning over exchangeable auxiliary tasks. This gives much tighter prediction sets for few-shot classification and regression while keeping marginal guarantees.",
+     "closeness": "Medium",
+     "difference_to_HSC": "Same framing of a new unit with few examples that learns from other units. It meta-learns a conformal predictor rather than using a closed-form shrinkage mixture, its guarantees are marginal over tasks, and it has no time-series onboarding or per-unit coverage evaluation. Already cited in the manuscript (key fisch2021).",
+     "evidence_source": "arXiv API abstract; arXiv abs page comments"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Min Y, Zhang C, Peng L, Zou C. Personalized Federated Conformal Prediction with Localization. Advances in Neural Information Processing Systems 38 (NeurIPS 2025), Main Conference Track.",
+     "identifier": "DOI 10.52202/085713-3400; https://papers.neurips.cc/paper_files/paper/2025/hash/930a720c815416c263b0a090448ee901-Abstract-Conference.html",
+     "what_it_does": "PFCP gives agent-specific, instance-adaptive prediction sets by transferring knowledge privately from other source agents. It keeps marginal coverage for the target agent and improves conditional coverage on individual test instances.",
+     "closeness": "Medium",
+     "difference_to_HSC": "Calibration for a target unit borrows from other units, as HSC borrows from other buildings. It does so through localisation and weighting with a guarantee, not a pseudo-count CDF mixture, and the agents have their own calibration data rather than onboarding sequentially. Not energy. Not cited in manuscript/references.py.",
+     "evidence_source": "WebSearch result, then the NeurIPS proceedings abstract page read via WebFetch"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Octadion O, Yudistira N, Nakashima Y. Predicted Class Correction: Conformal Thresholds for Classes with No Calibration Data. arXiv preprint, 18 Oct 2026.",
+     "identifier": "arXiv:2610.25349",
+     "what_it_does": "PCC regresses the offset between per-class and marginal conformal quantiles on label-free descriptors of the classifier head. It shrinks the predicted offset by one scalar chosen on the labelled classes, then refits a single marginal offset, so the marginal guarantee is kept. This gives classes with zero calibration examples their own thresholds and improves worst-class coverage on ImageNet. It also notes that below about 35 test examples per class, worst-class coverage 'becomes unmeasurable before it becomes unachievable'.",
+     "closeness": "Medium",
+     "difference_to_HSC": "Similar to HSC's descriptor-based prior for units with no own data (descriptor to expected calibration level), with shrinkage tuned on other units. PCC predicts a threshold offset by regression instead of pooling neighbour CDFs, and has no accumulation of own scores and no time series. Its evaluation caveat applies to HSC's per-building coverage over 56 days: few target days make per-unit coverage noisy. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract (query on long-tailed conformal); arXiv abs page"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Batra D, Mercuri S, Khraishi R. Conformal Predictions for Longitudinal Data. arXiv preprint, 4 Oct 2023.",
+     "identifier": "arXiv:2310.02863",
+     "what_it_does": "LPCI is a conformal method for longitudinal (panel) data that targets both cross-sectional and longitudinal coverage without infinitely wide intervals. It models the residuals as a quantile fixed-effects regression, a quantile regressor with unit effects, and proves asymptotic coverage in both dimensions.",
+     "closeness": "Medium",
+     "difference_to_HSC": "Same goal of per-series (longitudinal) coverage in a panel, pooled across units. LPCI pools through a quantile regression with unit fixed effects, which needs residual history for each unit, rather than a pseudo-count mixture with a neighbour prior for new units. Guarantees are asymptotic, and there is no onboarding-stage evaluation. Not cited in manuscript/references.py.",
+     "evidence_source": "arXiv API abstract (query on longitudinal / random-effects conformal); arXiv abs page"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Jeon, Byung-ki (2026). coldstart-conformal-solar: analysis code for auditing cold-start conformal prediction intervals of solar irradiance forecasts at unseen stations (v1.2). Zenodo code record, published 2026-11-06. It accompanies the manuscript \"A two-network audit shows when conformal prediction intervals for solar irradiance forecasts remain valid at newly commissioned stations\" (Scientific Reports, under review, second revision).",
+     "identifier": "https://doi.org/10.5281/zenodo.24002627 (concept DOI 10.5281/zenodo.24002626; only one version listed)",
+     "what_it_does": "A leave-one-station-out audit of conformal intervals for short-term solar irradiance (GHI) forecasts at a newly commissioned station with no local calibration data. It covers 13 NOAA SURFRAD/SOLRAD stations and 28 PV-Live stations, four base forecasters (including gradient-boosted QR and a multi-quantile NN), horizons from 15 min to 6 h, and nominal levels 80/90/95%. It uses CQR scores max(lo-y, y-hi). It compares eight calibration strategies: raw quantiles; pooled donors; distance-weighted donors; Wasserstein-weighted donors; selected/nearest donors; local-only windows of 1-182 days; a donor+local mixture; delayed-feedback ACI seeded with donor scores; and a full-local-year oracle. It also estimates a 'calibration-budget law' B* (days of local data needed for coverage within 1 pp) and a prospective self-certification rule. In the released code (src/run_cp_matrix.py, src/cp_core.py), the mixture M4_mix gives the donor scores a total mass m (main 150, sensitivity 50 and 400) and each local score weight 1, then takes a weighted CP quantile with test weight 1: Q = inf{q : m*F_donor(q) + #{local <= q} >= (1-alpha)(m + n_local + 1)}. The bundled results digest (NUMBERS.md) shows the mixture beating local-only on Winkler score at budgets of 1, 5 and 21 days, with the gap vanishing by about 91 days. It also shows donor similarity (distance, kt-Wasserstein) not predicting donor suitability: within-fold Spearman rho is about 0, and nearest-donor and pooled give similar shares of stations within 2 pp.",
+     "closeness": "High",
+     "difference_to_HSC": "The mixture formula is algebraically the same as HSC's, with kappa = m. Their m is fixed a priori with a sensitivity grid; it is not chosen by leave-one-unit-out. The domain is solar irradiance at 41 stations, not building or customer load at 842 buildings and 315 clients. Donors are pooled or weighted by geographic or kt distance, not kNN in a load-shape descriptor, and there is no stage-matched prior. Normalisation is clear-sky, not by mean load. The work is not yet peer-reviewed. The record has been public only since 6 Nov 2026, so the two are nearly simultaneous, but the code files carry 1-2 Aug 2026 timestamps. Its finding that similarity weighting does not help matches HSC's null kNN-prior ablation. HSC must cite it and position against it.",
+     "evidence_source": "Zenodo record page, Zenodo REST API metadata, and the downloaded code archive (read as text, not executed): research/DESIGN.md, src/cp_core.py, src/run_cp_matrix.py, results/NUMBERS.md, results/revision_r1/NUMBERS_R1.md, revision2/results/NUMBERS_R2.md"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Hao, Yunkai; Yang, Jian; Ji, Zhigang (2026). Evaluating the Reliability of Cross-Building Load Forecasting Under Distribution Shift and Sensor Missingness. Applied Sciences 16(16), 7984 (published 2026-08-11).",
+     "identifier": "doi:10.3390/app16167984",
+     "what_it_does": "An empirical reliability framework on the HEEW dataset with five-fold cross-building validation (55 main buildings plus 27 extra). It uses a LightGBM residual model against a Lag-1 baseline and tests split-conformal intervals, including variants that scale residuals. 90% intervals cover about 89.0-89.2% for seen buildings and drop to 87.1-87.2% for unseen buildings. Held-out buildings were not used for conformal calibration. PINAW is normalised per building and then averaged. The authors conclude that intervals should be recalibrated before deployment to unseen buildings.",
+     "closeness": "Medium",
+     "difference_to_HSC": "This is the closest building-domain evidence for the problem HSC addresses: pooled calibration under-covers new buildings. It proposes no remedy that uses the new building's own accumulating scores, has no onboarding stages, and reports coverage in aggregate rather than as a per-building distribution or under-covered share.",
+     "evidence_source": "Crossref API abstract; web search result snippets (MDPI page returned 403 to WebFetch)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Zaregarizi, Shadmehr; Yavari, Khashayar (2026). Uncertainty-Aware Transfer Learning for Cross-Building Energy Forecasting: Toward Robust and Scalable District-Level Energy Management. arXiv preprint, 28 May 2026.",
+     "identifier": "arXiv:2605.29733",
+     "what_it_does": "Transfers a Temporal Fusion Transformer from a source building at Aalborg University to the NEST building at EMPA. Uncertainty comes from a quantile-loss head plus MC Dropout, giving PICP 93.2% at nominal 95%. Updating only the output layer beat full fine-tuning. It introduces a Transfer Robustness Index and analyses performance as target-domain data grows.",
+     "closeness": "Medium",
+     "difference_to_HSC": "There is one target building and no population of new buildings. Uncertainty is MC-dropout, not conformal, with no per-building coverage distribution. It does not shrink calibration toward the target's own scores.",
+     "evidence_source": "arXiv abstract page (WebFetch) and web search snippets"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Moradi, Alireza; Tanneau, Mathieu; Zandehshahvar, Reza; Van Hentenryck, Pascal (2025). Enhanced Renewable Energy Forecasting using Context-Aware Conformal Prediction. arXiv preprint (v1 17 Oct 2025; v2 1 Jun 2026).",
+     "identifier": "arXiv:2510.15780",
+     "what_it_does": "Context-Aware Conformal Prediction (CACP) is a model-agnostic recalibration of renewable forecasts. Calibration scores get higher weight when the historical observation is more similar to the target forecasting condition. It is evaluated on NREL day-ahead solar forecasts across MISO, ERCOT and SPP at site and system level.",
+     "closeness": "Medium",
+     "difference_to_HSC": "It uses similarity-weighted calibration, which is related to HSC's kNN prior, but weights historical conditions within existing sites. It does not partially pool a new unit's own scores with a population prior, and it has no cold-start or onboarding analysis.",
+     "evidence_source": "arXiv abstract page (WebFetch)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Faghih Niresi, Keivan; Cicirello, Alice; Fink, Olga (2026). Relational and Sequential Conformal Inference for Energy Time Series over Graphs via Foundation Models (STOIC). arXiv preprint.",
+     "identifier": "arXiv:2606.31804",
+     "what_it_does": "An STGNN produces point forecasts. Its spatio-temporal residuals are recast as a table, and a tabular foundation model calibrates the intervals by in-context learning, without task-specific retraining. The aim is to capture sequential and relational dependence across energy-network nodes. Benchmarks include a CKW smart-meter dataset, Electricity Consumption Load (ECL) and EWZ district heating. Coverage is reported per dataset, for example 90.52 on ECL.",
+     "closeness": "Medium",
+     "difference_to_HSC": "It shares information across related series for calibration, but for existing nodes; there are no newly metered units or onboarding stages. The mechanism is in-context learning on residual tables, not a kappa-weighted mixture of score CDFs. Per-series coverage was not visible.",
+     "evidence_source": "sota2.com paper page reached by redirect from wizwand (title, authors, arXiv id, datasets), plus web search snippet"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Emami, Patrick; Sahu, Abhijeet; Graf, Peter (2023). BuildingsBench: A Large-Scale Dataset of 900K Buildings and Benchmark for Short-Term Load Forecasting. NeurIPS 2023 Datasets and Benchmarks.",
+     "identifier": "arXiv:2307.00142",
+     "what_it_does": "Benchmarks zero-shot short-term load forecasting on unseen buildings, plus transfer learning. Models predict a conditional distribution over future loads and are pretrained on the simulated Buildings-900K set from NREL End-Use Load Profiles. Evaluation covers more than 1,900 real residential and commercial buildings from 7 open datasets. A snippet mentions RPS as the uncertainty metric.",
+     "closeness": "Medium",
+     "difference_to_HSC": "It shares the setting (forecasting for unseen buildings) but has no conformal calibration. No per-building coverage or under-coverage evaluation was seen, and there is no use of a new building's accumulating residuals.",
+     "evidence_source": "Web search results (arXiv, NeurIPS proceedings pages); full text not opened"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Zhang, Ce; Li, Ting; Xie, Jinhan; Kong, Linglong; Jiang, Bei (2026). Transfer Conformal Predictive Inference for Regression. Journal of Machine Learning Research 27(90):1-68.",
+     "identifier": "https://jmlr.org/papers/v27/24-1899.html",
+     "what_it_does": "Transfer learning for conformal prediction when target data are scarce, using related source datasets to narrow target intervals. Source and target need not be exchangeable. There are two algorithms, for known and unknown informative sources, with sources selected by conditional KL divergence. Non-asymptotic coverage and width theory is given, with simulations and real data.",
+     "closeness": "Medium",
+     "difference_to_HSC": "This is a general ML method, not energy; its real-data domain was not stated on the abstract page. It borrows strength from source data for a scarce target, which is conceptually related, but the page did not say how scores are combined. It has no sequential onboarding and no per-unit coverage evaluation of many new units.",
+     "evidence_source": "JMLR abstract page (WebFetch); author list confirmed by web search of JMLR bib"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Vejling, Martin V.; Biscio, Christophe A. N.; Mazoyer, Adrien; Popovski, Petar; Pandey, Shashi Raj (2026). Multi-Agent Conformal Prediction with Personalized Statistical Validity. arXiv preprint, 30 May 2026.",
+     "identifier": "arXiv:2606.00717",
+     "what_it_does": "Personalized federated weighted conformal prediction (PFWCP) for agents with limited local calibration data, privacy constraints and heterogeneity. It combines local density-ratio weighting with weighted quantile aggregation of other agents' scores. It claims asymptotically valid marginal and calibration-conditional coverage for each agent, plus a coverage-variance adjustment based on effective sample size.",
+     "closeness": "Medium",
+     "difference_to_HSC": "It targets per-unit validity when local calibration is small by combining other units' scores, which is close in spirit. But it uses density-ratio weighting rather than a kappa-shrinkage mixture tuned by leave-one-unit-out. It is not energy-specific and has no onboarding-over-time evaluation.",
+     "evidence_source": "arXiv abstract page (WebFetch)"
+    },
+    "check": null
+   },
+   {
+    "claimed": {
+     "citation": "Ristovska, ...; Gonzalez-Vidal, ...; Skarmeta, ...; Kovatcheva, ... et al. (2026). Federated Transfer Learning for cold-start building energy prediction under data scarcity and privacy constraints. Energy and AI.",
+     "identifier": "doi:10.1016/j.egyai.2026.100815",
+     "what_it_does": "Federated transfer learning for cold-start buildings. A search snippet reports that cold-start buildings need only 21-30 days of local data to approach warm-start performance when they use pretrained models.",
+     "closeness": "Medium",
+     "difference_to_HSC": "It analyses how many days of own data a new building needs, but for point accuracy. No interval calibration or coverage evaluation was seen.",
+     "evidence_source": "Web search snippet (ScienceDirect) and Crossref search (title, journal, DOI, surnames)"
+    },
+    "check": null
+   }
+  ],
+  "synthesis": null
+ },
+ "code": [],
+ "journal": {
+  "article_types_and_length": "VERIFICATION LEVEL: [S] = the official AAE guide for authors (sciencedirect.com/journal/advances-in-applied-energy/publish/guide-for-authors) as returned by WebSearch with the domain limited to sciencedirect.com/elsevier.com. The page itself returns HTTP 403 to direct fetches. The search tool gives model-summarised snippets, sometimes with quotes, and the crawl date is unknown. Where a later section says \"x2\" or \"x3\", the item came back the same way from that many independent queries.\n\n[S, x2] The guide lists these article types: Full Length Article (\"original, high-quality, research papers presenting novel scientific findings\"), Review (\"invited from established researchers\", \"in-depth, critical analyses\"), Letter (not to exceed 4 printed pages), Commentary (not to exceed 6 printed pages), Perspective (not to exceed 4 printed pages), Forum (forward-looking pieces from expert or early-career groups, not to exceed 6 printed pages), and News and views (from invited authors or editors, no length stated).\n\n[S, x3] General length guidance: \"standard research articles should be approximately 10\u201315 printed pages, and review articles 15\u201320 printed pages.\" Other short formats should generally stay within 3\u20135 printed pages. Authors are \"encouraged to use Appendices and Supplementary Materials for detailed data, methods, or additional analyses.\"\n\nNo word-count limit for any article type was found; length is given only in printed pages. It is not stated whether references count toward the page length. For this study the relevant type is Full Length Article, about 10\u201315 printed pages.",
+  "abstract_requirements": "[S, x3] \"A concise and factual abstract that does not exceed 250 words\" (250-word maximum).\n\n[S, x1\u20132] Further rules, mostly paraphrased by the search tool:\n- The abstract should cover the purpose/aim, the methods, the main findings (with statistical significance where relevant), the conclusions and what is new.\n- It must stand alone, because it is often presented separately from the article.\n- Avoid references. If any are cited, \"references cited in your abstract must be given in full\".\n- Abbreviations \"must be defined within your abstract at first mention\".\n- The abstract is not part of the section numbering.\n\nFor comparison, the sister journal Applied Energy uses a 200-word cap. That does not apply here.",
+  "highlights_requirements": "[S, x3] Highlights are OPTIONAL (encouraged) for AAE: \"Authors are encouraged to provide article highlights at submission.\" They help \"increase the discoverability of your article via search engines\".\n\nFormat:\n- 3 to 5 bullet points.\n- Each bullet is \"a maximum of 85 characters, including spaces\".\n- Submit them as a separate editable file in the online submission system, with the word \"highlights\" in the file name.\n\nNo snippet found describes AAE highlights as mandatory. The sister journal Applied Energy makes them mandatory, which does not apply here. Recommendation: supply them anyway (3\u20135 bullets, 85 characters or fewer each).",
+  "keywords_requirements": "[S, x2] \"Authors are required to provide 1 to 7 keywords for indexing purposes.\"\n- Write them in English.\n- \"Try to avoid keywords consisting of multiple words (using 'and' or 'of').\"\n- Use abbreviations \"only if they are firmly established in the field.\"",
+  "graphical_abstract": "[S, x2] OPTIONAL: \"Authors are also encouraged to provide a graphical abstract at submission.\" It is submitted as a separate file.\n\n[S, x1] AAE size rule: at least 1328 pixels wide, with the longest side horizontal, readable at 13 cm width. The AAE snippet gave no height.\n\nThe 531 x 1328 px (h x w), \"readable at 5 x 13 cm\" spec appears in sister Elsevier guides (Energy Reports, Solar Energy Advances, eScience Energy) and in Elsevier's general graphical-abstract page (1328 x 531 px w x h). It is NOT confirmed in the AAE text.\n\n[S, x1] Use of generative AI in producing graphical abstracts must follow Elsevier's GenAI policies.",
+  "reference_style": "[S, x1] NUMBERED style: \"Indicate references by adding a number within square brackets in the text. Number references in the order they appear in your article.\" The reference list is numbered in the same order.\n\n[S, x1] At submission there are no strict formatting rules: \"References can be in any style or format as long as the style is consistent.\" \"Our journal reference style will be applied to your article after acceptance, at proof stage.\"\n- Articles in press may be cited with the online publication year and DOI.\n- Unpublished results and personal communications are allowed only in the journal's standard style, with \"unpublished results\" or \"personal communication\" in place of the publication date.\n- References cited in the abstract must be given in full.\n\nNOT seen for AAE: journal-name abbreviation rules, a journal-article example, DOI formatting, or the exact bst/CSL file name. Elsevier's general LaTeX guidance names the elsarticle class; elsarticle-num is the usual numbered variant, but this is NOT confirmed for AAE.\n\n[S, x1] LaTeX: .tex source files are required for LaTeX submissions, and \"a PDF is not an acceptable source file\". The template is encouraged. Double-column format is allowed only for LaTeX submissions.",
+  "figures_tables": "[S, x2] File formats and resolution (AAE guide format table):\n- Vector drawings: EPS or PDF with embedded fonts.\n- Colour or greyscale photographs: TIFF, JPG or PNG, minimum 300 dpi.\n- Bitmapped line drawings: TIFF, JPG or PNG, minimum 1000 dpi.\n- Annotated images in PPT/PPTX: annotations must stay legible; embedded images at least 300 dpi.\n\nTables must be editable text, not images, cited in the text and numbered in order of appearance.\n\n[S, x1] Image integrity (elsevier.com copy of the AAE guide):\n- No AI tools may be used to create or alter images that represent primary observed or experimental data.\n- Brightness/contrast changes only with established image-processing software.\n- Non-linear adjustments (e.g., gamma) must be disclosed in the figure legend.\n\nAI-generated images must be disclosed in each image caption and in the general GenAI statement.\n\nNOT confirmed for AAE (found only in sister journals): 500 dpi for combination line/halftone images; a \"colour online at no charge\" statement.",
+  "declarations_required": "[S] All items below come from the official AAE guide via search snippets.\n\n1) Declaration of competing interests (x2): authors disclose financial and personal relationships that could bias the work. Authors with nothing to declare select \"I have nothing to declare.\" The resulting Word document is uploaded at the \"attach/upload files\" step. Signatures are not required.\n\n2) CRediT author statement (x2): \"Corresponding authors are required to acknowledge co-author contributions using CRediT (Contributor Roles Taxonomy) roles\". Not all roles apply to every manuscript.\n\n3) Funding sources (x1): authors must disclose funding sources that supported the research and/or preparation of the article, and state if funders had no involvement. For block grants, name the institution. Suggested no-funding sentence, paraphrased in the snippet: the research did not receive a specific grant from public, commercial or not-for-profit funders.\n\n4) Declaration of generative AI use (x2): see generative_ai_policy.\n\n5) Data availability statement: ENCOURAGED, not mandatory (Option B; see data_code_policy).\n\n6) Submission declaration: listed among the required declarations (x1).\n\n7) Title page (x1): the corresponding author's email must be on the title page and will be published.\n\nPeer review: [S, x2] \"This journal follows a single anonymized review process\" with a minimum of two reviewers after editor screening. So a normal, non-anonymised title page is expected. CONFLICT: the DOAJ record (seen directly via the DOAJ API, last updated 2026-09-17) says \"Double anonymous peer review\". The guide statement should take precedence, but the conflict is unresolved.",
+  "data_code_policy": "[S, x2] The AAE guide states that \"Option B instructions from our research data guidelines apply\": \"Deposit your research data in a relevant data repository. If this is not possible, make a statement explaining why research data cannot be shared.\" Authors \"are encouraged to state the availability of any data at submission\"; the statement appears with the published article.\n\n[Seen directly] Elsevier's research-data-guidelines page (elsevier.com/researcher/author/tools-and-resources/research-data/data-guidelines) defines Option B as follows: \"You are encouraged to:\" deposit data in a relevant repository and provide a link to the dataset during submission; \"If sharing your research data isn't possible, please make a statement explaining why during the submission process.\" So under Option B, deposit and the statement are encouraged, not required. Under Options C\u2013E deposit is required.\n\nCode/software: no AAE-specific code-sharing requirement was found. Snippets disagree on whether the AAE guide's definition of \"research data\" explicitly includes software/code; one found that wording only in the Energy journal's guide. Elsevier's guidelines page does not mention code.\n\nPractical implication: a data/code availability statement plus repository links (BDG2 and UCI are public; code in a repository) is fully compliant, but it is not mandated.",
+  "generative_ai_policy": "[S, x2] Authors must declare use of generative AI tools in the manuscript preparation process upon submission.\n\nTemplate section title: \"Declaration of generative AI and AI-assisted technologies in the manuscript preparation process\". Statement begins: \"During the preparation of this work the author(s) used [NAME OF TOOL/SERVICE] to [REASON].\" The remainder of the template sentence was not seen.\n\nOther rules:\n- AI tools may be used only with human oversight and control. Authors remain responsible and accountable for the content.\n- Images created with generative AI must be disclosed in each image caption as well as in the general statement.\n- [S, x1, elsevier.com copy] AI may not be used to create or alter images representing primary data.\n- GenAI use in graphical abstracts must follow Elsevier GenAI policies.\n\nNOT confirmed for AAE: placement of the statement. \"At the end of the manuscript, before the References\" comes from the Energy guide, which still uses the older \"writing process\" wording.",
+  "apc_open_access": "Gold (full) open access journal.\n\n[Seen directly] Elsevier's official APC price list (legacyfileshare.elsevier.com/els_com_pricing/article-publishing-charge.xlsx; sheet header \"All prices excluding taxes. Prices as of date: 05-Oct-2026\"; HTTP Last-Modified 05 Oct 2026). Row: \"2666-7924 | Advances in Applied Energy | Full Open Access | USD 5290 | EUR 4830 | GBP 4240 | JPY 688920\". CURRENT APC = USD 5,290 excluding taxes.\n\n[Seen directly] Elsevier's GPOA pilot list (elsevier.com/about/policies-and-standards/pricing/gpoa-journals-list) includes \"Advances in Applied Energy | 2666-7924\". So the APC is geo-priced by the income level of all authors' country affiliations.\n\n[Seen directly] Elsevier pricing page tiers (World Bank, 01 July 2026), as % of the list price:\n- low-income: 0%\n- lower-middle income: 20%\n- upper-middle income: 45%, 65% or 90% (three groups)\nResearch4Life waivers/discounts also exist.\n\n[S] The ScienceDirect journal homepage snippet shows \"USD 5,290 (excluding taxes)\", which matches the price list. The Insights-page snippet showing USD 4,800 is an OLDER figure, and the project note journal_selection/selected_journal.md lists 4,800 first, so it is outdated.\n\n[Seen directly] DOAJ record (doaj.org API, last updated 2026-09-17): APC max USD 3780 (stale versus the price list). Licences CC BY, CC BY-NC, CC BY-NC-ND. Waiver available. Authors do not retain copyright (DOAJ field). OA since 2021. Preservation: CLOCKSS, Portico.\n\nUNVERIFIED: a \"USD 2660\" rate for short articles shown in one open-access-options snippet. The official price list has only the single USD 5,290 row.",
+  "jcr_metrics_evidence": "LATEST JIF: 18.3 (JIF year 2025, JCR 2026 release). NOT verified in Clarivate JCR itself (subscription; not reachable from here).\n\n[Seen directly] Clarivate press release (clarivate.com/news/clarivate-releases-journal-citation-reports-2026/): JCR 2026 released June 17, 2026, \"reflecting 2025 data\".\n\nEvidence for 18.3:\n(a) [S] ScienceDirect AAE homepage snippet: \"Impact Factor 18.3\", CiteScore 26.6, APC USD 5,290. The APC matches the Oct-2026 price list, so this snapshot postdates June 2026.\n(b) journalmetrics.org (search snippet; direct fetch HTTP 429): \"Impact Factor 2026: 18.3, Q1\", released June 17, 2026 and based on 2025 data. Metric year 2024 = 13.8. Category row \"ENERGY & FUELS | ESCI | Q1\".\n(c) wos-journal.info (snippet; direct fetch blocked by a bot check): JIF 18.3, ENERGY & FUELS - ESCI, \"Percentage rank: 94.8%\".\n(d) journalsearches.com (fetched): 18.3, \"updated in June 2026\", Q1, lists \"Web of Science (ESCI)\".\n(e) Third-party PDF \"JCR Impact Factor 2026\" (impactfactorforjournal.com; PDF created 2026-06-19; text extracted): row \"Advances in Applied Energy 18.3 Q1\", column \"IF 2025\".\n\nPREVIOUS JIF: 13.8 (JIF year 2024). Sources: the older ScienceDirect Insights snapshot (\"32.6 CiteScore \u00b7 13.8 Impact Factor\") and the journalmetrics.org history.\n\nJCR CATEGORY / QUARTILE: ENERGY & FUELS, Q1. Third-party only, but consistent across journalmetrics, wos-journal.info, LetPub and Peeref.\n- Rank: LetPub (fetched) JIF rank 10/191 Q1 (collection ESCI); JCI rank 20/191 Q1.\n- The 94.8% percentile at wos-journal.info is not consistent with 10/191 (which gives about 95.0%), so it may be from another year.\n- Edition is CONFLICTING. ESCI per journalmetrics, wos-journal.info, journalsearches and LetPub's table. SCIE per Peeref (\"Category (Journal Citation Reports 2026)\") and LetPub's badge. Clarivate MJL could not be reached. Treat the edition as unverified, ESCI more likely.\n\nSCOPUS (not JCR): [Seen directly] WUR library journal browser (library.wur.nl/WebQuery/wurbrowser/81681), \"Scopus Journal Metrics (2025)\": CiteScore 26.6, SJR 3.888, SNIP 3.673, Q1.\n- journalsearches: CiteScore 2025 released 5 June 2026.\n- Previous CiteScore 32.6 (older Insights snapshot).\n- SCImago snippet: SJR 2025 = 3.888, best quartile Q1.\n\nIgnore non-JCR aggregator \"impact factors\" (Exaly 14.9/13.9, SciJournal/Resurchify 20.1, JournalsInsights 5.458). They do not match JCR-based sources.",
+  "timeline_evidence": "All figures are publisher-reported \"Publishing timeline\" panels on ScienceDirect, read only via search snippets (pages return 403). TWO SNAPSHOTS WITH DIFFERENT NUMBERS exist.\n\n(A) AAE journal homepage (sciencedirect.com/journal/advances-in-applied-energy). The same snapshot shows IF 18.3, CiteScore 26.6 and APC USD 5,290, so it is consistent with post-June-2026 data and is most likely the CURRENT one:\n- 1 day \"Submission to first decision\"\n- 22 days \"Submission to decision after review\"\n- 66 days \"Submission to acceptance\"\n- 4 days \"Acceptance to online publication\"\n\n(B) AAE Insights page (\u2026/about/insights). The same snapshot shows IF 13.8, CiteScore 32.6 and APC USD 4,800, so it is most likely OLDER (2025-era data):\n- 1 day \"Submission to first decision\"\n- 26 days \"Submission to decision after review\"\n- 86 days \"Submission to acceptance\"\n- 6 days \"Acceptance to online publication\"\n\nMean vs median: NOT stated in any retrieved AAE text. One search summary called the 86 days \"a median\", but this could not be corroborated; other queries found the panels do not state the statistic or the period covered. Legacy Elsevier Journal Insights pages for other journals described \"review speed\" as an \"average\"; an Elsevier Espa\u00f1a page reportedly defines these metrics as medians but was unreachable. So treat it as unknown, with the reference period unknown too. The 1-day first-decision figure is not defined further; whether it includes desk decisions is not stated.\n\nSecondary:\n- [Seen directly] DOAJ API field publication_time_weeks = 8. DOAJ displays this as \"Expect on average N weeks from submission to publication\". It is publisher-supplied.\n- LetPub \"Average Peer Review 8 Weeks\"; Peeref \"Peer Review Turnaround Time 8 weeks\" (third-party).\n- Acceptance rate: not found.\n\nNote for the project: /home/user/p_c1_1/journal_selection/selected_journal.md records the 86-day Insights figure as the \"VERIFIED ACCEPTANCE TIMELINE\". The newer-looking homepage snapshot shows 66 days. Neither figure is a guarantee for an individual manuscript.",
+  "sources": [
+   "https://www.sciencedirect.com/journal/advances-in-applied-energy/publish/guide-for-authors (official guide; direct WebFetch HTTP 403; content taken from WebSearch snippets restricted to sciencedirect.com/elsevier.com)",
+   "https://www.elsevier.com/journals/advances-in-applied-energy/2666-7924/guide-for-authors (301 redirect to https://www.sciencedirect.com/science/journal/26667924/publish/guide-for-authors, HTTP 403)",
+   "https://www.sciencedirect.com/journal/advances-in-applied-energy (journal homepage; 403; search snippets: IF 18.3, CiteScore 26.6, APC USD 5,290, timeline 1/22/66/4 days)",
+   "https://www.sciencedirect.com/journal/advances-in-applied-energy/about/insights (403; search snippets: IF 13.8, CiteScore 32.6, APC USD 4,800, timeline 1/26/86/6 days)",
+   "https://www.sciencedirect.com/journal/advances-in-applied-energy/publish/open-access-options (403; snippet: USD 5290 full length, USD 2660 short articles, GPOA geo-pricing)",
+   "https://legacyfileshare.elsevier.com/els_com_pricing/article-publishing-charge.xlsx (downloaded and parsed; 'Prices as of date: 05-Oct-2026'; local copy /tmp/claude-0/audit_scratch/aae/apc_dl/apc.xlsx)",
+   "https://www.elsevier.com/about/policies-and-standards/pricing (fetched: GPOA tiers, World Bank 01 July 2026; APC list link)",
+   "https://www.elsevier.com/about/policies-and-standards/pricing/gpoa-journals-list (fetched: lists Advances in Applied Energy 2666-7924)",
+   "https://doaj.org/api/search/journals/issn:2666-7924 (fetched JSON; last_updated 2026-09-17; local copy /tmp/claude-0/audit_scratch/aae/doaj.json)",
+   "https://www.elsevier.com/researcher/author/tools-and-resources/research-data/data-guidelines (fetched: definitions of Options A-E)",
+   "https://clarivate.com/news/clarivate-releases-journal-citation-reports-2026/ (fetched: JCR 2026 released June 17, 2026, reflecting 2025 data)",
+   "https://library.wur.nl/WebQuery/wurbrowser/81681 (fetched: Scopus Journal Metrics (2025) CiteScore 26.6, SJR 3.888, SNIP 3.673)",
+   "https://journalsearches.com/journal.php?title=advances+in+applied+energy (fetched; third-party: IF 18.3 updated June 2026, ESCI, CiteScore 26.6)",
+   "https://www.letpub.com/journal-selector/journal/29940 (fetched; third-party: ENERGY & FUELS 10/191 Q1, ESCI table vs SCIE badge)",
+   "https://www.peeref.com/journals/29940/advances-in-applied-energy (fetched; third-party: ENERGY & FUELS Q1, SCIE, 'Journal Citation Reports 2026')",
+   "https://impactfactorforjournal.com/wp-content/uploads/2026/06/JCR-Impact-Factor-2026.pdf (fetched; third-party list; row 'Advances in Applied Energy 18.3 Q1'; extracted text /tmp/claude-0/audit_scratch/aae/jcrpdf/jcr2026.txt)",
+   "https://www.journalmetrics.org/journal/advances-in-applied-energy (HTTP 429; search snippet only: 18.3 released June 17 2026; 2024 = 13.8; ENERGY & FUELS ESCI Q1)",
+   "https://wos-journal.info/journalid/23789 (bot-check page; search snippet only: JIF 18.3, ENERGY & FUELS - ESCI, 94.8%)",
+   "https://www.scimagojr.com/journalsearch.php?q=21101074917&tip=sid&clean=0 (403; snippet: SJR 2025 3.888, Q1)",
+   "https://www.elsevier.com/researcher/author/tools-and-resources/graphical-abstract (snippet; general Elsevier GA size guidance, not AAE-specific)",
+   "https://www.elsevier.com/researcher/author/tools-and-resources/highlights (snippet; general Elsevier highlights guidance)",
+   "/home/user/p_c1_1/journal_selection/selected_journal.md (existing project note, read only, for discrepancy check)"
+  ],
+  "unverified_items": "1) ACCESS LIMITS. The AAE guide for authors, homepage, Insights page and open-access page all return HTTP 403 to WebFetch.\n- Every guide-derived item is from WebSearch snippets that a model summarised, with unknown crawl date. Wording may be paraphrased, and some items come from a single query (marked x1).\n- A curl attempt with a browser user-agent was refused by the session's permission classifier and was not retried.\n- Re-check the live guide before submission.\n\n2) PEER REVIEW TYPE. The guide snippet (x2) says \"single anonymized\"; the DOAJ record says \"Double anonymous peer review\". This is unresolved.\n\n3) JIF 18.3 (2025, JCR 2026) is not verified in Clarivate JCR itself. It is corroborated only by the ScienceDirect homepage snippet plus several third-party sites.\n- JCR edition: ESCI vs SCIE conflict; Clarivate MJL could not be reached.\n- Rank 10/191 and JCI 20/191 are LetPub only. The 94.8% percentile (wos-journal.info) does not match 10/191.\n- That 13.8 is the 2024 JIF rests on the aggregator history and the older Insights snapshot.\n\n4) TIMELINES.\n- Which snapshot is live is inferred, not observed: homepage 66 days likely current, Insights 86 days likely older. The search tool itself repeatedly labelled the homepage snapshot \"older\" from page metadata (about 1,879 days), but its content (2026 JIF, Oct-2026 APC) contradicts that.\n- Mean vs median and the reference period are not stated anywhere retrieved.\n- Acceptance rate not found.\n\n5) APC.\n- A USD 2,660 \"short articles\" rate (one snippet) is not in the official price list.\n- The exact geo-priced amount depends on all authors' countries.\n- DOAJ's USD 3,780 is stale.\n\n6) GUIDE DETAILS NOT FOUND OR NOT CONFIRMED FOR AAE:\n- Graphical-abstract height (531 px).\n- 500 dpi rule for combination artwork.\n- Colour-figure policy.\n- Placement of the GenAI statement (before References is from the Energy guide) and its full template sentence.\n- Whether AAE's research-data definition explicitly covers code.\n- Any word-count limit, and whether references count toward printed pages.\n- Cover-letter, suggested-reviewer, nomenclature and preprint rules.\n- Exact reference-list formatting (journal abbreviations, DOI, bst/CSL file).\n- The funding-statement wording (x1 only).\n- The LaTeX/double-column statements (x1 only).\n\n7) Highlights and graphical abstract are optional per the AAE snippets. The submission system (Editorial Manager) may still prompt for them; this could not be checked.\n\n8) Discrepancies with the existing project note /home/user/p_c1_1/journal_selection/selected_journal.md:\n- It lists the APC as \"USD 4,800 (older page showed 5,290)\". The official price list dated 05-Oct-2026 gives USD 5,290.\n- It records 86 days as the verified acceptance timeline, while the newer-looking homepage snapshot shows 66 days.\n- It calls highlights and graphical abstract \"customary\"; the guide marks both as optional/encouraged."
+ }
+}

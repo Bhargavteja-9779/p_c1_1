@@ -23,3 +23,18 @@
   same mask. New unit test. All result parts deleted and recomputed (trained models reused from cache).
 - Operational: two parallel experiment processes caused OpenMP thread oversubscription (LightGBM/torch
   spin-waiting; no progress for 33 min). Reverted to one sequential process. No results affected.
+
+## 2026-11-16 (after session-limit resume)
+- Prior-art audit (agents + author verification; REVIEW/pre_review_audit.md): the pseudo-count shrinkage
+  mechanism is not new (Jeon 2026 donor+local mixture for new solar stations; Shahid 2026; Rafe & Das 2026;
+  Zhang et al. 2024); GHCP (Mallick et al. 2026) and TQA (Lin et al. 2022) are close principled
+  counterparts. Contribution re-scoped (no claim of a new mechanism); introduction and related work rewritten;
+  17 verified references added.
+- Added calibration-only baselines from the closest prior art: GHCP-CQR, QShrink-CQR (regularised Mondrian,
+  lambda by LOBO), TQA-B-CQR. Added the recommended simplest variant (HSC simple / HSC-CQR simple: uniform
+  prior, no stage matching, kappa by LOBO) and a model-agnostic check (CQR (MLP), HSC-CQR (MLP)).
+  Pre-registered primary comparison remains HSC-CQR; the simple variant is reported as secondary.
+- Journal facts updated: current publisher panel 66 days submission→acceptance (older snapshot 86 d);
+  APC USD 5,290; JIF 18.3 (JCR 2026); author-guideline details (abstract <=250 words, highlights optional).
+- Operational: container restart wiped data/raw (re-downloaded automatically); training-only mode added so
+  all trainings are cached before one consistent calibration pass with the final code.

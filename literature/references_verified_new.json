@@ -1,0 +1,239 @@
+[
+ {
+  "key": "2310.02863",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformal Predictions for Longitudinal Data",
+  "authors": [
+   "Devesh Batra",
+   "Salvatore Mercuri",
+   "Raad Khraishi"
+  ],
+  "published": "2023-10-04",
+  "journal_ref": null,
+  "comment": null
+ },
+ {
+  "key": "2510.15780",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Enhanced Renewable Energy Forecasting using Context-Aware Conformal Prediction",
+  "authors": [
+   "Alireza Moradi",
+   "Mathieu Tanneau",
+   "Reza Zandehshahvar",
+   "Pascal Van Hentenryck"
+  ],
+  "published": "2025-10-17",
+  "journal_ref": null,
+  "comment": null
+ },
+ {
+  "key": "2505.13432",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Synthetic-Powered Predictive Inference",
+  "authors": [
+   "Meshi Bashari",
+   "Roy Maor Lotan",
+   "Yonghoon Lee",
+   "Edgar Dobriban",
+   "Yaniv Romano"
+  ],
+  "published": "2025-05-19",
+  "journal_ref": null,
+  "comment": null
+ },
+ {
+  "key": "2410.02561",
+  "source": "arxiv",
+  "ok": true,
+  "title": "The Benefit of Being Bayesian in Online Conformal Prediction",
+  "authors": [
+   "Zhiyu Zhang",
+   "Zhou Lu",
+   "Heng Yang"
+  ],
+  "published": "2024-10-03",
+  "journal_ref": null,
+  "comment": "Improved writing"
+ },
+ {
+  "key": "2605.05562",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Socio-Conformal Calibration in Complex Survey Data: Marginal Validity Is Not Enough for Subgroup Reliability",
+  "authors": [
+   "Amir Rafe",
+   "Subasish Das"
+  ],
+  "published": "2026-05-07",
+  "journal_ref": null,
+  "comment": null
+ },
+ {
+  "key": "2606.20115",
+  "source": "arxiv",
+  "ok": true,
+  "title": "When Average Calibration Fails: Site-Conditional Federated Conformal Risk Control",
+  "authors": [
+   "Nafis Fuad Shahid"
+  ],
+  "published": "2026-06-18",
+  "journal_ref": null,
+  "comment": "10 pages, 4 figures, 2 tables. Submitted to the DeCaF Workshop at MICCAI 2026"
+ },
+ {
+  "key": "2606.00717",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Multi-Agent Conformal Prediction with Personalized Statistical Validity",
+  "authors": [
+   "Martin V. Vejling",
+   "Christophe A. N. Biscio",
+   "Adrien Mazoyer",
+   "Petar Popovski",
+   "Shashi Raj Pandey"
+  ],
+  "published": "2026-05-30",
+  "journal_ref": null,
+  "comment": null
+ },
+ {
+  "key": "2205.12940",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformal Prediction Intervals with Temporal Dependence",
+  "authors": [
+   "Zhen Lin",
+   "Shubhendu Trivedi",
+   "Jimeng Sun"
+  ],
+  "published": "2022-05-25",
+  "journal_ref": null,
+  "comment": "16 pages (main paper, including references) + 6 pages (supplementary material). Transactions of Machine Learning Research (September 2022). Code is available at https://github.com/zlin7/CPTD"
+ },
+ {
+  "key": "2205.09940",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Conformal Prediction with Temporal Quantile Adjustments",
+  "authors": [
+   "Zhen Lin",
+   "Shubhendu Trivedi",
+   "Jimeng Sun"
+  ],
+  "published": "2022-05-20",
+  "journal_ref": null,
+  "comment": "12 pages (main paper, including references) + 11 pages (supplementary material)"
+ },
+ {
+  "key": "2608.15500",
+  "source": "arxiv",
+  "ok": true,
+  "title": "Generalized Hierarchical Conformal Prediction",
+  "authors": [
+   "Soham Mallick",
+   "Eric Tchetgen Tchetgen",
+   "Edgar Dobriban",
+   "Yonghoon Lee"
+  ],
+  "published": "2026-08-16",
+  "journal_ref": null,
+  "comment": "44 pages, 13 figures. Code available at https://github.com/soham-penn/hierarchical_CP"
+ },
+ {
+  "key": "10.3390/app16167984",
+  "source": "crossref",
+  "ok": true,
+  "title": "Evaluating the Reliability of Cross-Building Load Forecasting Under Distribution Shift and Sensor Missingness",
+  "authors": [
+   "Hao, Yunkai",
+   "Yang, Jian",
+   "Ji, Zhigang"
+  ],
+  "year": 2026,
+  "venue": "Applied Sciences",
+  "volume": "16",
+  "issue": "16",
+  "pages": "7984"
+ },
+ {
+  "key": "10.1093/jssam/smae010",
+  "source": "crossref",
+  "ok": true,
+  "title": "Optimal Conformal Prediction for\u00a0Small\u00a0Areas",
+  "authors": [
+   "Bersson, Elizabeth",
+   "Hoff, Peter D"
+  ],
+  "year": 2024,
+  "venue": "Journal of Survey Statistics and Methodology",
+  "volume": "12",
+  "issue": "5",
+  "pages": "1464-1488"
+ },
+ {
+  "key": "10.1016/j.egyai.2026.100815",
+  "source": "crossref",
+  "ok": true,
+  "title": "Federated Transfer Learning for cold-start building energy prediction under data scarcity and privacy constraints",
+  "authors": [
+   "Ristovska, Tamara",
+   "Gonz\u00e1lez-Vidal, Aurora",
+   "Skarmeta, Antonio F.",
+   "Kovatcheva, Eugenia",
+   "Gotsev, Lyubomir"
+  ],
+  "year": 2026,
+  "venue": "Energy and AI",
+  "volume": "25",
+  "issue": null,
+  "pages": "100815"
+ },
+ {
+  "key": "10.1080/10920277.2022.2123364",
+  "source": "crossref",
+  "ok": true,
+  "title": "Conformal Prediction Credibility Intervals",
+  "authors": [
+   "Hong, Liang"
+  ],
+  "year": 2022,
+  "venue": "North American Actuarial Journal",
+  "volume": "27",
+  "issue": "4",
+  "pages": "675-688"
+ },
+ {
+  "key": "10.1016/j.enbuild.2022.111846",
+  "source": "crossref",
+  "ok": true,
+  "title": "Short-term electric load prediction using transfer learning with interval estimate adjustment",
+  "authors": [
+   "Jin, Yuwei",
+   "Acquah, Moses Amoasi",
+   "Seo, Mingyu",
+   "Han, Sekyung"
+  ],
+  "year": 2022,
+  "venue": "Energy and Buildings",
+  "volume": "258",
+  "issue": null,
+  "pages": "111846"
+ },
+ {
+  "key": "10.5281/zenodo.24002627",
+  "source": "datacite",
+  "ok": true,
+  "title": "coldstart-conformal-solar: analysis code for auditing cold-start conformal prediction intervals of solar irradiance forecasts at unseen stations (v1.2)",
+  "authors": [
+   "Jeon, Byung-ki"
+  ],
+  "year": 2026,
+  "publisher": "Zenodo",
+  "type": "Software",
+  "published": "2026",
+  "version": null
+ }
+]

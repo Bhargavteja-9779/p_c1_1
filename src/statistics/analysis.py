@@ -22,13 +22,14 @@ TAB = os.path.join(ROOT, "tables")
 NOM = {0.1: 0.9, 0.05: 0.95, 0.2: 0.8}
 
 PROPOSED = ["HSC-CQR", "HSC"]
-FAMILY_CQR = ["CQR", "Self-CQR", "ACI-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "SCP-stage", "ACI", "Self-CP",
-              "Mondrian-usage", "Naive+SCP", "HSC"]
+FAMILY_CQR = ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR", "QR-LGBM", "MLP-QR",
+              "MLP-Gauss", "SCP-stage", "ACI", "Self-CP", "Mondrian-usage", "Naive+SCP", "HSC"]
 FAMILY_ABS = ["SCP", "SCP-stage", "Mondrian-usage", "Self-CP", "ACI", "Raw-SCP"]
 ABLATIONS = ["HSC -stage", "HSC -kNN", "HSC -shrink", "HSC fixed-kappa", "HSC -kNN -stage"]
 ABLATIONS_CQR = ["HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "Self-CQR", "CQR"]
-ORDER = ["HSC-CQR", "HSC", "CQR", "Self-CQR", "ACI-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "ACI", "Self-CP",
-         "SCP-stage", "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"] + ABLATIONS + ABLATIONS_CQR[:3]
+ORDER = ["HSC-CQR", "HSC-CQR simple", "HSC", "HSC simple", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR",
+         "QShrink-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "CQR (MLP)", "HSC-CQR (MLP)", "ACI", "Self-CP", "SCP-stage",
+         "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"] + ABLATIONS + ABLATIONS_CQR[:3]
 
 
 def load():
@@ -174,7 +175,10 @@ def run(mode="full"):
             stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", FAMILY_CQR))
             stats.append(paired_tests(df, "main", ds, "random", "HSC", FAMILY_ABS))
             stats.append(paired_tests(df, "main", ds, "random", "HSC", ABLATIONS))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", ABLATIONS_CQR[:3]))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", ABLATIONS_CQR[:3] + ["HSC-CQR simple"]))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR simple",
+                                      ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR"]))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR (MLP)", ["CQR (MLP)", "MLP-QR"]))
         for a in [0.05, 0.2]:
             t = summary_table(s, "main", ds, "random", alpha=a)
             if len(t):
@@ -201,7 +205,8 @@ def run(mode="full"):
     # ---- E4 robustness
     rb = s[s.exp == "robust"]
     if len(rb):
-        keep = ["HSC-CQR", "HSC", "CQR", "Self-CQR", "ACI-CQR", "QR-LGBM", "MLP-QR", "ACI", "SCP-stage", "Self-CP"]
+        keep = ["HSC-CQR", "HSC-CQR simple", "HSC", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
+                "QR-LGBM", "MLP-QR", "ACI", "SCP-stage", "Self-CP"]
         rt = rb[rb.method.isin(keep)].groupby(["perturb", "method"])[["mean_cov", "macd", "under_rate", "rel_IS",
                                                                       "rel_width"]].mean().reset_index()
         rt.to_csv(os.path.join(TAB, "T_robustness.csv"), index=False)
@@ -210,6 +215,7 @@ def run(mode="full"):
         metrics["robustness"] = rt.round(4).to_dict(orient="records")
         for p in rb.perturb.unique():
             stats.append(paired_tests(df, "robust", "BDG2", "random", "HSC-CQR", ["CQR", "Self-CQR", "ACI-CQR",
+                                                                                  "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
                                                                                   "QR-LGBM", "MLP-QR"],
                                       perturb=p))
             stats.append(paired_tests(df, "robust", "BDG2", "random", "HSC", ["SCP-stage", "ACI", "Self-CP"],

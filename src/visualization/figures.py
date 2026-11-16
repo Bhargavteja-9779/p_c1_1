@@ -19,13 +19,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 RES = os.path.join(ROOT, "results")
 FIG = os.path.join(ROOT, "figures")
 MM = 1 / 25.4
-COL = {"HSC-CQR": "#2a78d6", "CQR": "#eb6834", "HSC": "#1baf7a", "SCP-stage": "#eda100", "ACI": "#e87ba4",
-       "QR-LGBM": "#008300", "MLP-QR": "#6250d6", "Self-CP": "#e34948"}
-MARK = {"HSC-CQR": "o", "CQR": "s", "HSC": "^", "SCP-stage": "v", "ACI": "D", "QR-LGBM": "P", "MLP-QR": "X",
-        "Self-CP": "*"}
+COL = {"HSC-CQR": "#2a78d6", "CQR": "#eb6834", "ACI-CQR": "#1baf7a", "Self-CQR": "#eda100", "TQA-B-CQR": "#e87ba4",
+       "QShrink-CQR": "#008300", "GHCP-CQR": "#6250d6", "SCP-stage": "#e34948"}
+MARK = {"HSC-CQR": "o", "CQR": "s", "ACI-CQR": "^", "Self-CQR": "v", "TQA-B-CQR": "D", "QShrink-CQR": "P",
+        "GHCP-CQR": "X", "SCP-stage": "*"}
 GREY = "#8a8984"
 INK, INK2 = "#0b0b0b", "#52514e"
-KEY = ["HSC-CQR", "CQR", "HSC", "SCP-stage", "ACI", "QR-LGBM", "MLP-QR", "Self-CP"]
+KEY = ["HSC-CQR", "CQR", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "SCP-stage"]
 
 plt.rcParams.update({"font.size": 7.5, "axes.titlesize": 8, "axes.labelsize": 7.5, "legend.fontsize": 6.5,
                      "xtick.labelsize": 6.5, "ytick.labelsize": 6.5, "axes.spines.top": False,
@@ -110,7 +110,7 @@ def _blocks(g):
 
 
 def fig_stage_curves(cv, tag):
-    meths = ["HSC-CQR", "CQR", "HSC", "SCP-stage", "ACI", "Self-CP", "MLP-QR", "QR-LGBM"]
+    meths = KEY
     fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 110 * MM), sharex=True)
     fig.subplots_adjust(hspace=0.32, wspace=0.22)
     for j, ds in enumerate(["BDG2", "UCI"]):
@@ -121,7 +121,7 @@ def fig_stage_curves(cv, tag):
             if not len(gm):
                 continue
             gb = _blocks(gm)
-            kw = dict(color=_c(m), marker=MARK[m], markersize=3, lw=1.7 if m.startswith("HSC") else 0.9,
+            kw = dict(color=_c(m), marker=MARK.get(m, "o"), markersize=3, lw=1.8 if m.startswith("HSC") else 0.9,
                       ls="-" if m.startswith("HSC") else (0, (3, 1)))
             axs[0, j].plot(gb.x, gb.coverage, label=m, **kw)
             axs[1, j].plot(gb.x, gb.rel_IS, **kw)
@@ -134,7 +134,7 @@ def fig_stage_curves(cv, tag):
     axs[0, 0].set_ylabel("Coverage (nominal 0.90)")
     axs[1, 0].set_ylabel("Relative interval score")
     h, l = axs[0, 0].get_legend_handles_labels()
-    fig.legend(h, l, ncol=8, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.02))
+    fig.legend(h, l, ncol=4, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.05))
     fig.subplots_adjust(bottom=0.14)
     _save(fig, "Fig3_stage_curves")
 
@@ -165,13 +165,15 @@ def fig_tradeoff(s):
         d = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
         g = d.groupby("method")[["macd", "rel_IS"]].agg(["mean", "std"])
         for m in g.index:
-            if m.startswith("HSC ") or m in ("Raw-SCP", "SCP", "Mondrian-usage"):
+            if m.startswith(("HSC ", "HSC-CQR -")) or m in ("Raw-SCP", "SCP", "Mondrian-usage", "HSC fixed-kappa"):
                 continue
             x, y = g.loc[m, ("rel_IS", "mean")], g.loc[m, ("macd", "mean")]
             axs[j].errorbar(x, y, xerr=g.loc[m, ("rel_IS", "std")], yerr=g.loc[m, ("macd", "std")], fmt=MARK.get(m, "o"),
                             color=_c(m), ms=5 if m in COL else 3.5, elinewidth=0.6, capsize=1.5)
             off = {"QR-LGBM": (-34, 6), "MLP-QR": (5, 3), "CQR": (5, -9), "Self-CP": (5, -2), "HSC": (5, 3),
-                   "MLP-Gauss": (5, -8)}.get(m, (5, 3))
+                   "MLP-Gauss": (5, -8), "HSC-CQR simple": (5, -9), "Self-CQR": (5, 2), "ACI-CQR": (5, -8),
+                   "QShrink-CQR": (5, 3), "GHCP-CQR": (5, 3), "TQA-B-CQR": (5, 3), "CQR (MLP)": (-38, -9),
+                   "HSC-CQR (MLP)": (5, -2)}.get(m, (5, 3))
             axs[j].annotate(m, (x, y), xytext=off, textcoords="offset points", fontsize=6, color=INK)
         axs[j].set_xlabel("Median relative interval score (lower = sharper & valid)")
         axs[j].set_title(f"{'ab'[j]}  {ds}", loc="left")
@@ -180,8 +182,7 @@ def fig_tradeoff(s):
 
 
 def fig_ablation(s):
-    meths = ["HSC", "HSC -stage", "HSC -kNN", "HSC -shrink", "HSC fixed-kappa", "HSC -kNN -stage", "Self-CP",
-             "SCP-stage"]
+    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR -shrink", "Self-CQR", "CQR"]
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 58 * MM))
     w = 0.38
     for j, metric, lab in [(0, "macd", "MACD"), (1, "rel_IS", "Median rel. interval score")]:
@@ -206,7 +207,7 @@ def fig_robust(s):
     perts = ["noise5", "noise15", "missing20", "missing40", "shift+40", "shift-40", "calpool10", "calpool25",
              "calpool50", "weak-forecaster"]
     perts = [p for p in perts if p in set(rb.perturb)]
-    meths = ["HSC-CQR", "CQR", "QR-LGBM", "MLP-QR", "HSC", "SCP-stage", "ACI"]
+    meths = KEY
     fig, axs = plt.subplots(2, 1, figsize=(190 * MM, 95 * MM), sharex=True)
     w = 0.8 / len(meths)
     for j, metric, lab in [(0, "macd", "MACD"), (1, "under_rate", "Share of buildings under-covered (<0.85)")]:
@@ -220,7 +221,7 @@ def fig_robust(s):
             "shift+40": "level +40%\n(day 28)", "shift-40": "level −40%\n(day 28)", "calpool10": "10% cal.\npool",
             "calpool25": "25% cal.\npool", "calpool50": "50% cal.\npool", "weak-forecaster": "weak\nforecaster*"}
     axs[1].set_xticklabels([nice.get(p, p) for p in perts], rotation=0)
-    axs[0].legend(ncol=7, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.18))
+    axs[0].legend(ncol=8, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.2), fontsize=5.8)
     axs[0].set_title("a  Per-building miscalibration under stress (BDG2, 3 seeds)", loc="left", pad=14)
     axs[1].set_title("b  Under-coverage", loc="left")
     _save(fig, "Fig7_robustness")
@@ -231,7 +232,7 @@ def fig_generalisation(s):
               ("xds", "BDG2", "BDG2->BDG2 (no weather)", "BDG2→BDG2 no-wx"),
               ("xds", "BDG2", "UCI->BDG2 (no weather)", "UCI→BDG2 no-wx"), ("main", "UCI", "random", "UCI random"),
               ("xds", "UCI", "BDG2->UCI (no weather)", "BDG2→UCI no-wx")]
-    meths = ["HSC-CQR", "CQR", "QR-LGBM", "MLP-QR", "HSC", "SCP-stage"]
+    meths = KEY
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM))
     w = 0.8 / len(meths)
     labs = []
@@ -250,7 +251,7 @@ def fig_generalisation(s):
         axs[j].set_xticklabels([l for _, l in labs], rotation=30, ha="right")
         axs[j].set_ylabel(lab)
         axs[j].set_title(f"{'ab'[j]}  {lab}", loc="left")
-    axs[0].legend(frameon=False, ncol=2)
+    axs[0].legend(frameon=False, ncol=2, fontsize=5.8)
     _save(fig, "Fig8_generalisation")
 
 

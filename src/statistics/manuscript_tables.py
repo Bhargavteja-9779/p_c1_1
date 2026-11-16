@@ -12,9 +12,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 RES = os.path.join(ROOT, "results")
 TAB = os.path.join(ROOT, "tables")
 
-MAIN_METHODS = ["HSC-CQR", "ACI-CQR", "Self-CQR", "CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "HSC", "ACI", "Self-CP",
+MAIN_METHODS = ["HSC-CQR", "HSC-CQR simple", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR",
+                "QR-LGBM", "MLP-QR", "MLP-Gauss", "HSC-CQR (MLP)", "CQR (MLP)", "HSC", "HSC simple", "ACI", "Self-CP",
                 "SCP-stage", "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"]
-KEY = ["HSC-CQR", "ACI-CQR", "Self-CQR", "CQR", "QR-LGBM", "MLP-QR", "HSC", "ACI", "SCP-stage"]
+KEY = ["HSC-CQR", "HSC-CQR simple", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR", "QR-LGBM",
+       "MLP-QR", "HSC", "ACI", "SCP-stage"]
 
 
 def _pm(m, s, d=3, pct=False):
@@ -63,7 +65,8 @@ def tests_table(st):
     rows = []
     t = st[(st.perturb == "none") & (st.alpha == 0.1) & (st.proposed == "HSC-CQR") & (st.protocol == "random")]
     for _, r in t.iterrows():
-        if r.baseline in ("HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink"):
+        if r.baseline in ("HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "HSC-CQR simple", "SCP-stage", "ACI",
+                          "Self-CP", "Mondrian-usage", "Naive+SCP", "HSC"):
             continue
         ci = ([float(x) for x in r.ci95_mean_diff.strip("[]").split(",")] if isinstance(r.ci95_mean_diff, str)
               else r.ci95_mean_diff)
@@ -82,8 +85,8 @@ def tests_table(st):
 
 def ablation_table(s):
     rows = []
-    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "Self-CQR", "CQR",
-             "HSC", "HSC -stage", "HSC -kNN", "HSC -kNN -stage", "HSC -shrink", "HSC fixed-kappa", "Self-CP",
+    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR -shrink", "Self-CQR", "CQR",
+             "HSC", "HSC -stage", "HSC -kNN", "HSC simple", "HSC -shrink", "HSC fixed-kappa", "Self-CP",
              "SCP-stage"]
     for m in meths:
         row = {"Variant": m}
@@ -112,7 +115,8 @@ def gen_table(s):
         x = s[(s.exp == e) & (s.dataset == ds) & (s.protocol == p) & (s.alpha == 0.1) & (s.perturb == "none")]
         if not len(x):
             continue
-        for m in ["HSC-CQR", "ACI-CQR", "Self-CQR", "CQR", "MLP-QR", "HSC", "SCP-stage"]:
+        for m in ["HSC-CQR", "HSC-CQR simple", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR",
+                  "MLP-QR"]:
             y = x[x.method == m]
             if not len(y):
                 continue
@@ -143,7 +147,8 @@ def robust_table(s):
         if not len(x):
             continue
         row = {"Condition": lab[p]}
-        for m in ["HSC-CQR", "ACI-CQR", "Self-CQR", "CQR", "MLP-QR", "HSC", "SCP-stage"]:
+        for m in ["HSC-CQR", "HSC-CQR simple", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR",
+                  "MLP-QR"]:
             y = x[x.method == m]
             row[m] = "–" if not len(y) else f"{y.macd.mean():.3f} / {100 * y.under_rate.mean():.0f}"
         rows.append(row)

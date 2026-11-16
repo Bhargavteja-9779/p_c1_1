@@ -203,3 +203,81 @@ def normalized_IS(q, scores, base_w, alpha):
     v = base_w[None] + 2 * qq + (2 / alpha) * np.maximum(np.where(valid, e, 0) - qq, 0)
     v = np.where(valid, v, 0)
     return v.sum(axis=(-1, -2, -3)) / valid.sum(axis=(-1, -2, -3))
+
+
+# ----------------------------------------------------------------------------------------------
+# Baselines from the closest prior art (added after the prior-art audit; see CHANGELOG.md)
+# ----------------------------------------------------------------------------------------------
+def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
+    """GHCP-style calibration (Mallick, Tchetgen Tchetgen, Dobriban & Lee, arXiv:2608.15500, Eq. 5), adapted:
+    each calibration building ("reference group") receives total weight 1/(K+1) spread over its scores;
+    the new building receives the same group share 1/(K+1), spread over its observed own scores and a point
+    mass at +inf for its not-yet-observed scores (surrogate group size n_surrogate). The local-predictor
+    step of GHCP is omitted (our global forecaster already conditions on the building's own history).
+    self_cc: (nt, NH, NG) cumulative own counts; cal_counts_allstages: (ncal, NG) cumulative counts.
+    """
+    nt, NH, NG = self_cc.shape
+    tot = np.maximum(cal_counts_allstages[:, -1:], 1).astype(np.float64)
+    Ssum = (cal_counts_allstages / tot).sum(axis=0)  # sum of reference CDFs
+    K = cal_counts_allstages.shape[0]
+    q = np.empty((nt, NH), dtype=np.float32)
+    own = np.zeros((nt, NG), dtype=np.float64)
+    for hi, h in enumerate(stages):
+        n_own = own[:, -1]
+        denom = np.maximum(n_surrogate, n_own)  # own share never exceeds one group share
+        F = (Ssum[None, :] + own / denom[:, None]) / (K + 1.0)
+        q[:, hi] = GRID[_first_ge(F, np.full(nt, 1 - alpha))]
+        own += self_cc[:, hi, :]
+    return q
+
+
+def qshrink_quantiles(self_cc, q_pool, alpha, lam, stages):
+    """Quantile-level shrinkage ("regularised Mondrian", Rafe & Das, arXiv:2605.05562):
+    q = w q_own + (1-w) q_pool, w = n/(n+lam); q_own = split-conformal quantile of the building's own past
+    scores (w = 0 while q_own is undefined). q_pool: (nt, NH) or (NH,) pooled radius."""
+    nt, NH, NG = self_cc.shape
+    q_own = hsc_quantiles(self_cc, np.zeros((1, len(STAGE_EDGES) - 1, NG), dtype=np.float32), None, alpha, [0],
+                          stages)[0]
+    n_own = np.concatenate([np.zeros((nt, 1)), np.cumsum(self_cc[:, :, -1], axis=1)[:, :-1]], axis=1)
+    defined = q_own < INF_RADIUS * 0.999
+    w = np.where(defined, n_own / (n_own + lam), 0.0)
+    qp = np.broadcast_to(q_pool, (nt, NH))
+    return (w * np.where(defined, q_own, 0.0) + (1 - w) * qp).astype(np.float32)
+
+
+def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, beta=0.8):
+    """TQA-B (Lin, Trivedi & Sun, NeurIPS 2022), adapted to daily batches: the building's exponentially
+    decayed mean own score (decay beta per day, normalised by the weight sum) is ranked among the
+    calibration buildings' decayed means at the same onboarding stage; the rank r is mapped to a quantile
+    adjustment by the budgeting function g^B (C = alpha^2/(1-alpha)^2), a = clip(alpha - g^B(r), 0.01, 1);
+    radius = pooled stage-matched quantile at level 1-a."""
+    def decayed(sc):
+        m = np.nanmean(sc, axis=2)  # (n, NH) daily mean scores
+        n, NHh = m.shape
+        out = np.full((n, NHh), np.nan)
+        num = np.zeros(n)
+        den = np.zeros(n)
+        for hi in range(NHh):
+            out[:, hi] = np.where(den > 0, num / np.maximum(den, 1e-12), np.nan)  # uses days < hi only
+            v = m[:, hi]
+            ok = ~np.isnan(v)
+            num = beta * num + np.where(ok, v, 0.0)
+            den = beta * den + ok.astype(float)
+        return out
+    et, ec = decayed(target_scores), decayed(cal_scores)
+    nt, NH, _ = target_scores.shape
+    N = cal_scores.shape[0]
+    P = prior_counts_bin.astype(np.float64)
+    F = P / np.maximum(P[:, -1:], 1)
+    C = alpha ** 2 / (1 - alpha) ** 2
+    q = np.empty((nt, NH), dtype=np.float32)
+    for hi, h in enumerate(stages):
+        k = int(stage_bin(h))
+        a = np.full(nt, alpha)
+        if hi > 0:
+            r = (ec[None, :, hi] < et[:, hi, None]).sum(axis=1) / (N + 1.0)
+            g = np.where(r < 1 - alpha, C * (r - (1 - alpha)), r - (1 - alpha))
+            a = np.where(np.isnan(et[:, hi]), alpha, np.clip(alpha - g, 0.01, 1.0))
+        idx = _first_ge(np.broadcast_to(F[k], (nt, F.shape[1])), 1 - a)
+        q[:, hi] = GRID[idx]
+    return q

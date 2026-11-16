@@ -221,6 +221,21 @@ def tune_aci(cal_scores, alpha, gammas=GAMMAS):
     return float(df.loc[df.obj.idxmin(), "gamma"]), df
 
 
+def tune_qshrink(cal_scores, cal_base_w, alpha, lams=(24, 48, 96, 168, 336, 672, 1344)):
+    """Leave-one-building-out choice of lambda for quantile-level shrinkage (same objective as HSC)."""
+    stages = np.arange(1, NH + 1)
+    cc = cb.cum_counts(cal_scores)
+    binc, _ = cb.bin_cdfs(cc, stages)
+    n = cal_scores.shape[0]
+    q_pool = cb.hsc_quantiles(cc, binc, None, alpha, [np.inf], stages, excl=np.arange(n))[0]  # LOBO pooled
+    res = []
+    for lam in lams:
+        q = cb.qshrink_quantiles(cc, q_pool, alpha, lam, stages)
+        res.append(dict(lam=lam, obj=float(cb.normalized_IS(q[None], cal_scores, cal_base_w, alpha)[0])))
+    df = pd.DataFrame(res)
+    return float(df.loc[df.obj.idxmin(), "lam"]), df
+
+
 def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", fixed=None, log=print):
     """Compute (lo, hi) for every interval method on the targets. Returns dict name->(lo,hi), info."""
     stages = np.arange(1, NH + 1)
@@ -318,6 +333,37 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     gq, _ = tune_aci(Scq, alpha) if fixed is None else (fixed["gamma"], None)
     info["aci_cqr_gamma"] = gq
     out["ACI-CQR"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gq, stages), lo=PT["qlo"], hi=PT["qhi"])
+    # closest prior-art mechanisms, on the same CQR scores (see calibration.py docstrings)
+    bwq_cal = PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None]
+    tot_all_q = bincq.sum(axis=1)
+    n_sur = float(np.median(tot_all_q[:, -1]))
+    out["GHCP-CQR"] = band(cb.ghcp_quantiles(cct_q, tot_all_q, alpha, stages, n_sur), lo=PT["qlo"], hi=PT["qhi"])
+    lam, _ = tune_qshrink(Scq, bwq_cal, alpha)
+    info["qshrink_lambda"] = lam
+    out["QShrink-CQR"] = band(cb.qshrink_quantiles(cct_q, cb.pooled_quantile(bincq, alpha, True)[sb], alpha, lam,
+                                                   stages), lo=PT["qlo"], hi=PT["qhi"])
+    out["TQA-B-CQR"] = band(cb.tqab_quantiles(Stq, Scq, bincq.sum(axis=0), alpha, stages), lo=PT["qlo"],
+                            hi=PT["qhi"])
+    # recommended simplest variant: uniform prior (K = all), no stage matching, kappa by LOBO
+    bs, _ = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None])
+    info["hsc_cqr_simple"] = bs
+    out["HSC-CQR simple"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [bs["kappa"]], stages,
+                                                  stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
+    bsa, _ = tune_hsc(Sc, np.zeros_like(Sc), zc, alpha, stage_matched=False, Ks=[None])
+    info["hsc_simple"] = bsa
+    out["HSC simple"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [bsa["kappa"]], stages,
+                                              stage_matched=False)[0])
+    # model-agnostic check: the same layer on the MLP quantile model
+    if "mqlo" in PT and "mqlo" in PC:
+        Scm = np.maximum(PC["mqlo"] - PC["y"], PC["y"] - PC["mqhi"]) / PC["s"][:, :, None]
+        Stm = np.maximum(PT["mqlo"] - PT["y"], PT["y"] - PT["mqhi"]) / PT["s"][:, :, None]
+        bincm, _ = cb.bin_cdfs(cb.cum_counts(Scm), stages)
+        out["CQR (MLP)"] = band(cb.pooled_quantile(bincm, alpha, True), lo=PT["mqlo"], hi=PT["mqhi"])
+        bm, _ = tune_hsc(Scm, PC["mqhi"] / PC["s"][:, :, None] - PC["mqlo"] / PC["s"][:, :, None], zc, alpha,
+                         stage_matched=False, Ks=[None])
+        info["hsc_cqr_mlp"] = bm
+        out["HSC-CQR (MLP)"] = band(cb.hsc_quantiles(cb.cum_counts(Stm), bincm, None, alpha, [bm["kappa"]], stages,
+                                                     stage_matched=False)[0], lo=PT["mqlo"], hi=PT["mqhi"])
     if methods == "all":
         # ablations (each re-tuned on calibration buildings with the component removed)
         b2, _ = tune_hsc(Sc, np.zeros_like(Sc), zc, alpha, stage_matched=False)

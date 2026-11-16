@@ -38,7 +38,7 @@ Table [-@tbl:ablation] isolates the three elements of HSC. Removing the shrinkag
 
 <<TABLE:MS_ablation|tbl:ablation>>
 
-![Ablation of HSC components (absolute-residual score); mean ± s.d. over five seeds.](figures/Fig6_ablation.png){#fig:ablation}
+![Ablation of the HSC-CQR components: '-stage' removes onboarding-stage matching, '-kNN' the similarity prior, 'simple' both, '-shrink' the shrinkage toward own scores (κ = ∞); Self-CQR is κ = 0; mean ± s.d. over five seeds.](figures/Fig6_ablation.png){#fig:ablation}
 
 ## Robustness (RQ4)
 
