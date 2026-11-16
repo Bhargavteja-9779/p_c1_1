@@ -90,3 +90,55 @@ def test_metrics_ignore_undefined_intervals():
     lo[0, 3, :] = np.nan  # forecast not issued on stage 4
     m, _, _ = mt.interval_metrics(y, lo, hi, 0.1)
     assert np.allclose(m["coverage"], 1.0) and np.isfinite(m["rel_IS"]).all()
+
+
+# ---------------------------------------------------------------- tests added after the code audit
+def test_neighbours_nan_safe_and_self_excluded():
+    rng = np.random.default_rng(3)
+    zc = rng.normal(size=(12, 4))
+    zc_nan = zc.copy()
+    zc_nan[5, 2] = np.nan  # undefined descriptor of calibration building 5
+    zt = rng.normal(size=(7, 4))
+    nb = cb.neighbours(zt, zc_nan, 3)
+    assert not (nb == 5).any()  # never chosen
+    # same neighbours as when building 5 is removed (indices mapped back)
+    keep = np.array([i for i in range(12) if i != 5])
+    nb_ref = keep[cb.neighbours(zt, zc[keep], 3)]
+    assert np.array_equal(np.sort(nb, axis=1), np.sort(nb_ref, axis=1))
+    # LOBO: self never selected, even with NaN present
+    nb_self = cb.neighbours(zc_nan, zc_nan, 4, exclude_self=True)
+    assert not (nb_self == np.arange(12)[:, None]).any()
+
+
+def test_prior_ignores_empty_bins():
+    rng = np.random.default_rng(4)
+    cal = rng.exponential(size=(20, 56, 24)).astype(np.float32)
+    cal_empty = cal.copy()
+    cal_empty[3, 0, :] = np.nan  # building 3 has no score in stage bin {1}
+    stages = np.arange(1, 57)
+    b_full, _ = cb.bin_cdfs(cb.cum_counts(cal[np.arange(20) != 3]), stages)
+    b_emp, _ = cb.bin_cdfs(cb.cum_counts(cal_empty), stages)
+    tgt = cb.cum_counts(rng.exponential(size=(4, 56, 24)).astype(np.float32))
+    q_ref = cb.hsc_quantiles(tgt, b_full, None, 0.1, [24, np.inf], stages)
+    q_emp = cb.hsc_quantiles(tgt, b_emp, None, 0.1, [24, np.inf], stages)
+    # stage 1: building 3 is ignored -> prior identical to the one without building 3
+    assert np.allclose(q_ref[0][:, 0], q_emp[0][:, 0])
+    assert (q_emp < cb.INF_RADIUS * 0.999).all()
+
+
+def test_own_defined_from_counts_and_qshrink_keeps_large_own_quantile():
+    assert not cb.own_defined(8, 0.1) and cb.own_defined(9, 0.1)
+    stages = np.arange(1, 57)
+    own = np.full((1, 56, 24), 80.0, dtype=np.float32)  # extreme but plentiful own scores
+    cc = cb.cum_counts(own)
+    q = cb.qshrink_quantiles(cc, np.full(56, 0.5), 0.1, 168, stages)
+    assert q[0, 10] > 30  # own quantile (80) enters with weight n/(n+168), not the pooled fallback
+
+
+def test_aci_level_below_zero_gives_noninverted_interval():
+    rng = np.random.default_rng(5)
+    prior = cb.cum_counts(rng.exponential(size=(30, 56, 24)).astype(np.float32))
+    binc, _ = cb.bin_cdfs(prior, np.arange(1, 57))
+    tgt = np.zeros((2, 56, 24), dtype=np.float32)  # always covered -> alpha_h drifts above 1 with large gamma
+    q = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, np.arange(1, 57))
+    assert (q >= 0).all()

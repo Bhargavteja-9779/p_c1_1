@@ -25,11 +25,11 @@ PROPOSED = ["HSC-CQR", "HSC"]
 FAMILY_CQR = ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR", "QR-LGBM", "MLP-QR",
               "MLP-Gauss", "SCP-stage", "ACI", "Self-CP", "Mondrian-usage", "Naive+SCP", "HSC"]
 FAMILY_ABS = ["SCP", "SCP-stage", "Mondrian-usage", "Self-CP", "ACI", "Raw-SCP"]
-ABLATIONS = ["HSC -stage", "HSC -kNN", "HSC -shrink", "HSC fixed-kappa", "HSC -kNN -stage"]
-ABLATIONS_CQR = ["HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "Self-CQR", "CQR"]
+ABLATIONS = ["HSC -stage", "HSC -kNN", "HSC -shrink", "HSC simple"]
+ABLATIONS_CQR = ["HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "HSC-CQR fixed-κ", "Self-CQR", "CQR"]
 ORDER = ["HSC-CQR", "HSC-CQR simple", "HSC", "HSC simple", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR",
          "QShrink-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "CQR (MLP)", "HSC-CQR (MLP)", "ACI", "Self-CP", "SCP-stage",
-         "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"] + ABLATIONS + ABLATIONS_CQR[:3]
+         "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"] + ABLATIONS + ABLATIONS_CQR[:4]
 
 
 def load():
@@ -175,7 +175,7 @@ def run(mode="full"):
             stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", FAMILY_CQR))
             stats.append(paired_tests(df, "main", ds, "random", "HSC", FAMILY_ABS))
             stats.append(paired_tests(df, "main", ds, "random", "HSC", ABLATIONS))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", ABLATIONS_CQR[:3] + ["HSC-CQR simple"]))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", ABLATIONS_CQR[:4] + ["HSC-CQR simple"]))
             stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR simple",
                                       ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR"]))
             stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR (MLP)", ["CQR (MLP)", "MLP-QR"]))

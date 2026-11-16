@@ -31,7 +31,7 @@ def stage_bin(h: np.ndarray | int) -> np.ndarray:
     return np.searchsorted(STAGE_EDGES, np.asarray(h), side="right") - 1
 
 
-def make_grid(lo=-10.0, hi=60.0, n=3000, c=0.01):
+def make_grid(lo=-10.0, hi=500.0, n=4000, c=0.01):
     a, b = np.arcsinh(lo / c), np.arcsinh(hi / c)
     g = np.sinh(np.linspace(a, b, n)) * c
     g[np.argmin(np.abs(g))] = 0.0
@@ -81,6 +81,28 @@ def _first_ge(F: np.ndarray, level: np.ndarray | float) -> np.ndarray:
     return idx
 
 
+def own_defined(n_own, alpha):
+    """Split-conformal quantile of n own scores at level 1-alpha exists iff ceil((1-alpha)(n+1)) <= n."""
+    n_own = np.asarray(n_own, dtype=float)
+    return np.ceil((1 - alpha) * (n_own + 1)) <= n_own
+
+
+def own_counts_before(self_cc):
+    """(nt, NH) number of own scores available before each stage."""
+    tot = self_cc[:, :, -1].astype(float)
+    return np.concatenate([np.zeros((tot.shape[0], 1)), np.cumsum(tot, axis=1)[:, :-1]], axis=1)
+
+
+def pooled_quantile_lobo(cal_counts_bin, alpha):
+    """Leave-one-building-out pooled (score-weighted) split-conformal radius: (ncal, nbins)."""
+    C = cal_counts_bin.astype(np.float64)
+    tot = C.sum(axis=0)[None] - C  # (ncal, nbins, NG)
+    N = tot[:, :, -1]
+    level = np.minimum(np.ceil((1 - alpha) * (N + 1)) / np.maximum(N, 1), 1.0)
+    F = tot / np.maximum(N, 1)[:, :, None]
+    return GRID[_first_ge(F, level)]
+
+
 def pooled_quantile(cal_counts_bin: np.ndarray, alpha: float, stage_matched: bool = True,
                     weights: np.ndarray | None = None) -> np.ndarray:
     """Split-conformal radius per stage bin from pooled calibration scores.
@@ -99,16 +121,27 @@ def pooled_quantile(cal_counts_bin: np.ndarray, alpha: float, stage_matched: boo
 
 
 def neighbours(z_target: np.ndarray, z_cal: np.ndarray, K: int, exclude_self: bool = False) -> np.ndarray:
-    """K nearest calibration buildings (standardised Euclidean). z_*: (n, d)."""
-    mu = z_cal.mean(axis=0)
-    sd = z_cal.std(axis=0) + 1e-6
-    a = (z_target - mu) / sd
-    c = (z_cal - mu) / sd
+    """K nearest calibration buildings (standardised Euclidean). z_*: (n, d).
+
+    NaN-safe: calibration buildings with an undefined descriptor are never chosen (distance +inf) unless
+    fewer than K valid buildings exist; undefined target components are set to the calibration mean.
+    With exclude_self, each pseudo-target's own index is removed explicitly (LOBO tuning).
+    """
+    ok_c = np.isfinite(z_cal).all(axis=1)
+    zc_valid = z_cal[ok_c] if ok_c.any() else np.nan_to_num(z_cal)
+    mu = zc_valid.mean(axis=0)
+    sd = zc_valid.std(axis=0) + 1e-6
+    a = (np.where(np.isfinite(z_target), z_target, mu) - mu) / sd
+    c = (np.where(np.isfinite(z_cal), z_cal, mu) - mu) / sd
     d = ((a[:, None, :] - c[None, :, :]) ** 2).sum(-1)
+    d[:, ~ok_c] = np.inf
+    n = c.shape[0]
     if exclude_self:
-        np.fill_diagonal(d, np.inf)
-    K = min(K, c.shape[0] - (1 if exclude_self else 0))
-    return np.argsort(d, axis=1)[:, :K]
+        order = np.argsort(d, axis=1, kind="stable")
+        keep = order != np.arange(order.shape[0])[:, None]
+        order = order[keep].reshape(order.shape[0], n - 1)
+        return order[:, :min(K, n - 1)]
+    return np.argsort(d, axis=1, kind="stable")[:, :min(K, n)]
 
 
 def prior_cdf(cal_cdf_k, cal_tot_k, nbr=None, excl=None):
@@ -117,16 +150,24 @@ def prior_cdf(cal_cdf_k, cal_tot_k, nbr=None, excl=None):
     cal_cdf_k: (ncal, NG) per-building CDFs in this bin; cal_tot_k: (ncal,) number of scores.
     nbr: (nt, K) neighbour indices or None (uniform over all calibration buildings, excluding
     `excl` (nt,) if given -- used for leave-one-building-out tuning).
+    Only buildings with at least one score in the bin enter the average (an empty bin has no EDF).
     returns FP (nt, NG), n_prior (nt,)
     """
+    ne = (cal_tot_k > 0).astype(np.float32)
     if nbr is not None:
-        return cal_cdf_k[nbr].mean(axis=1), cal_tot_k[nbr].sum(axis=1)
-    S = cal_cdf_k.sum(axis=0)
+        w = ne[nbr]  # (nt, K)
+        sw = w.sum(axis=1)
+        FP = (cal_cdf_k[nbr] * w[:, :, None]).sum(axis=1) / np.maximum(sw, 1)[:, None]
+        if (sw == 0).any():  # all neighbours empty in this bin: fall back to all non-empty buildings
+            FP[sw == 0] = (cal_cdf_k * ne[:, None]).sum(axis=0) / max(ne.sum(), 1)
+        return FP, cal_tot_k[nbr].sum(axis=1)
+    S = (cal_cdf_k * ne[:, None]).sum(axis=0)
     T = cal_tot_k.sum()
-    n = cal_cdf_k.shape[0]
+    n = ne.sum()
     if excl is None:
-        return S[None, :] / n, np.array([T])
-    return (S[None, :] - cal_cdf_k[excl]) / (n - 1), T - cal_tot_k[excl]
+        return S[None, :] / max(n, 1), np.array([T])
+    own = ne[excl]
+    return (S[None, :] - cal_cdf_k[excl] * own[:, None]) / np.maximum(n - own, 1)[:, None], T - cal_tot_k[excl]
 
 
 def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, excl=None,
@@ -186,7 +227,8 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
         k = int(stage_bin(h))
         lev = 1 - a
         idx = _first_ge(F[:, k, :], np.clip(lev, 0, 1))
-        idx = np.where(lev >= 1, len(GRID) - 1, np.where(lev <= 0, 0, idx))
+        idx_min = _first_ge(F[:, k, :], np.full(nt, 1e-5))  # smallest observed score (empty-set convention)
+        idx = np.where(lev >= 1, len(GRID) - 1, np.where(lev <= 0, idx_min, idx))
         q[:, hi] = GRID[idx]
         e = target_scores[:, hi, :]
         valid = ~np.isnan(e)
@@ -234,13 +276,14 @@ def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
 def qshrink_quantiles(self_cc, q_pool, alpha, lam, stages):
     """Quantile-level shrinkage ("regularised Mondrian", Rafe & Das, arXiv:2605.05562):
     q = w q_own + (1-w) q_pool, w = n/(n+lam); q_own = split-conformal quantile of the building's own past
-    scores (w = 0 while q_own is undefined). q_pool: (nt, NH) or (NH,) pooled radius."""
+    scores; w = 0 while q_own does not exist (decided from the number of own scores). lam = 0 -> own only
+    (with pooled fallback), lam = inf -> pooled. q_pool: (nt, NH) or (NH,) pooled radius."""
     nt, NH, NG = self_cc.shape
     q_own = hsc_quantiles(self_cc, np.zeros((1, len(STAGE_EDGES) - 1, NG), dtype=np.float32), None, alpha, [0],
                           stages)[0]
-    n_own = np.concatenate([np.zeros((nt, 1)), np.cumsum(self_cc[:, :, -1], axis=1)[:, :-1]], axis=1)
-    defined = q_own < INF_RADIUS * 0.999
-    w = np.where(defined, n_own / (n_own + lam), 0.0)
+    n_own = own_counts_before(self_cc)
+    defined = own_defined(n_own, alpha)
+    w = np.where(defined, 1.0 if lam == 0 else (0.0 if np.isinf(lam) else n_own / (n_own + lam)), 0.0)
     qp = np.broadcast_to(q_pool, (nt, NH))
     return (w * np.where(defined, q_own, 0.0) + (1 - w) * qp).astype(np.float32)
 
@@ -271,13 +314,19 @@ def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, b
     F = P / np.maximum(P[:, -1:], 1)
     C = alpha ** 2 / (1 - alpha) ** 2
     q = np.empty((nt, NH), dtype=np.float32)
+    Npool = P[:, -1]
     for hi, h in enumerate(stages):
         k = int(stage_bin(h))
         a = np.full(nt, alpha)
         if hi > 0:
             r = (ec[None, :, hi] < et[:, hi, None]).sum(axis=1) / (N + 1.0)
             g = np.where(r < 1 - alpha, C * (r - (1 - alpha)), r - (1 - alpha))
-            a = np.where(np.isnan(et[:, hi]), alpha, np.clip(alpha - g, 0.01, 1.0))
-        idx = _first_ge(np.broadcast_to(F[k], (nt, F.shape[1])), 1 - a)
+            g = np.where(np.isnan(et[:, hi]), 0.0, g)
+            gmax = g.max() if g.size else 0.0
+            lam = min(1.0, (alpha - 0.01) / gmax) if gmax > alpha - 0.01 else 1.0  # original: scale g so a>=0.01
+            a = alpha - lam * g
+        # quantile of pooled scores together with a point at +inf (original TQA): level (1-a)(N+1)/N
+        lev = np.minimum((1 - a) * (Npool[k] + 1) / max(Npool[k], 1), 1.0)
+        idx = _first_ge(np.broadcast_to(F[k], (nt, F.shape[1])), lev)
         q[:, hi] = GRID[idx]
     return q

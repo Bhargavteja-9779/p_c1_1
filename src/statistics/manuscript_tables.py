@@ -85,8 +85,9 @@ def tests_table(st):
 
 def ablation_table(s):
     rows = []
-    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR -shrink", "Self-CQR", "CQR",
-             "HSC", "HSC -stage", "HSC -kNN", "HSC simple", "HSC -shrink", "HSC fixed-kappa", "Self-CP",
+    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR -shrink",
+             "Self-CQR", "CQR",
+             "HSC", "HSC -stage", "HSC -kNN", "HSC simple", "HSC -shrink", "Self-CP",
              "SCP-stage"]
     for m in meths:
         row = {"Variant": m}
@@ -100,9 +101,11 @@ def ablation_table(s):
         rows.append(row)
     _write("MS_ablation", pd.DataFrame(rows),
            "Component ablation (random-building protocol, 90 %, mean ± s.d. over 5 seeds). '-stage': prior pooled over "
-           "all onboarding stages; '-kNN': prior from all calibration buildings (K = all); '-shrink': prior only "
-           "(κ = ∞); 'fixed-kappa': κ = 168 h instead of the leave-one-building-out choice; Self-*: κ = 0 with "
-           "fallback to the pooled quantile. Every variant is re-tuned on calibration buildings.")
+           "all onboarding stages; '-kNN': prior from all calibration buildings (K = all); 'simple': both removed; "
+           "'-shrink': prior only (κ = ∞); 'fixed-κ': simple variant with κ = 168 h (one week) instead of the "
+           "leave-one-building-out choice (a donor–local mixture with fixed pseudo-count); Self-*: κ = 0 with "
+           "fallback to the pooled quantile. Except for fixed-κ, every variant is re-tuned on calibration buildings "
+           "with the component removed.")
 
 
 def gen_table(s):

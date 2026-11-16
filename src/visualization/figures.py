@@ -165,7 +165,7 @@ def fig_tradeoff(s):
         d = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
         g = d.groupby("method")[["macd", "rel_IS"]].agg(["mean", "std"])
         for m in g.index:
-            if m.startswith(("HSC ", "HSC-CQR -")) or m in ("Raw-SCP", "SCP", "Mondrian-usage", "HSC fixed-kappa"):
+            if m.startswith(("HSC ", "HSC-CQR -")) or m in ("Raw-SCP", "SCP", "Mondrian-usage", "HSC-CQR fixed-κ"):
                 continue
             x, y = g.loc[m, ("rel_IS", "mean")], g.loc[m, ("macd", "mean")]
             axs[j].errorbar(x, y, xerr=g.loc[m, ("rel_IS", "std")], yerr=g.loc[m, ("macd", "std")], fmt=MARK.get(m, "o"),
@@ -182,7 +182,8 @@ def fig_tradeoff(s):
 
 
 def fig_ablation(s):
-    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR -shrink", "Self-CQR", "CQR"]
+    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR -shrink",
+             "Self-CQR", "CQR"]
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 58 * MM))
     w = 0.38
     for j, metric, lab in [(0, "macd", "MACD"), (1, "rel_IS", "Median rel. interval score")]:

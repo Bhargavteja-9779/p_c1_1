@@ -38,3 +38,15 @@
   APC USD 5,290; JIF 18.3 (JCR 2026); author-guideline details (abstract <=250 words, highlights optional).
 - Operational: container restart wiped data/raw (re-downloaded automatically); training-only mode added so
   all trainings are cached before one consistent calibration pass with the final code.
+- Code-audit fixes (REVIEW/code_audit.md), all before the final calibration pass:
+  (1) NaN-safe neighbour search with explicit self-exclusion (Major: NaN descriptors made kNN arbitrary and
+  let a LOBO pseudo-target select itself; affected leave-site-out folds); (2) prior averaged only over buildings
+  with scores in the stage bin (empty bins previously acted as mass at +inf); (3) score grid extended to 500·s
+  (4,000 points) and own-quantile existence decided from counts for Self-*/QShrink fallbacks; (4) ACI empty-set
+  convention (smallest observed score) instead of an inverted interval; (5) TQA-B with the original
+  lambda-scaling of the budget and +inf point; (6) QShrink lambda tuned on the full kappa grid (incl. 0, inf)
+  with a matching LOBO score-weighted pooled radius; (7) ACI gamma grid extended to {0, 1e-4, 2e-4, ...}
+  (pre-registration deviation: the lower grid edge was hit in 7/10 runs); (8) mis-specified ablations removed
+  (abs 'fixed-kappa' identical to tuned in 6/10 runs; '-kNN -stage' not re-tuned) and replaced by
+  'HSC-CQR fixed-κ' (simple variant, κ = 168 h, = donor-local mixture with fixed pseudo-count);
+  (9) all tuning tables stored in run_info. Four new unit tests. All result parts recomputed.

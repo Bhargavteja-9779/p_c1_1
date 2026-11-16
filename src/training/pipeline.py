@@ -27,7 +27,7 @@ from src.evaluation import metrics as mt
 NH = 56
 KAPPAS = [0, 24, 48, 96, 168, 336, 672, 1344, np.inf]
 KS = [10, 25, 50, 100, None]
-GAMMAS = [0.0005, 0.001, 0.002, 0.005, 0.01]
+GAMMAS = [0.0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01]  # 0 and 1e-4/2e-4 added after audit
 
 
 def periods(ds):
@@ -223,13 +223,13 @@ def tune_aci(cal_scores, alpha, gammas=GAMMAS):
     return float(df.loc[df.obj.idxmin(), "gamma"]), df
 
 
-def tune_qshrink(cal_scores, cal_base_w, alpha, lams=(24, 48, 96, 168, 336, 672, 1344)):
-    """Leave-one-building-out choice of lambda for quantile-level shrinkage (same objective as HSC)."""
+def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS)):
+    """Leave-one-building-out choice of lambda for quantile-level shrinkage (same objective and grid as HSC;
+    lambda = 0: own quantile when defined, lambda = inf: pooled radius)."""
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
-    n = cal_scores.shape[0]
-    q_pool = cb.hsc_quantiles(cc, binc, None, alpha, [np.inf], stages, excl=np.arange(n))[0]  # LOBO pooled
+    q_pool = cb.pooled_quantile_lobo(binc, alpha)[:, cb.stage_bin(stages)]  # (ncal, NH), score-weighted
     res = []
     for lam in lams:
         q = cb.qshrink_quantiles(cc, q_pool, alpha, lam, stages)
@@ -288,11 +288,13 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     # 6 self-only conformal with fallback to SCP-stage until enough own scores exist
     q_self = cb.hsc_quantiles(cc_t, binc, None, alpha, [0], stages)[0]
     q_fb = cb.pooled_quantile(binc, alpha, True)[sb]
-    q_self = np.where(q_self >= cb.INF_RADIUS * 0.999, q_fb[None, :], q_self)
+    q_self = np.where(cb.own_defined(cb.own_counts_before(cc_t), alpha), q_self, q_fb[None, :])
     out["Self-CP"] = band(q_self)
     # 7 ACI
     g, gdf = tune_aci(Sc, alpha) if fixed is None else (fixed["gamma"], None)
     info["aci_gamma"] = g
+    if gdf is not None:
+        info["tune_aci"] = gdf.to_dict(orient="records")
     out["ACI"] = band(cb.aci_quantiles(St, binc.sum(axis=0), alpha, g, stages))
     # 8 direct quantile regression and 9 CQR
     out["QR-LGBM"] = (PT["qlo"], PT["qhi"])
@@ -321,7 +323,8 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     out["HSC"] = band(q)
     info["tune_table"] = tdf
     # 13 HSC applied to CQR scores (proposed variant)
-    bq, _ = tune_hsc(Scq, PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None], zc, alpha)
+    bq, tq_tab = tune_hsc(Scq, PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None], zc, alpha)
+    info["tune_hsc_cqr"] = tq_tab.replace({np.inf: "inf"}).to_dict(orient="records")
     qq = cb.hsc_quantiles(cb.cum_counts(Stq), bincq, nbrs_by_stage(zt, zc, bq["K"]), alpha, [bq["kappa"]],
                           stages)[0]
     out["HSC-CQR"] = band(qq, lo=PT["qlo"], hi=PT["qhi"])
@@ -330,25 +333,32 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     cct_q = cb.cum_counts(Stq)
     q_sq = cb.hsc_quantiles(cct_q, bincq, None, alpha, [0], stages)[0]
     q_fbq = cb.pooled_quantile(bincq, alpha, True)[sb]
-    q_sq = np.where(q_sq >= cb.INF_RADIUS * 0.999, q_fbq[None, :], q_sq)
+    q_sq = np.where(cb.own_defined(cb.own_counts_before(cct_q), alpha), q_sq, q_fbq[None, :])
     out["Self-CQR"] = band(q_sq, lo=PT["qlo"], hi=PT["qhi"])
-    gq, _ = tune_aci(Scq, alpha) if fixed is None else (fixed["gamma"], None)
+    gq, gq_tab = tune_aci(Scq, alpha) if fixed is None else (fixed["gamma"], None)
     info["aci_cqr_gamma"] = gq
+    if gq_tab is not None:
+        info["tune_aci_cqr"] = gq_tab.to_dict(orient="records")
     out["ACI-CQR"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gq, stages), lo=PT["qlo"], hi=PT["qhi"])
     # closest prior-art mechanisms, on the same CQR scores (see calibration.py docstrings)
     bwq_cal = PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None]
     tot_all_q = bincq.sum(axis=1)
     n_sur = float(np.median(tot_all_q[:, -1]))
     out["GHCP-CQR"] = band(cb.ghcp_quantiles(cct_q, tot_all_q, alpha, stages, n_sur), lo=PT["qlo"], hi=PT["qhi"])
-    lam, _ = tune_qshrink(Scq, bwq_cal, alpha)
+    lam, lam_tab = tune_qshrink(Scq, bwq_cal, alpha)
     info["qshrink_lambda"] = lam
+    info["tune_qshrink"] = lam_tab.replace({np.inf: "inf"}).to_dict(orient="records")
     out["QShrink-CQR"] = band(cb.qshrink_quantiles(cct_q, cb.pooled_quantile(bincq, alpha, True)[sb], alpha, lam,
                                                    stages), lo=PT["qlo"], hi=PT["qhi"])
     out["TQA-B-CQR"] = band(cb.tqab_quantiles(Stq, Scq, bincq.sum(axis=0), alpha, stages), lo=PT["qlo"],
                             hi=PT["qhi"])
     # recommended simplest variant: uniform prior (K = all), no stage matching, kappa by LOBO
-    bs, _ = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None])
+    bs, bs_tab = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None])
     info["hsc_cqr_simple"] = bs
+    info["tune_hsc_cqr_simple"] = bs_tab.replace({np.inf: "inf"}).to_dict(orient="records")
+    # fixed pseudo-count (one week of hourly scores), i.e. a donor-local mixture with fixed kappa
+    out["HSC-CQR fixed-κ"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [168], stages,
+                                                   stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
     out["HSC-CQR simple"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [bs["kappa"]], stages,
                                                   stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
     bsa, _ = tune_hsc(Sc, np.zeros_like(Sc), zc, alpha, stage_matched=False, Ks=[None])
@@ -377,9 +387,6 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
         b4, _ = tune_hsc(Sc, np.zeros_like(Sc), zc, alpha, kappas=[np.inf])
         out["HSC -shrink"] = band(cb.hsc_quantiles(cc_t, binc, nbrs_by_stage(zt, zc, b4["K"]), alpha,
                                                    [np.inf], stages)[0])
-        out["HSC fixed-kappa"] = band(cb.hsc_quantiles(cc_t, binc, nb, alpha, [168], stages)[0])
-        out["HSC -kNN -stage"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [b3["kappa"]], stages,
-                                                       stage_matched=False)[0])
         info["ablation_params"] = dict(nostage=b2, noknn=b3, noshrink=b4)
         # ablations of the CQR-score variant
         bwq = PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None]
