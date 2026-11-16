@@ -13,7 +13,8 @@ RES = os.path.join(ROOT, "results")
 
 
 def _san(m):
-    return m.replace("-", "").replace("+", "").replace(" ", "_").replace("(", "").replace(")", "")
+    return (m.replace("-", "").replace("+", "").replace(" ", "_").replace("(", "").replace(")", "")
+            .replace("κ", "kappa"))
 
 
 def compute(mode="full"):
@@ -92,6 +93,13 @@ def compute(mode="full"):
         kap2 = [info[k]["hsc_kappa"] for k in parts]
         v[f"tuned_{d}_kappa_abs"] = ", ".join(sorted({("∞" if np.isinf(x) else str(int(x))) for x in kap2}))
         v[f"tuned_{d}_gamma"] = ", ".join(sorted({str(info[k]["aci_gamma"]) for k in parts}))
+        v[f"tuned_{d}_gamma_cqr"] = ", ".join(sorted({str(info[k]["aci_cqr_gamma"]) for k in parts}))
+        v[f"tuned_{d}_lambda_qshrink"] = ", ".join(sorted({("∞" if np.isinf(info[k]["qshrink_lambda"]) else
+                                                             str(int(info[k]["qshrink_lambda"]))) for k in parts}))
+        v[f"tuned_{d}_kappa_simple"] = ", ".join(sorted({("∞" if np.isinf(info[k]["hsc_cqr_simple"]["kappa"]) else
+                                                           str(int(info[k]["hsc_cqr_simple"]["kappa"]))) for k in parts}))
+        v[f"tuned_{d}_kappa_mlp"] = ", ".join(sorted({("∞" if np.isinf(info[k]["hsc_cqr_mlp"]["kappa"]) else
+                                                        str(int(info[k]["hsc_cqr_mlp"]["kappa"]))) for k in parts}))
         v[f"cost_{d}_tune_s"] = f"{np.mean([info[k]['t_tune_hsc'] for k in parts]):.1f}"
         v[f"cost_{d}_apply_ms"] = f"{1e3 * np.mean([info[k]['t_hsc_apply_per_target_day'] for k in parts]):.3f}"
         v[f"cost_{d}_store_MB"] = f"{np.mean([info[k]['hsc_store_MB'] for k in parts]):.1f}"
@@ -176,24 +184,26 @@ def _error_text():
 
 
 def _abstract(v):
-    return (
+    a = (
         "Demand response, flexibility bidding and measurement-and-verification need day-ahead prediction intervals "
-        "for individual buildings, often from the first days after a building is metered. Conformal and quantile "
-        "methods are usually judged by coverage pooled over many buildings, which can hide buildings whose intervals "
-        "are systematically too narrow. We study per-building interval reliability during onboarding and propose "
-        "hierarchical shrinkage conformal (HSC) calibration. HSC blends the nonconformity-score distribution of "
-        "previously metered buildings with the new building's own accumulating scores through a single pseudo-count "
-        "selected by leave-one-building-out. It has a closed form, recovers population and self-only split "
-        "conformal prediction as limits, and works on top of any forecaster. In pre-registered experiments on "
+        "for individual buildings, often from the first days after a building is metered. Interval methods are "
+        "usually judged by coverage pooled over many buildings, which can hide buildings whose intervals are "
+        "systematically too narrow. We evaluate per-building interval reliability during onboarding under a "
+        "pre-registered, building- and period-disjoint protocol on "
         f"{v['n_bdg2']} buildings at {v['n_sites']} sites (Building Data Genome 2) and {v['n_uci']} Portuguese "
-        "electricity clients, with building- and period-disjoint splits and five seeds, conformalised quantile "
-        f"regression left {v['main_BDG2_CQR_under_rate']} and {v['main_UCI_CQR_under_rate']} of new buildings "
-        "with coverage more than five points below the 90 % target. HSC applied to the same scores reduced these "
-        f"shares to {v['main_BDG2_HSCCQR_under_rate']} and {v['main_UCI_HSCCQR_under_rate']} and the mean absolute "
-        f"coverage deviation from {v['main_BDG2_CQR_macd']} to {v['main_BDG2_HSCCQR_macd']} (BDG2), without a "
-        f"higher interval score (median {v['main_BDG2_HSCCQR_rel_IS']} vs {v['main_BDG2_CQR_rel_IS']}). It was more "
-        "reliable than self-only calibration and adaptive conformal inference on the same scores, and the "
-        "improvements persisted for unseen sites, meter noise, missing data and small calibration pools. "
-        "Similarity weighting and onboarding-stage matching added nothing, leaving a one-parameter method that "
-        f"costs {v['cost_BDG2_apply_ms']} ms per building-day."
+        "electricity clients, with five seeds, unseen sites, cross-country transfer and stress tests. Using one "
+        "global forecaster, we compare pooled split conformal prediction, conformalised quantile regression (CQR), "
+        "group-wise, self-only, adaptive (ACI), temporal-quantile-adjustment and hierarchical calibration, quantile "
+        "shrinkage, and a pseudo-count shrinkage of the nonconformity-score distribution towards each building's own "
+        "accumulating scores, with the pseudo-count selected by leave-one-building-out. Pooled CQR left "
+        f"{v['main_BDG2_CQR_under_rate']} (BDG2) and {v['main_UCI_CQR_under_rate']} (UCI) of new buildings with coverage "
+        "more than five points below the 90 % target. Score-distribution shrinkage was the most reliable strategy, "
+        f"reducing these shares to {v['main_BDG2_HSCCQR_under_rate']} and {v['main_UCI_HSCCQR_under_rate']} and the "
+        f"mean absolute coverage deviation from {v['main_BDG2_CQR_macd']} to {v['main_BDG2_HSCCQR_macd']} (BDG2) at an "
+        f"essentially unchanged interval score; it also improved intervals from a neural quantile model. "
+        "Similarity-weighted priors and onboarding-stage matching added nothing, leaving a one-parameter layer whose "
+        f"pseudo-count of one to two weeks of hourly scores costs {v['cost_BDG2_apply_ms']} ms per building-day."
     )
+    n = len(a.split())
+    assert n <= 250, f"abstract has {n} words (> 250)"
+    return a

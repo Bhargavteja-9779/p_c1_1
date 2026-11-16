@@ -1,5 +1,5 @@
 ---
-title: "Reliable day-ahead prediction intervals for newly metered buildings: hierarchical shrinkage conformal calibration evaluated building by building"
+title: "Reliable day-ahead prediction intervals for newly metered buildings: a building-level comparison of conformal calibration strategies"
 ---
 
 **Authors:** [Author 1]^a,\*^, [Author 2]^b^
@@ -10,14 +10,14 @@ title: "Reliable day-ahead prediction intervals for newly metered buildings: hie
 
 # Highlights
 
-- Interval reliability of day-ahead forecasts is assessed per building after metering starts.
-- Pooled conformal intervals hide many new buildings with severe under-coverage.
-- Hierarchical shrinkage conformal pools similar buildings, then trusts own errors.
-- Tested on {{n_bdg2_plus_uci}} buildings, unseen sites, cross-country transfer and stress tests.
-- Closed-form, model-agnostic layer; sub-millisecond cost per building-day.
+- Day-ahead load interval reliability is assessed per newly metered building
+- Pooled conformal calibration leaves many new buildings clearly under-covered
+- Calibration strategies incl. ACI, TQA and GHCP-style pooling are compared
+- Shrinking pooled scores toward each building's own errors is the most reliable
+- One pseudo-count suffices; similarity and onboarding-stage priors add nothing
 
 # Abstract
 
 {{ABSTRACT}}
 
-**Keywords:** probabilistic load forecasting; conformal prediction; cold start; building energy; prediction intervals; uncertainty quantification
+**Keywords:** probabilistic load forecasting; conformal prediction; cold start; building energy; prediction intervals; empirical Bayes
