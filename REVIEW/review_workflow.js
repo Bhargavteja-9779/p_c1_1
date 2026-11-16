@@ -45,18 +45,14 @@ const SCHEMA = {
 }
 
 function prompt(r) {
-  return `You are an independent peer reviewer (review cycle ${CYCLE} of 10) for a manuscript targeted at the Elsevier journal "Advances in Applied Energy".
+  const packet = (args && args.packet) || `${ROOT}/REVIEW/packet_cycle01.md`
+  return `You are an independent peer reviewer (review cycle ${CYCLE} of 10) for a manuscript targeted at the Elsevier journal "Advances in Applied Energy" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).
 Your perspective: ${r.text}
-${LEAD ? 'Lead emphasis for this cycle (in addition to your own perspective): ' + LEAD : ''}
+${LEAD ? 'Lead emphasis of this cycle (in addition to your own perspective): ' + LEAD : ''}
 
-Project root: ${ROOT}. Read-only review: DO NOT modify, create or delete any file in the repository (you may write scratch files only under /tmp/claude-0/review_scratch_${CYCLE}/).
-Key files:
-- manuscript/Final_Manuscript.md (the built manuscript with all numbers filled in; this is what you review)
-- tables/*.md (machine-generated tables), results/statistics.csv, results/run_info.json, results/raw_results.csv (per-building results), results/seed_level_metrics.csv
-- figures/*.png (look at a few)
-- src/ (code), tests/, run_all.py, experiments/PREREGISTRATION.md, config/default.yaml, README.md
-- REVIEW_HISTORY.md (issues raised and resolved in earlier cycles). Your job is to find NEW weaknesses or issues that were NOT adequately resolved. Do not repeat resolved issues.
-Be hostile but scientifically fair. Every issue needs concrete evidence (quote numbers, file:line, table rows). Do not invent problems to reach a count; if few real problems exist, report few. Prefer specific, actionable corrective actions and say which experiment (if any) is required. Keep the whole review under ~1200 words. Classify each issue as Fatal, Critical, Major, Moderate or Minor, and give a final recommendation.`
+START by reading the review packet ${packet}. It contains the complete built manuscript (all numbers are machine-filled from result files), all generated tables, a code map and the review history. Then verify anything suspicious with TARGETED reads/greps in the repository ${ROOT} (results/*.csv|json, src/*, tests/*, figures/*.png). Read-only: do not modify the repository (scratch only under /tmp/claude-0/review_scratch_${CYCLE}/). Do not run experiments; small checks with "nice -n 19 python3" on results files are fine.
+The review history lists issues already raised and how they were resolved: find NEW weaknesses or issues that were NOT adequately resolved; do not repeat resolved items.
+Be hostile but scientifically fair. Every issue needs concrete evidence (quote numbers, table rows, file:line). Do not invent problems to reach a count. Classify each as Fatal, Critical, Major, Moderate or Minor; give a specific corrective action and the experiment (if any) required; give a final recommendation. Keep the review under ~900 words.`
 }
 
 phase('Review')
