@@ -351,6 +351,91 @@ def fig_examples(tag):
     _save(fig, "Fig11_examples")
 
 
+def _set_primary():
+    """Colour slots follow the method identity; the pre-registered rule (results/recommended.json) decides which
+    method is the recommended one, which takes slot 1 (blue)."""
+    import json
+    global KEY
+    f = os.path.join(RES, "recommended.json")
+    p = json.load(open(f))["recommended"] if os.path.exists(f) else "HSC-CQR"
+    slots = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
+    marks = ["o", "s", "^", "v", "D", "P", "X", "*"]
+    ident = [p, "CQR", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR (cov)", "HSC-CQR", "SCP-stage"]
+    if p == "HSC-CQR":
+        ident[6] = "QShrink-CQR"
+    COL.clear()
+    MARK.clear()
+    for m, c, k in zip(ident, slots, marks):
+        COL[m], MARK[m] = c, k
+    KEY = ident
+    return p
+
+
+def fig_frontier(tag):
+    """Reliability-sharpness frontier: every member of each strategy family over its parameter grid
+    (results/frontier.csv; mean over seeds); lower-left is better."""
+    f = os.path.join(RES, f"frontier{tag}.csv")
+    if not os.path.exists(f):
+        return
+    d = pd.read_csv(f)
+    g = d.groupby(["dataset", "family", "param"])[["under", "rel_IS", "under_wk1"]].mean().reset_index()
+    fams = [("HSC (decay 1.0)", "#9ec5f4", "o", "shrinkage, no recency"),
+            ("HSC (decay 0.95)", "#2a78d6", "o", "shrinkage, recency 0.95/day"),
+            ("HSC (decay 0.9)", "#1d5aa3", "o", "shrinkage, recency 0.90/day"),
+            ("HSC (decay 0.8)", "#123b6b", "o", "shrinkage, recency 0.80/day"),
+            ("QShrink", "#008300", "P", "quantile shrinkage (λ grid)"),
+            ("ACI", "#eb6834", "^", "ACI on CQR scores (γ grid)")]
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 78 * MM))
+    for j, ds in enumerate(["BDG2", "UCI"]):
+        ax = axs[j]
+        for fam, col, mk, lab in fams:
+            x = g[(g.dataset == ds) & (g.family == fam)].sort_values("param")
+            if not len(x):
+                continue
+            ax.plot(x.rel_IS, 100 * x.under, color=col, marker=mk, ms=3.2, lw=1.1, label=lab)
+        c = g[(g.dataset == ds) & (g.family == "HSC (decay 1.0)") & np.isinf(g.param)]
+        if len(c):
+            ax.scatter(c.rel_IS, 100 * c.under, s=46, facecolors="none", edgecolors=INK, lw=0.9, zorder=5)
+            ax.annotate("pooled CQR (κ = ∞)", (c.rel_IS.iloc[0], 100 * c.under.iloc[0]), xytext=(6, 2),
+                        textcoords="offset points", fontsize=6.2, color=INK2)
+        ax.set_xscale("log")
+        ax.set_xlabel("Median relative interval score (log scale; lower = sharper)")
+        ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
+    axs[0].set_ylabel("Under-covered buildings (%)")
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=3, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.08))
+    fig.subplots_adjust(bottom=0.25, wspace=0.2)
+    _save(fig, "Fig_frontier")
+
+
+def fig_weekly(s):
+    f = os.path.join(RES, "weekly_coverage.csv")
+    if not os.path.exists(f):
+        return
+    w = pd.read_csv(f)
+    meths = [m for m in KEY if m in set(w.method)]
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM), sharey=True)
+    for j, ds in enumerate(["BDG2", "UCI"]):
+        ax = axs[j]
+        x = w[w.dataset == ds].groupby(["method", "week"]).under.mean().reset_index()
+        for m in meths:
+            xm = x[x.method == m]
+            ax.plot(xm.week, 100 * xm.under, color=_c(m), marker=MARK.get(m, "o"), ms=3,
+                    lw=1.8 if m == KEY[0] else 1.0, ls="-" if m == KEY[0] else (0, (3, 1)), label=m)
+        fl = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none") &
+               (s.method == KEY[0])]
+        if "under_floor_week" in fl and len(fl):
+            ax.axhline(100 * fl.under_floor_week.mean(), color=INK2, lw=0.8, ls=":")
+            ax.annotate("sampling-noise level for perfectly\ncalibrated intervals (approx.)", (8, 100 * fl.under_floor_week.mean()),
+                        xytext=(-4, -16), textcoords="offset points", ha="right", fontsize=6, color=INK2)
+        ax.set_xlabel("Week after metering started")
+        ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
+        ax.set_xticks(range(1, 9))
+    axs[0].set_ylabel("Buildings with weekly coverage < 0.85 (%)")
+    axs[1].legend(frameon=False, loc="upper right", fontsize=6)
+    _save(fig, "Fig_weekly")
+
+
 def run(mode="full"):
     import sys
     sys.path.insert(0, ROOT)
@@ -361,6 +446,9 @@ def run(mode="full"):
     df = df[df.part.str.contains("_quick") == (mode == "quick")]
     s = seed_level(df)
     cv = pd.read_csv(os.path.join(RES, "stage_curves.csv"))
+    _set_primary()
+    fig_frontier(tag)
+    fig_weekly(s)
     fig_schematic()
     b, u = get_ds("BDG2"), get_ds("UCI")
     fig_data(b["meta"], u["meta"], b["load"], u["load"])
