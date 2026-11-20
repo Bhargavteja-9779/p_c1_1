@@ -99,3 +99,12 @@ priori) reduces under-coverage after level shifts. Variant "HSC-CQR recency" (si
   sensitivity analysis excluding the largest site (Rat).
 
 All results, favourable or not, will be reported; no variant will be dropped after seeing results.
+
+### Addendum A.1 (2026-11-20 21:47 UTC; only the BDG2 seed-0 pipeline check had been inspected)
+Decision rule for the configuration recommended in the manuscript, fixed before the full rerun:
+among all CQR-score calibration strategies, the recommended one is the strategy with the lowest
+under-covered share (averaged over the BDG2 and UCI main experiments, 5 seeds each) among those whose median
+relative interval score is at most 2 % above that of pooled CQR on both datasets (a sharpness constraint:
+reliability may not be bought with wider intervals). Strategies violating the constraint (e.g. aggressive
+online level control) are reported on the reliability–sharpness frontier but not recommended. The paired
+tests are reported for every Addendum-A variant regardless of which one is recommended.
