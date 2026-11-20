@@ -36,13 +36,23 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - SSC theory: construction = HCP of Lee, Barber & Willett (arXiv 2306.06342, Eq. 6, Theorem 1, finite-sample ≥1−α);
   Dunn et al. pooling-CDFs is only asymptotic. Draft text: manuscript/drafts/method_new_cycle1.md.
 
-## Experiment status (2026-11-20 22:30 UTC)
-- Model caches: BDG2 main s0–s4 done; UCI s0 training; then UCI s1–4, LSO f0–4, xds (BDG2 no-weather s0–2), weak s0–2.
-- results/parts (gitignored): 9 BDG2 main parts done with the new code. Committed results/raw_results.csv.gz etc. are
-  still the OLD (v1) results until the new pass finishes and `ex.collect()` runs.
+## Experiment status (2026-11-20 23:05 UTC — session 2 ended here because of usage limits)
+- All 48 model caches were rebuilt (deterministic; BDG2 and UCI reproduce committed v1 results EXACTLY, max |Δ| = 0).
+  Caches are NOT in git -> a new container must retrain (`ex.train_only('full')`, ~2 h alone on 4 cores).
+- Calibration pass with the NEW code was running; finished parts are saved in
+  `results/parts_snapshot/parts_<timestamp>.tar.gz` (extract with `tar xzf ... -C results`); `ex.execute` skips them.
+- Committed results/raw_results.csv.gz etc. are still the OLD (v1) results until the new pass finishes and
+  `run_all.py --mode full --skip-experiments` runs (it calls ex.collect()).
+- Interim (BDG2, 3 seeds, not final): HSC-CQR recency under-covered 0.5 % vs CQR 19 %; week-1 13 % vs 24 %;
+  median rel. IS +1.3 % vs CQR; under-protected 1.3 % vs 7.3 %; AVERAGE headroom cost ≈ unchanged (report honestly:
+  benefit is risk distribution across buildings, not mean cost). ACI-CQR (cov) forces coverage but doubles IS.
+  Weekly under-share of ~19 % is the sampling-noise level (under_floor_week), so judge weekly curves against it.
 
 ## Exact next steps
-1. Finish trainings → calibration pass → sensitivity + frontier → `run_all.py --mode full --skip-experiments`.
+0. New container: install; extract the newest results/parts_snapshot tarball into results/; `ex.train_only('full')`
+   ALONE; then `bash scripts/calibration_pass.sh` (+ optionally a 5th worker for kind=='xds').
+1. Finish calibration pass → `ex.sensitivity('full'); ex.frontier('full')` → `python run_all.py --mode full --skip-experiments`
+   (writes results/recommended.json by rule A.1, weekly_coverage.csv, MS2_* tables, Fig_frontier, Fig_weekly).
 2. Apply A.1 rule; update manuscript_tables.py/figures.py/values.py for new methods, frontier figure, operational
    table, days-to-reliable figure; add new refs (Lee et al. already [24]).
 3. Rewrite manuscript to AAE pattern (benchmark checklist), ~9k words, main tables ≤3, rest to supplementary;
