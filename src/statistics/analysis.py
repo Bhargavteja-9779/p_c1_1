@@ -272,11 +272,59 @@ def run(mode="full"):
         f.write("**Paired Wilcoxon signed-rank tests (per building; Holm-adjusted)**\n\n" +
                 main_t.round(4).to_markdown(index=False) + "\n")
     _efficiency(tag)
+    if (s.method == "HSC-CQR recency").any():
+        recommend(s)
+        weekly_under(df)
     if mode != "quick":
         from src.statistics import manuscript_tables, error_analysis
         manuscript_tables.run()
         error_analysis.run()
     return st
+
+
+CQR_STRATEGIES = ["HSC-CQR recency", "HSC-SSC-CQR", "SSC-CQR", "HSC-CQR simple (cov)", "QShrink-CQR (cov)",
+                  "ACI-CQR (cov)", "HSC-CQR", "HSC-CQR simple", "HSC-CQR fixed-κ", "Self-CQR", "ACI-CQR", "TQA-B-CQR",
+                  "GHCP-CQR", "QShrink-CQR", "CQR"]
+
+
+def recommend(s):
+    """Pre-registered rule (PREREGISTRATION Addendum A.1): lowest under-covered share averaged over the BDG2 and
+    UCI main experiments among CQR-score strategies whose median rel. IS is <= 1.02 x pooled CQR on both datasets."""
+    t = s[(s.exp == "main") & (s.alpha == 0.1) & (s.perturb == "none") & (s.method.isin(CQR_STRATEGIES))]
+    g = t.groupby(["dataset", "method"])[["under_rate", "rel_IS"]].mean().reset_index()
+    rows = []
+    for m in CQR_STRATEGIES:
+        x = g[g.method == m].set_index("dataset")
+        c = g[g.method == "CQR"].set_index("dataset")
+        if not {"BDG2", "UCI"} <= set(x.index):
+            continue
+        ratio = {d: float(x.loc[d, "rel_IS"] / c.loc[d, "rel_IS"]) for d in ["BDG2", "UCI"]}
+        rows.append(dict(method=m, under_mean=float(x.under_rate.mean()), is_ratio_BDG2=ratio["BDG2"],
+                         is_ratio_UCI=ratio["UCI"], eligible=bool(max(ratio.values()) <= 1.02)))
+    r = pd.DataFrame(rows).sort_values("under_mean")
+    el = r[r.eligible]
+    out = dict(rule="min mean under-covered share s.t. median rel. IS <= 1.02 x CQR on BDG2 and UCI (Addendum A.1)",
+               recommended=str(el.iloc[0].method) if len(el) else None, table=r.to_dict(orient="records"))
+    with open(os.path.join(RES, "recommended.json"), "w") as f:
+        json.dump(out, f, indent=1)
+    return out
+
+
+def weekly_under(df):
+    """Share of buildings with weekly coverage < nominal - 0.05, per onboarding week (main experiments)."""
+    wk = [c for c in df.columns if c.startswith("cov_w")]
+    if not wk:
+        return None
+    t = df[(df.exp == "main") & (df.alpha == 0.1) & (df.perturb == "none")]
+    rows = []
+    for (ds, m, sd), x in t.groupby(["dataset", "method", "seed"]):
+        for c in wk:
+            v = x[c].dropna()
+            rows.append(dict(dataset=ds, method=m, seed=sd, week=int(c[5:]), under=float((v < 0.85).mean()),
+                             mean_cov=float(v.mean())))
+    w = pd.DataFrame(rows)
+    w.to_csv(os.path.join(RES, "weekly_coverage.csv"), index=False)
+    return w
 
 
 def _efficiency(tag):
