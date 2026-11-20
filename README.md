@@ -26,7 +26,7 @@ MLP baselines if available. LightGBM always runs on CPU (deterministic mode).
 ## 2. Data (downloaded automatically on first run)
 | Dataset | Source | Licence | Used |
 |---|---|---|---|
-| Building Data Genome 2, electricity (cleaned), metadata, weather | github.com/buds-lab/building-data-genome-project-2 (Miller et al., 2020, *Sci. Data* 7:368) | CC-BY-4.0 | 842 buildings / 12 sites after quality filter; 2016 = training/calibration period, 2017 = target period |
+| Building Data Genome 2, electricity (cleaned), metadata, weather | github.com/buds-lab/building-data-genome-project-2 (Miller et al., 2020, *Sci. Data* 7:368) | CC-BY-4.0 | 842 buildings / 10 sites after quality filter; 2016 = training/calibration period, 2017 = target period |
 | ElectricityLoadDiagrams20112014 | UCI ML Repository, doi:10.24432/C58C86 | CC-BY-4.0 | 315 clients; 2012–13 training/calibration, 2014 target |
 
 `src/data/datasets.py` downloads the files to `data/raw/` and builds cached arrays in

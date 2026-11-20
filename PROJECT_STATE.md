@@ -1,6 +1,6 @@
 # PROJECT_STATE
 
-Last updated: 2026-11-15 ~13:15 UTC (session 1)
+Last updated: 2026-11-20 (session 2)
 
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
@@ -9,7 +9,7 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   (cold-start) buildings. Method: Hierarchical Shrinkage Conformal (HSC) calibration layer
   (stage-matched + similarity-localised population prior, shrunk toward the building's own scores
   with pseudo-count κ; κ,K by leave-one-building-out on calibration buildings).
-- Data: BDG2 electricity (842 buildings, 12 sites after quality filter), UCI ElectricityLoadDiagrams
+- Data: BDG2 electricity (842 buildings, 10 sites after quality filter), UCI ElectricityLoadDiagrams
   (315 clients). Raw files in data/raw (gitignored; `src/data/datasets.py::download`).
 - Pre-registration: experiments/PREREGISTRATION.md.
 
@@ -28,8 +28,13 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
-Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
-consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
+Review cycle 1 DONE (REVIEW/review_01.md; raw reviews REVIEW/cycle01_raw/; 9x Major revision, 1x Minor).
+Next: implement the corrective plan at the end of review_01.md (calibration-only recompute with
+reliability-aware/grouped LOBO, fixed-kappa everywhere, ACI finite fallback, per-week metrics, site-level tests,
+operational case study; re-centre manuscript on the simple pseudo-count layer; deviations table; length cut),
+then build packet_cycle02.md and run cycle 2.
+Note: new container on 2026-11-20 — data/raw and model cache absent (re-download / retrain needed before
+any recompute); torch not installed.
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in

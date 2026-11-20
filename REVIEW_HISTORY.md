@@ -14,3 +14,10 @@ Per-cycle consolidated reviews: REVIEW/review_XX.md. Corrective actions: CHANGEL
 | HSC-CQR lacked component ablation | Major | -stage, -kNN, -shrink for HSC-CQR | fixed (before full run) |
 | Descriptor described as "first h days" but uses last min(h,28) days | Minor | manuscript corrected | fixed |
 | First full-run look (seed 0 BDG2): kNN localisation and stage matching show ~no benefit; ACI-CQR close to HSC-CQR | Major (claims) | do not claim benefit of these components unless supported across seeds/datasets; report honestly | pending full results |
+
+## Cycle 1 (2026-11-20) — consolidated in REVIEW/review_01.md
+Recommendations: 9 Major revision, 1 Minor revision. Top issues: fixed kappa=168 beats LOBO-tuned headline
+method (A1); headline numbers from the full kNN/stage variant the paper calls unnecessary (A2); pre-registration
+overstated, deviations undisclosed (A3); no week-1 gain (A4); site-clustered inference, ACI cap handicap,
+'most reliable' outside main protocol, no operational payoff, data-filter/cleaning issues, length, literature.
+Status: pending (corrective plan in review_01.md).
