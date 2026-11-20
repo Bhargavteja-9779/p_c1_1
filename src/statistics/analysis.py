@@ -51,6 +51,13 @@ def load():
         for r in RHOS:
             df[f"cost{r}"] = df["U_rel"] + r * df["viol_rel"]
         df["floor"] = df["cov_se_day"] * np.sqrt(2 / np.pi)
+        # share of buildings expected below (nominal - 0.05) from sampling noise alone if the building were
+        # perfectly calibrated (normal approximation with its day-block standard error); weekly analogue uses
+        # SE_week = SE_window * sqrt(#days / 7)
+        from scipy.stats import norm
+        se = df["cov_se_day"].clip(lower=1e-6)
+        df["under_floor"] = norm.cdf(-0.05 / se)
+        df["under_floor_week"] = norm.cdf(-0.05 / (se * np.sqrt(56 / 7)))
     return df
 
 
@@ -63,6 +70,8 @@ def seed_level(df):
               under_wk1=("under_wk1", "mean"), n=("coverage", "size")).reset_index()
     if "up_exc" in df:
         o = g.agg(underprot=("underprot", "mean"), up_exc=("up_exc", "mean"), floor=("floor", "mean"),
+                  under_floor=("under_floor", "mean"), under_floor_week=("under_floor_week", "mean"),
+                  cost20_worst10=("cost20", lambda c: float(np.mean(np.sort(c.values)[-max(1, len(c) // 10):]))),
                   **{f"cost{r}": (f"cost{r}", "mean") for r in RHOS}).reset_index()
         s = s.merge(o, on=["exp", "dataset", "protocol", "perturb", "alpha", "method", "seed"], how="left")
     return s
@@ -76,7 +85,8 @@ def summary_table(s, exp, dataset=None, protocol=None, perturb="none", alpha=0.1
         q &= s.protocol == protocol
     t = s[q]
     cols = ["mean_cov", "cov_early", "macd", "under_rate", "p10_cov", "rel_width", "rel_IS", "rel_IS_mean",
-            "under_wk1"] + [c for c in ["underprot", "up_exc", "floor"] + [f"cost{r}" for r in RHOS] if c in t]
+            "under_wk1"] + [c for c in ["underprot", "up_exc", "floor", "under_floor", "under_floor_week",
+                                         "cost20_worst10"] + [f"cost{r}" for r in RHOS] if c in t]
     agg = t.groupby("method")[cols].agg(["mean", "std"])
     out = pd.DataFrame(index=agg.index)
     for c in cols:
