@@ -370,6 +370,49 @@ def sensitivity(mode="full"):
     pd.DataFrame(out).to_csv(os.path.join(RES, f"sensitivity{tag}.csv"), index=False)
 
 
+def frontier(mode="full"):
+    """Reliability-sharpness frontier (Addendum A; transparency only, never used for any selection):
+    every member of each CQR-score strategy family over its full parameter grid, evaluated on target
+    buildings: HSC simple over kappa x own-score decay, QShrink over lambda, ACI-CQR over gamma."""
+    from src.models import calibration as cb
+    quick = mode == "quick"
+    tag = "_quick" if quick else ""
+    frac = 0.1 if quick else 0.4
+    seeds = [0] if quick else [0, 1, 2, 3, 4]
+    stages = np.arange(1, pl.NH + 1)
+    sb = cb.stage_bin(stages)
+    rows = []
+
+    def rec(dsn, s, fam, par, lo, hi, PT):
+        m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
+        cov, ce = m["coverage"], m["coverage_early"]
+        rows.append(dict(dataset=dsn, seed=s, family=fam, param=par, macd=float(np.mean(np.abs(cov - 0.9))),
+                         under=float(np.mean(cov < 0.85)), under_wk1=float(np.mean(ce < 0.85)),
+                         p10=float(np.quantile(cov, 0.1)), rel_IS=float(np.median(m["rel_IS"])),
+                         rel_IS_mean=float(np.mean(m["rel_IS"])), rel_width=float(np.median(m["rel_width"]))))
+    for dsn in ["BDG2", "UCI"]:
+        ds = get_ds(dsn)
+        for s in seeds:
+            obj = prepared(dsn, dsn, s, "random", None, ds["temp"] is not None, frac, True, tag=tag)
+            PC, PT = obj["PC"], obj["PT"]
+            Sc, St = pl.scores_cqr(PC), pl.scores_cqr(PT)
+            binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
+            cct = cb.cum_counts(St)
+            sc = PT["s"][:, :, None]
+            band = lambda q: (PT["qlo"] - q[:, :, None] * sc, PT["qhi"] + q[:, :, None] * sc)
+            for dec in [1.0, 0.95, 0.9, 0.8]:
+                q = cb.hsc_quantiles(cct, binc, None, 0.1, pl.KAPPAS, stages, stage_matched=False, decay=dec)
+                for ki, kap in enumerate(pl.KAPPAS):
+                    rec(dsn, s, f"HSC (decay {dec})", kap, *band(q[ki]), PT)
+            qp = cb.pooled_quantile(binc, 0.1, True)[sb]
+            for lam in pl.KAPPAS:
+                rec(dsn, s, "QShrink", lam, *band(cb.qshrink_quantiles(cct, qp, 0.1, lam, stages)), PT)
+            for g in pl.GAMMAS + [0.02, 0.05]:
+                rec(dsn, s, "ACI", g, *band(cb.aci_quantiles(St, binc.sum(axis=0), 0.1, g, stages)), PT)
+            _log(f"frontier {dsn} s{s} done")
+    pd.DataFrame(rows).to_csv(os.path.join(RES, f"frontier{tag}.csv"), index=False)
+
+
 def _examples(dsn, ds, obj, tag):
     """Pre-specified rule: the target buildings at the 10th and 50th percentile of per-building CQR
     coverage in seed 0 (a poorly covered and a typical building)."""

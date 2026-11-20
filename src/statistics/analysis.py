@@ -27,7 +27,12 @@ FAMILY_CQR = ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQ
 FAMILY_ABS = ["SCP", "SCP-stage", "Mondrian-usage", "Self-CP", "ACI", "Raw-SCP"]
 ABLATIONS = ["HSC -stage", "HSC -kNN", "HSC -shrink", "HSC simple"]
 ABLATIONS_CQR = ["HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "HSC-CQR fixed-κ", "Self-CQR", "CQR"]
-ORDER = ["HSC-CQR", "HSC-CQR simple", "HSC", "HSC simple", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR",
+NEW = ["HSC-CQR recency", "HSC-SSC-CQR", "SSC-CQR", "HSC-CQR simple (cov)", "QShrink-CQR (cov)", "ACI-CQR (cov)"]
+NEW_PROPOSED = ["HSC-CQR recency", "HSC-SSC-CQR", "HSC-CQR simple (cov)"]  # Addendum A variants tested
+STRONG = ["CQR", "Self-CQR", "ACI-CQR", "ACI-CQR (cov)", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR", "QShrink-CQR (cov)",
+          "HSC-CQR", "HSC-CQR simple", "HSC-CQR fixed-κ", "SSC-CQR", "MLP-QR", "MLP-Gauss"]
+RHOS = [10, 20, 40]  # capacity-headroom penalty ratios (Addendum A)
+ORDER = NEW + ["HSC-CQR", "HSC-CQR simple", "HSC", "HSC simple", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR",
          "QShrink-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "CQR (MLP)", "HSC-CQR (MLP)", "ACI", "Self-CP", "SCP-stage",
          "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"] + ABLATIONS + ABLATIONS_CQR[:4]
 
@@ -38,6 +43,14 @@ def load():
     df["nominal"] = df["alpha"].map(NOM)
     df["abs_dev"] = (df["coverage"] - df["nominal"]).abs()
     df["under"] = (df["coverage"] < df["nominal"] - 0.05).astype(float)
+    df["under_wk1"] = (df["coverage_early"] < df["nominal"] - 0.05).astype(float)
+    df["abs_dev_early"] = (df["coverage_early"] - df["nominal"]).abs()
+    if "up_exc" in df:
+        df["underprot"] = (df["up_exc"] > df["alpha"]).astype(float)  # upper tail exceeded > 2x nominal (alpha/2)
+        df.loc[df.up_exc.isna(), "underprot"] = np.nan
+        for r in RHOS:
+            df[f"cost{r}"] = df["U_rel"] + r * df["viol_rel"]
+        df["floor"] = df["cov_se_day"] * np.sqrt(2 / np.pi)
     return df
 
 
@@ -47,7 +60,11 @@ def seed_level(df):
               p10_cov=("coverage", lambda c: np.quantile(c, 0.1)), rel_width=("rel_width", "median"),
               rel_IS_mean=("rel_IS", "mean"), rel_IS=("rel_IS", "median"),
               rel_IS_early=("rel_IS_early", "median"), cov_early=("coverage_early", "mean"),
-              n=("coverage", "size")).reset_index()
+              under_wk1=("under_wk1", "mean"), n=("coverage", "size")).reset_index()
+    if "up_exc" in df:
+        o = g.agg(underprot=("underprot", "mean"), up_exc=("up_exc", "mean"), floor=("floor", "mean"),
+                  **{f"cost{r}": (f"cost{r}", "mean") for r in RHOS}).reset_index()
+        s = s.merge(o, on=["exp", "dataset", "protocol", "perturb", "alpha", "method", "seed"], how="left")
     return s
 
 
@@ -58,7 +75,8 @@ def summary_table(s, exp, dataset=None, protocol=None, perturb="none", alpha=0.1
     if protocol is not None:
         q &= s.protocol == protocol
     t = s[q]
-    cols = ["mean_cov", "cov_early", "macd", "under_rate", "p10_cov", "rel_width", "rel_IS", "rel_IS_mean"]
+    cols = ["mean_cov", "cov_early", "macd", "under_rate", "p10_cov", "rel_width", "rel_IS", "rel_IS_mean",
+            "under_wk1"] + [c for c in ["underprot", "up_exc", "floor"] + [f"cost{r}" for r in RHOS] if c in t]
     agg = t.groupby("method")[cols].agg(["mean", "std"])
     out = pd.DataFrame(index=agg.index)
     for c in cols:
@@ -132,6 +150,7 @@ def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, per
         (df.perturb == perturb)
     t = df[q]
     b = t.groupby(["method", "building_id"]).agg(rel_IS=("rel_IS", "mean"), abs_dev=("abs_dev", "mean"),
+                                                 abs_dev_early=("abs_dev_early", "mean"),
                                                  site=("site_id", "first")).reset_index()
     P = b[b.method == proposed].set_index("building_id")
     res = []
@@ -141,18 +160,27 @@ def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, per
         B = b[b.method == bl].set_index("building_id")
         common = P.index.intersection(B.index)
         common = [c for c in common if np.isfinite(P.loc[c, "rel_IS"]) and np.isfinite(B.loc[c, "rel_IS"])]
-        for metric in ["rel_IS", "abs_dev"]:
+        for metric in ["rel_IS", "abs_dev", "abs_dev_early"]:
             d = (P.loc[common, metric] - B.loc[common, metric]).values  # negative = proposed better
             stat, p = wilcoxon(d, zero_method="wilcox", alternative="two-sided") if np.any(d != 0) else (np.nan, 1.0)
+            site = P.loc[common, "site"].values
+            # site-level paired test (BDG2: buildings within a site are not independent): Wilcoxon on site means
+            sm = pd.Series(d).groupby(site).mean().values
+            p_site = float(wilcoxon(sm).pvalue) if len(sm) >= 6 and np.any(sm != 0) else np.nan
+            # sensitivity: largest site excluded
+            big = pd.Series(site).value_counts().index[0]
+            dx = d[site != big]
+            p_xbig = float(wilcoxon(dx).pvalue) if len(np.unique(site)) > 1 and np.any(dx != 0) else np.nan
             res.append(dict(dataset=dataset, protocol=protocol, alpha=alpha, perturb=perturb, proposed=proposed,
                             baseline=bl, metric=metric, n_buildings=len(common), mean_diff=float(d.mean()),
                             median_diff=float(np.median(d)), share_proposed_better=float(np.mean(d < 0)),
                             rank_biserial=_rank_biserial(-d),  # positive = proposed better
-                            ci95_mean_diff=_cluster_boot_ci(d, P.loc[common, "site"].values),
-                            W=float(stat), p=float(p)))
+                            ci95_mean_diff=_cluster_boot_ci(d, site),
+                            W=float(stat), p=float(p), n_sites=int(len(sm)), p_site=p_site,
+                            excluded_site=str(big) if len(np.unique(site)) > 1 else "", p_excl_largest_site=p_xbig))
     r = pd.DataFrame(res)
     if len(r):
-        for metric in ["rel_IS", "abs_dev"]:
+        for metric in ["rel_IS", "abs_dev", "abs_dev_early"]:
             m = r.metric == metric
             r.loc[m, "p_holm"] = holm(r.loc[m, "p"].values)
     return r
@@ -180,6 +208,8 @@ def run(mode="full"):
             stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR simple",
                                       ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR"]))
             stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR (MLP)", ["CQR (MLP)", "MLP-QR"]))
+            for pr in NEW_PROPOSED:
+                stats.append(paired_tests(df, "main", ds, "random", pr, STRONG + NEW))
         for a in [0.05, 0.2]:
             t = summary_table(s, "main", ds, "random", alpha=a)
             if len(t):
@@ -203,13 +233,16 @@ def run(mode="full"):
             metrics[f"gen_{nm}"] = t.round(4).to_dict(orient="index")
             stats.append(paired_tests(df, exp, ds, prot, "HSC-CQR", FAMILY_CQR))
             stats.append(paired_tests(df, exp, ds, prot, "HSC", FAMILY_ABS))
+            for pr in NEW_PROPOSED:
+                stats.append(paired_tests(df, exp, ds, prot, pr, STRONG + NEW))
     # ---- E4 robustness
     rb = s[s.exp == "robust"]
     if len(rb):
-        keep = ["HSC-CQR", "HSC-CQR simple", "HSC", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
+        keep = NEW + ["HSC-CQR", "HSC-CQR simple", "HSC", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
                 "QR-LGBM", "MLP-QR", "ACI", "SCP-stage", "Self-CP"]
-        rt = rb[rb.method.isin(keep)].groupby(["perturb", "method"])[["mean_cov", "macd", "under_rate", "rel_IS",
-                                                                      "rel_width"]].mean().reset_index()
+        rcols = ["mean_cov", "macd", "under_rate", "under_wk1", "rel_IS", "rel_width"] + \
+            [c for c in ["underprot", "cost20"] if c in rb]
+        rt = rb[rb.method.isin(keep)].groupby(["perturb", "method"])[rcols].mean().reset_index()
         rt.to_csv(os.path.join(TAB, "T_robustness.csv"), index=False)
         with open(os.path.join(TAB, "T_robustness.md"), "w") as f:
             f.write("**Robustness (BDG2, mean over seeds)**\n\n" + rt.round(3).to_markdown(index=False) + "\n")
@@ -219,6 +252,8 @@ def run(mode="full"):
                                                                                   "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
                                                                                   "QR-LGBM", "MLP-QR"],
                                       perturb=p))
+            for pr in NEW_PROPOSED:
+                stats.append(paired_tests(df, "robust", "BDG2", "random", pr, STRONG + NEW, perturb=p))
             stats.append(paired_tests(df, "robust", "BDG2", "random", "HSC", ["SCP-stage", "ACI", "Self-CP"],
                                       perturb=p))
     st = pd.concat([x for x in stats if len(x)], ignore_index=True)
@@ -256,7 +291,9 @@ def _efficiency(tag):
                          hsc_tune_s=v.get("t_tune_hsc"),
                          hsc_apply_ms_per_target_day=1e3 * v.get("t_hsc_apply_per_target_day", np.nan),
                          scp_s=v.get("t_scp"), calibration_total_s=v.get("t_calibration_total"),
-                         hsc_store_MB=v.get("hsc_store_MB")))
+                         hsc_store_MB=v.get("hsc_store_MB"),
+                         hsc_cov_tune_s=v.get("t_tune_hsc_cov"),
+                         ssc_apply_ms_per_target_day=1e3 * v.get("t_ssc_apply_per_target_day", np.nan)))
     if rows:
         e = pd.DataFrame(rows)
         e.to_csv(os.path.join(TAB, "T_efficiency.csv"), index=False)
