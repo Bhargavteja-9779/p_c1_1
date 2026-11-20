@@ -46,6 +46,12 @@ def interval_metrics(y, lo, hi, alpha):
         viol_rel=np.where(valid, np.maximum(yv - hi, 0), 0.0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
         cov_se_day=_day_block_se(cov, valid),
     )
+    # per-building weekly coverage (weeks 1..8 of the onboarding window) -> days-to-reliable analysis
+    nwk = y.shape[1] // 7
+    for w in range(nwk):
+        sl = slice(7 * w, 7 * (w + 1))
+        nw = valid[:, sl].sum(axis=(1, 2))
+        out[f"cov_w{w + 1}"] = np.where(nw > 0, cov[:, sl].sum(axis=(1, 2)) / np.maximum(nw, 1), np.nan)
     stage_cov = cov.sum(axis=2) / np.maximum(valid.sum(axis=2), 1)  # (nt, NH)
     stage_IS = IS.sum(axis=2) / np.maximum(valid.sum(axis=2), 1) / ybar[:, None]
     return out, stage_cov, stage_IS
