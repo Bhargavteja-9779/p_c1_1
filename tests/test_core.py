@@ -69,8 +69,28 @@ def test_hsc_limits():
     # huge kappa ~ prior; small kappa adapts toward 3x larger target scores late in the window
     assert np.allclose(q[1, :, 0], q[0, :, 0], rtol=0.02)
     assert (q[2, :, -1] > 2 * q[0, :, -1]).all()
-    # kappa=0: no own scores at stage 1 -> infinite radius
-    assert np.all(q[3, :, 0] >= cb.INF_RADIUS * 0.999)
+    # kappa=0: no own scores at stage 1 -> falls back to the prior-only radius (v2)
+    assert np.allclose(q[3, :, 0], q[0, :, 0])
+
+
+def test_aci_gamma0_equals_pooled_and_finite_fallback():
+    rng = np.random.default_rng(5)
+    cal = rng.exponential(size=(30, 56, 24)).astype(np.float32)
+    tgt = (5 * rng.exponential(size=(4, 56, 24))).astype(np.float32)
+    stages = np.arange(1, 57)
+    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
+    P = binc.sum(axis=0)
+    qp = cb.pooled_quantile(binc, 0.1, True)[cb.stage_bin(stages)]
+    assert np.allclose(cb.aci_quantiles(tgt, P, 0.1, 0.0, stages), qp[None, :])
+    q = cb.aci_quantiles(tgt, P, 0.1, 0.05, stages)  # large step -> alpha_h <= 0 occurs
+    assert np.all(q <= np.nanmax(cal) * 1.01 + 1e-6) and np.all(np.isfinite(q))
+
+
+def test_coverage_objective():
+    sc = np.zeros((3, 56, 24))
+    sc[0] = 2.0
+    macd, under = cb.coverage_objective(np.ones((1, 3, 56)), sc, 0.1)
+    assert np.isclose(under[0], 1 / 3) and np.isclose(macd[0], (0.9 + 0.1 + 0.1) / 3)
 
 
 def test_interval_metrics():

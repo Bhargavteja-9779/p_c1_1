@@ -56,7 +56,8 @@ def _save(pid, df, curves, info):
     df.to_csv(os.path.join(PARTS, pid + ".csv"), index=False)
 
 
-def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_frac_buildings=1.0, tag=""):
+def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_frac_buildings=1.0, tag="",
+             tsplit=False):
     """Train (or load cached) models and window predictions for calibration and target buildings."""
     key = f"{src}_{tgt}_{protocol}{'' if fold is None else fold}_s{seed}_w{int(use_weather)}_f{frac}_m{int(with_mlp)}_tb{train_frac_buildings}{tag}"
     path = os.path.join(CACHE, key + ".pkl")
@@ -64,6 +65,12 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
         with open(path, "rb") as f:
             return pickle.load(f)
     dsS, dsT = get_ds(src), get_ds(tgt)
+    if tsplit:  # v2: forecaster trained on the first half of the training period, calibration in the second half
+        key, tag = key + "_tsplit", tag + "_tsplit"
+        path = os.path.join(CACHE, key + ".pkl")
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return pickle.load(f)
     sp = pl.split(dsS, seed, protocol, fold)
     if train_frac_buildings < 1.0:
         rng = np.random.default_rng(500 + seed)
@@ -79,13 +86,17 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
         _log(f"reuse models {mkey} for {key}")
     else:
         _log(f"train {key}: train={len(sp['train'])} cal={len(sp['cal'])} tgt={len(tgt_idx)}")
-        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log)
+        p0, p1 = pl.periods(dsS)[0]
+        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log,
+                                 period=(p0, (p0 + p1) // 2) if tsplit else None)
         models["time_train_total"] = time.time() - t0
         os.makedirs(CACHE, exist_ok=True)
         with open(mpath, "wb") as f:
             pickle.dump(models, f)
     rng = np.random.default_rng(2000 + seed)
     trS, _ = pl.periods(dsS)
+    if tsplit:
+        trS = ((trS[0] + trS[1]) // 2 + 1, trS[1])
     _, teT = pl.periods(dsT)
     t0c = pl.onboard_dates(dsS, sp["cal"], trS, rng)
     t0t = pl.onboard_dates(dsT, tgt_idx, teT, rng)
@@ -119,10 +130,11 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     t0 = time.time()
     out, info = pl.run_calibration(PC, PT, alpha, mc if dsS is dsT else None, mtg if dsS is dsT else None,
                                    methods=methods)
-    if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
-        for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR", "Self-CQR", "ACI-CQR", "HSC-CQR -stage", "HSC-CQR -kNN",
-                  "HSC-CQR -shrink", "GHCP-CQR", "QShrink-CQR", "TQA-B-CQR", "HSC-CQR simple", "CQR (MLP)",
-                  "HSC-CQR (MLP)", "HSC-CQR fixed-κ"]:
+    if alpha != model_alpha:
+        # direct-quantile models were trained for the 5 %/95 % quantiles only: the raw quantile intervals are not
+        # evaluated at other levels; conformalised versions (CQR family) remain valid (v2) because the conformal
+        # radius corrects the base quantiles to the target level
+        for k in ["QR-LGBM", "MLP-QR", "MLP-Gauss"]:
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     ok = pl.common_mask(out, PT)
@@ -134,6 +146,7 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     pm = mt.point_metrics(PT["y"], PT["yhat"])
     df["cvrmse_lgb"] = np.tile(pm["cvrmse"], len(out))
     info["t_calibration_total"] = time.time() - t0
+    info["onboard_fallbacks"] = sorted(set(pl.ONBOARD_FALLBACKS))
     info.update(obj["timing"])
     info["point"] = {k: float(np.nanmedian(v)) for k, v in pm.items()}
     for key, nm in (("naive", "naive"), ("mu", "mlp")):
@@ -143,7 +156,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     _rows(df, part=pid, alpha=alpha, **(extra.get("cols", {}) if extra else {}))
     _save(pid, df, curves, info)
     s = df.groupby("method").agg(cov=("coverage", "mean"), IS=("rel_IS", "mean"))
-    _log(f"done {pid} ({time.time() - t0:.0f}s): HSC IS={s.loc['HSC', 'IS']:.3f} cov={s.loc['HSC', 'cov']:.3f} | "
+    k_ = "PCS-CQR" if "PCS-CQR" in s.index else s.index[0]
+    _log(f"done {pid} ({time.time() - t0:.0f}s): {k_} IS={s.loc[k_, 'IS']:.3f} cov={s.loc[k_, 'cov']:.3f} | "
          f"SCP-stage IS={s.loc['SCP-stage', 'IS']:.3f}")
 
 
@@ -178,10 +192,35 @@ def perturb_shift(factor, day=28):
     return f
 
 
-def subsample_cal(PC, frac, seed):
+def perturb_outage(days, seed):
+    """v2: contiguous meter outage of `days` days starting at a random day 3-20 of the onboarding window."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(6000 + seed)
+        for b, t in zip(bidx, t0):
+            d0 = int(rng.integers(3, 21))
+            load[b, t + d0:t + d0 + days] = np.nan
+        return load
+    return f
+
+
+def perturb_volatility(sd, seed, day=28):
+    """v2: from day `day` on, each day's load is scaled by an independent factor 1 + N(0, sd) (>= 0.1):
+    higher day-to-day volatility than in the history (e.g. changed operation)."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(7000 + seed)
+        for b, t in zip(bidx, t0):
+            n = pl.NH + 1 - day
+            fac = np.maximum(1 + rng.normal(0, sd, n), 0.1)
+            load[b, t + day:t + pl.NH + 1] *= fac[:, None]
+        return load
+    return f
+
+
+def subsample_cal(PC, frac, seed, n_abs=None):
     n = PC["y"].shape[0]
     rng = np.random.default_rng(5000 + seed)
-    idx = np.sort(rng.choice(n, max(10, int(frac * n)), replace=False))
+    m = max(10, int(frac * n)) if n_abs is None else n_abs
+    idx = np.sort(rng.choice(n, m, replace=False))
     out = {}
     for k, v in PC.items():
         if k == "z":
@@ -205,9 +244,10 @@ def plan(mode):
     for ds in ["BDG2", "UCI"]:
         for s in seeds:
             jobs.append(dict(kind="main", ds=ds, seed=s))
-    # E5: leave-site-out (BDG2)
-    for f in ([0] if quick else range(5)):
-        jobs.append(dict(kind="lso", ds="BDG2", seed=f))
+    # E5: leave-one-site-out (BDG2; v2: every site, 3 training seeds per site)
+    for f in ([0] if quick else range(10)):
+        for s in rseeds:
+            jobs.append(dict(kind="loso", ds="BDG2", fold=f, seed=s))
     # E5: cross-dataset (no-weather models)
     for s in rseeds:
         jobs.append(dict(kind="xds", src="BDG2", tgt="UCI", seed=s))
@@ -217,6 +257,8 @@ def plan(mode):
     for s in rseeds:
         jobs.append(dict(kind="robust", ds="BDG2", seed=s))
         jobs.append(dict(kind="weak", ds="BDG2", seed=s))
+        jobs.append(dict(kind="tsplit", ds="BDG2", seed=s))  # v2: calibration period disjoint from training
+        jobs.append(dict(kind="pools", ds="BDG2", seed=s))  # v2: repeated small calibration pools
     return jobs, frac, mlp, quick
 
 
@@ -230,8 +272,10 @@ def train_only(mode="full"):
             if k in ("main", "robust"):
                 ds = get_ds(j["ds"])
                 prepared(j["ds"], j["ds"], j["seed"], "random", None, ds["temp"] is not None, frac, mlp, tag=tag)
-            elif k == "lso":
-                prepared("BDG2", "BDG2", j["seed"], "lso", j["seed"], True, frac, mlp, tag=tag)
+            elif k == "loso":
+                prepared("BDG2", "BDG2", j["seed"], "loso", j["fold"], True, frac, mlp, tag=tag)
+            elif k == "tsplit":
+                prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, mlp, tag=tag, tsplit=True)
             elif k == "xds":
                 prepared(j["src"], j["tgt"], j["seed"], "random", None, False, frac, mlp, tag=tag)
             elif k == "weak":
@@ -272,12 +316,33 @@ def _execute_job(j, frac, mlp, tag, quick):
             run_part(pid, obj, ds, ds, a, methods="all" if a == 0.1 else "core",
                      extra=dict(cols=dict(exp="main", dataset=j["ds"], protocol="random", seed=j["seed"],
                                           perturb="none")))
-    elif k == "lso":
+    elif k == "loso":
         ds = get_ds("BDG2")
-        obj = prepared("BDG2", "BDG2", j["seed"], "lso", j["seed"], True, frac, mlp, tag=tag)
-        run_part(f"lso{tag}_BDG2_f{j['seed']}", obj, ds, ds, 0.1, methods="all",
+        obj = prepared("BDG2", "BDG2", j["seed"], "loso", j["fold"], True, frac, mlp, tag=tag)
+        site = sorted(ds["meta"].site_id.unique())[j["fold"]]
+        run_part(f"loso{tag}_BDG2_{site}_s{j['seed']}", obj, ds, ds, 0.1, methods="all",
                  extra=dict(cols=dict(exp="lso", dataset="BDG2", protocol="leave-site-out", seed=j["seed"],
-                                      perturb="none")))
+                                      perturb="none", fold=site)))
+    elif k == "tsplit":
+        ds = get_ds("BDG2")
+        obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, mlp, tag=tag, tsplit=True)
+        run_part(f"robust{tag}_BDG2_s{j['seed']}_tsplit", obj, ds, ds, 0.1, methods="core",
+                 extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=j["seed"],
+                                      perturb="disjoint-cal-period")))
+    elif k == "pools":
+        ds = get_ds("BDG2")
+        obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, mlp, tag=tag)
+        s = j["seed"]
+        for n_cal in [5, 10, 20, 40]:
+            for r in range(5):
+                pid = f"pools{tag}_BDG2_s{s}_n{n_cal}_r{r}"
+                if _done(pid):
+                    continue
+                PCs, idx = subsample_cal(obj["PC"], 1.0, 100 * s + 10 * n_cal + r, n_abs=n_cal)
+                run_part(pid, obj, ds, ds, 0.1, methods="light", PC=PCs,
+                         extra=dict(cal_idx=obj["sp"]["cal"][idx],
+                                    cols=dict(exp="pools", dataset="BDG2", protocol="random", seed=s,
+                                              perturb=f"n_cal={n_cal}", rep=r)))
     elif k == "xds":
         dS, dT = get_ds(j["src"]), get_ds(j["tgt"])
         obj = prepared(j["src"], j["tgt"], j["seed"], "random", None, False, frac, mlp, tag=tag)
@@ -290,12 +355,18 @@ def _execute_job(j, frac, mlp, tag, quick):
         s = j["seed"]
         perts = {"noise5": perturb_noise(0.05, s), "noise15": perturb_noise(0.15, s),
                  "missing20": perturb_missing(0.2, s), "missing40": perturb_missing(0.4, s),
-                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6)}
+                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6),
+                 # v2 additions
+                 "shift+40@d7": perturb_shift(1.4, day=7), "outage3d": perturb_outage(3, s),
+                 "outage7d": perturb_outage(7, s), "volatility25": perturb_volatility(0.25, s),
+                 "noise15-history": perturb_noise(0.15, s)}
         for name, f in perts.items():
             pid = f"robust{tag}_BDG2_s{s}_{name}"
             if _done(pid):
                 continue
             PT = pl.window_predictions(ds, obj["tgt_idx"], obj["t0t"], obj["models"], perturb=f)
+            if name.endswith("-history"):  # noisy meter history, clean evaluated truth
+                PT["y"] = obj["PT"]["y"]
             run_part(pid, obj, ds, ds, 0.1, methods="core", PT=PT,
                      extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=s, perturb=name)))
         for fr in [0.1, 0.25, 0.5]:
@@ -352,9 +423,9 @@ def sensitivity(mode="full"):
                 St = pl.scores_abs(PT) if score == "abs" else pl.scores_cqr(PT)
                 binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
                 cct = cb.cum_counts(St)
-                for K in pl.KS:
+                for K, stg in [(K_, True) for K_ in pl.KS] + [(None, False)]:  # v2: + PCS (no stage matching)
                     nb = pl.nbrs_by_stage(PT["z"], PC["z"], K)
-                    q = cb.hsc_quantiles(cct, binc, nb, 0.1, pl.KAPPAS, stages)
+                    q = cb.hsc_quantiles(cct, binc, nb, 0.1, pl.KAPPAS, stages, stage_matched=stg)
                     for ki, kap in enumerate(pl.KAPPAS):
                         if score == "abs":
                             lo, hi = PT["yhat"] - q[ki][:, :, None] * PT["s"][:, :, None], PT["yhat"] + q[ki][:, :, None] * PT["s"][:, :, None]
@@ -363,7 +434,8 @@ def sensitivity(mode="full"):
                         m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
                         cov = m["coverage"]
                         out.append(dict(dataset=dsn, seed=s, score=score, K="all" if K is None else K,
-                                        kappa=kap, macd=float(np.mean(np.abs(cov - 0.9))),
+                                        stage_matched="yes" if stg else "no", kappa=kap,
+                                        under_w1=float(np.mean(m["coverage_w1"] < 0.85)), macd=float(np.mean(np.abs(cov - 0.9))),
                                         under=float(np.mean(cov < 0.85)), mean_cov=float(cov.mean()),
                                         rel_IS=float(np.median(m["rel_IS"])),
                                         rel_width=float(np.median(m["rel_width"]))))
@@ -383,7 +455,7 @@ def _examples(dsn, ds, obj, tag):
     picks = {"p10": order[int(0.1 * (len(cov) - 1))], "p50": order[int(0.5 * (len(cov) - 1))]}
     rows = []
     for lab, i in picks.items():
-        for meth in ["CQR", "HSC-CQR" if "HSC-CQR" in out else "HSC", "HSC"]:
+        for meth in ["CQR", "PCS-CQR"]:
             lo, hi = out[meth]
             for h in range(pl.NH):
                 for j in range(24):

@@ -144,12 +144,13 @@ def neighbours(z_target: np.ndarray, z_cal: np.ndarray, K: int, exclude_self: bo
     return np.argsort(d, axis=1, kind="stable")[:, :min(K, n)]
 
 
-def prior_cdf(cal_cdf_k, cal_tot_k, nbr=None, excl=None):
+def prior_cdf(cal_cdf_k, cal_tot_k, nbr=None, excl=None, groups=None):
     """Population prior CDF for one stage bin.
 
     cal_cdf_k: (ncal, NG) per-building CDFs in this bin; cal_tot_k: (ncal,) number of scores.
     nbr: (nt, K) neighbour indices or None (uniform over all calibration buildings, excluding
-    `excl` (nt,) if given -- used for leave-one-building-out tuning).
+    `excl` (nt,) if given -- used for leave-one-building-out tuning). With `groups` (ncal,) labels, every
+    calibration building of the pseudo-target's group (e.g. its site) is excluded (grouped LOBO, v2).
     Only buildings with at least one score in the bin enter the average (an empty bin has no EDF).
     returns FP (nt, NG), n_prior (nt,)
     """
@@ -166,12 +167,19 @@ def prior_cdf(cal_cdf_k, cal_tot_k, nbr=None, excl=None):
     n = ne.sum()
     if excl is None:
         return S[None, :] / max(n, 1), np.array([T])
+    if groups is not None:
+        labs = np.unique(groups)
+        Sg = np.stack([(cal_cdf_k * ne[:, None])[groups == g].sum(axis=0) for g in labs])
+        ng = np.array([ne[groups == g].sum() for g in labs])
+        Tg = np.array([cal_tot_k[groups == g].sum() for g in labs])
+        gi = np.searchsorted(labs, groups[excl])
+        return (S[None, :] - Sg[gi]) / np.maximum(n - ng[gi], 1)[:, None], T - Tg[gi]
     own = ne[excl]
     return (S[None, :] - cal_cdf_k[excl] * own[:, None]) / np.maximum(n - own, 1)[:, None], T - cal_tot_k[excl]
 
 
 def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, excl=None,
-                  stage_matched=True):
+                  stage_matched=True, groups=None):
     """Proposed HSC radius for each target building and stage, for several kappa values.
 
     self_cc        : (nt, NH, NG) cumulative counts of the target's own scores per stage
@@ -180,6 +188,9 @@ def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, 
     kappas         : iterable of prior pseudo-counts (np.inf -> prior only; 0 -> self only)
     excl           : (nt,) calibration index of each target (leave-one-building-out tuning) or None
     stage_matched  : if False the prior pools all onboarding stages (ablation)
+    groups         : optional (ncal,) group labels for grouped LOBO (requires excl and a uniform prior)
+    kappa = 0 (self only) falls back to the prior-only radius while the own split-conformal quantile does
+    not exist (v2; previously an infinite radius, which made kappa = 0 unselectable).
     returns q (n_kappa, nt, NH)
     """
     kappas = list(kappas)
@@ -194,17 +205,20 @@ def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, 
     for hi, h in enumerate(stages):
         k = int(stage_bin(h))
         nbr = None if nbr_by_stage is None else nbr_by_stage[hi]
-        FP, n_prior = prior_cdf(cal_cdf[:, k, :], tot[:, k], nbr, excl)
+        FP, n_prior = prior_cdf(cal_cdf[:, k, :], tot[:, k], nbr, excl, groups)
         FP = np.broadcast_to(FP, (nt, NG))
         n_self = self_before[:, -1]
+        N = np.broadcast_to(np.asarray(n_prior, dtype=float), (nt,))
+        level_p = np.minimum(np.ceil((1 - alpha) * (N + 1)) / np.maximum(N, 1), 1.0)
+        idx_prior = _first_ge(FP, level_p)
         for ki, kappa in enumerate(kappas):
             if np.isinf(kappa):
-                N = np.broadcast_to(np.asarray(n_prior, dtype=float), (nt,))
-                level = np.minimum(np.ceil((1 - alpha) * (N + 1)) / np.maximum(N, 1), 1.0)
-                idx = _first_ge(FP, level)
+                idx = idx_prior
             else:
                 M = (kappa * FP + self_before) / (kappa + n_self + 1.0)[:, None]
                 idx = _first_ge(M, np.full(nt, 1 - alpha))
+                if kappa == 0:
+                    idx = np.where(own_defined(n_self, alpha), idx, idx_prior)
             q[ki, :, hi] = GRID[idx]
         self_before += self_cc[:, hi, :]
     return q
@@ -215,26 +229,43 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
 
     alpha_{h+1} = alpha_h + gamma * sum_j (alpha - err_{h,j}); radius = prior quantile at 1-alpha_h.
     target_scores: (nt, NH, 24); prior_counts_bin: (nbins, NG) or (nt, nbins, NG) cumulative counts.
+    v2: the quantile uses the split-conformal level ceil((1-alpha_h)(N+1))/N (so gamma = 0 is exactly the
+    stage-matched pooled method); when that level exceeds 1 (alpha_h <= 1/(N+1), incl. alpha_h <= 0) the
+    radius is the largest observed calibration score instead of the top of the grid (500 s), which had let
+    single blow-ups dominate the tuning objective.
     """
     nt, NH, _ = target_scores.shape
     P = prior_counts_bin.astype(np.float32)
     if P.ndim == 2:
         P = np.broadcast_to(P, (nt,) + P.shape)
     F = P / np.maximum(P[..., -1:], 1)
+    Ntot = P[..., -1]  # (nt, nbins)
     a = np.full(nt, alpha, dtype=float)
     q = np.empty((nt, NH), dtype=np.float32)
     for hi, h in enumerate(stages):
         k = int(stage_bin(h))
-        lev = 1 - a
+        Nk = np.maximum(Ntot[:, k], 1)
+        lev = np.ceil((1 - a) * (Nk + 1)) / Nk
         idx = _first_ge(F[:, k, :], np.clip(lev, 0, 1))
         idx_min = _first_ge(F[:, k, :], np.full(nt, 1e-5))  # smallest observed score (empty-set convention)
-        idx = np.where(lev >= 1, len(GRID) - 1, np.where(lev <= 0, idx_min, idx))
+        idx_max = _first_ge(F[:, k, :], np.full(nt, 1.0))  # largest observed score
+        idx = np.where(lev > 1, idx_max, np.where(lev <= 0, idx_min, idx))
         q[:, hi] = GRID[idx]
         e = target_scores[:, hi, :]
         valid = ~np.isnan(e)
         err = (e > q[:, hi:hi + 1]) & valid
         a = a + gamma * (alpha * valid.sum(1) - err.sum(1))
     return q
+
+
+def coverage_objective(q, scores, alpha, tol=0.05):
+    """Reliability objective for LOBO tuning (v2): per pseudo-target coverage over its window.
+    q (..., nt, NH) radius; scores (nt, NH, 24). Returns (MACD, under-covered share) over pseudo-targets."""
+    e = scores[None]
+    valid = ~np.isnan(e)
+    cov = ((np.where(valid, e, np.inf) <= q[..., None]) & valid).sum(axis=(-1, -2)) / np.maximum(
+        valid.sum(axis=(-1, -2)), 1)
+    return np.abs(cov - (1 - alpha)).mean(axis=-1), (cov < 1 - alpha - tol).mean(axis=-1)
 
 
 def normalized_IS(q, scores, base_w, alpha):
@@ -322,7 +353,8 @@ def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, b
             r = (ec[None, :, hi] < et[:, hi, None]).sum(axis=1) / (N + 1.0)
             g = np.where(r < 1 - alpha, C * (r - (1 - alpha)), r - (1 - alpha))
             g = np.where(np.isnan(et[:, hi]), 0.0, g)
-            gmax = g.max() if g.size else 0.0
+            # v2: budget scaling from the largest attainable rank N/(N+1) (no target-building information)
+            gmax = N / (N + 1.0) - (1 - alpha)
             lam = min(1.0, (alpha - 0.01) / gmax) if gmax > alpha - 0.01 else 1.0  # original: scale g so a>=0.01
             a = alpha - lam * g
         # quantile of pooled scores together with a point at +inf (original TQA): level (1-a)(N+1)/N
