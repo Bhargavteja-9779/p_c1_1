@@ -38,10 +38,27 @@ def interval_metrics(y, lo, hi, alpha):
         rel_IS=IS.sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
         rel_IS_early=IS[:, early].sum(axis=(1, 2)) / np.maximum(ne, 1) / ybar,
         n_valid=n,
+        # operational measures (Addendum A): tail exceedances, capacity-headroom cost components,
+        # day-block standard error of the building's coverage
+        up_exc=((yv > hi) & valid).sum(axis=(1, 2)) / np.maximum(n, 1),
+        lo_exc=((yv < lo) & valid).sum(axis=(1, 2)) / np.maximum(n, 1),
+        U_rel=np.where(valid, hi, 0.0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
+        viol_rel=np.where(valid, np.maximum(yv - hi, 0), 0.0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
+        cov_se_day=_day_block_se(cov, valid),
     )
     stage_cov = cov.sum(axis=2) / np.maximum(valid.sum(axis=2), 1)  # (nt, NH)
     stage_IS = IS.sum(axis=2) / np.maximum(valid.sum(axis=2), 1) / ybar[:, None]
     return out, stage_cov, stage_IS
+
+
+def _day_block_se(cov, valid):
+    """Standard error of a building's window coverage from its daily coverage values (day blocks keep the
+    within-day dependence of misses): s.d. of daily coverage / sqrt(#days with data)."""
+    nd = valid.sum(axis=2)
+    dc = np.where(nd > 0, cov.sum(axis=2) / np.maximum(nd, 1), np.nan)
+    k = (nd > 0).sum(axis=1)
+    sd = np.nanstd(dc, axis=1, ddof=1)
+    return sd / np.sqrt(np.maximum(k, 1))
 
 
 def point_metrics(y, yhat):

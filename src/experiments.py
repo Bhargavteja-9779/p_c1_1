@@ -119,10 +119,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     t0 = time.time()
     out, info = pl.run_calibration(PC, PT, alpha, mc if dsS is dsT else None, mtg if dsS is dsT else None,
                                    methods=methods)
-    if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
-        for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR", "Self-CQR", "ACI-CQR", "HSC-CQR -stage", "HSC-CQR -kNN",
-                  "HSC-CQR -shrink", "GHCP-CQR", "QShrink-CQR", "TQA-B-CQR", "HSC-CQR simple", "CQR (MLP)",
-                  "HSC-CQR (MLP)", "HSC-CQR fixed-κ"]:
+    if alpha != model_alpha:  # quantile models were trained for alpha=0.1: uncalibrated QR intervals are not
+        for k in ["QR-LGBM", "MLP-QR"]:  # meaningful at other levels; conformalised (CQR-based) ones are kept
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     ok = pl.common_mask(out, PT)

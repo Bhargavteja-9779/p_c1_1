@@ -27,6 +27,8 @@ from src.evaluation import metrics as mt
 NH = 56
 KAPPAS = [0, 24, 48, 96, 168, 336, 672, 1344, np.inf]
 KS = [10, 25, 50, 100, None]
+RECENCY = 0.95  # per-day decay of own scores (Addendum A, fixed a priori)
+KAPPA_S = 24.0  # pseudo-count of the running scale estimate in SSC (Addendum A, fixed a priori)
 GAMMAS = [0.0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01]  # 0 and 1e-4/2e-4 added after audit
 
 
@@ -190,8 +192,11 @@ def nbrs_by_stage(z_t, z_c, K, exclude_self=False):
     return [cb.neighbours(z_t[h], z_c[h], K, exclude_self) for h in range(NH)]
 
 
-def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, kappas=KAPPAS):
-    """Leave-one-building-out selection of (kappa, K) on calibration buildings."""
+def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, kappas=KAPPAS, objective="is",
+             decay=1.0):
+    """Leave-one-building-out selection of (kappa, K) on calibration buildings.
+    objective: 'is' = mean normalised interval score (pre-registered); 'cov' = mean per-building absolute
+    coverage deviation (LOBO-MACD; Addendum A), ties broken by the interval score."""
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
@@ -199,16 +204,19 @@ def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, ka
     for K in Ks:
         nb = nbrs_by_stage(z_cal, z_cal, K, exclude_self=True)
         excl = np.arange(cal_scores.shape[0]) if K is None else None
-        q = cb.hsc_quantiles(cc, binc, nb, alpha, kappas, stages, excl=excl, stage_matched=stage_matched)
-        obj = cb.normalized_IS(q, cal_scores, cal_base_w, alpha)
+        q = cb.hsc_quantiles(cc, binc, nb, alpha, kappas, stages, excl=excl, stage_matched=stage_matched,
+                             decay=decay)
+        isv = cb.normalized_IS(q, cal_scores, cal_base_w, alpha)
+        cdv = cb.coverage_deviation(q, cal_scores, alpha) if objective == "cov" else np.zeros(len(kappas))
         for ki, kap in enumerate(kappas):
-            res.append(dict(K=K, kappa=kap, obj=float(obj[ki])))
+            res.append(dict(K=K, kappa=kap, obj=float(isv[ki] if objective == "is" else cdv[ki]),
+                            IS=float(isv[ki]), MACD=float(cdv[ki])))
     df = pd.DataFrame(res)
-    best = df.loc[df.obj.idxmin()]
+    best = df.sort_values(["obj", "IS"]).iloc[0]
     return dict(K=None if pd.isna(best.K) else int(best.K), kappa=float(best.kappa)), df
 
 
-def tune_aci(cal_scores, alpha, gammas=GAMMAS):
+def tune_aci(cal_scores, alpha, gammas=GAMMAS, objective="is"):
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
@@ -217,13 +225,14 @@ def tune_aci(cal_scores, alpha, gammas=GAMMAS):
     res = []
     for g in gammas:
         q = cb.aci_quantiles(cal_scores, prior, alpha, g, stages)
-        obj = cb.normalized_IS(q[None], cal_scores, np.zeros_like(cal_scores), alpha)
-        res.append(dict(gamma=g, obj=float(obj[0])))
+        isv = float(cb.normalized_IS(q[None], cal_scores, np.zeros_like(cal_scores), alpha)[0])
+        cdv = float(cb.coverage_deviation(q[None], cal_scores, alpha)[0]) if objective == "cov" else 0.0
+        res.append(dict(gamma=g, obj=isv if objective == "is" else cdv, IS=isv, MACD=cdv))
     df = pd.DataFrame(res)
-    return float(df.loc[df.obj.idxmin(), "gamma"]), df
+    return float(df.sort_values(["obj", "IS"]).iloc[0]["gamma"]), df
 
 
-def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS)):
+def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS), objective="is"):
     """Leave-one-building-out choice of lambda for quantile-level shrinkage (same objective and grid as HSC;
     lambda = 0: own quantile when defined, lambda = inf: pooled radius)."""
     stages = np.arange(1, NH + 1)
@@ -233,9 +242,11 @@ def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS)):
     res = []
     for lam in lams:
         q = cb.qshrink_quantiles(cc, q_pool, alpha, lam, stages)
-        res.append(dict(lam=lam, obj=float(cb.normalized_IS(q[None], cal_scores, cal_base_w, alpha)[0])))
+        isv = float(cb.normalized_IS(q[None], cal_scores, cal_base_w, alpha)[0])
+        cdv = float(cb.coverage_deviation(q[None], cal_scores, alpha)[0]) if objective == "cov" else 0.0
+        res.append(dict(lam=lam, obj=isv if objective == "is" else cdv, IS=isv, MACD=cdv))
     df = pd.DataFrame(res)
-    return float(df.loc[df.obj.idxmin(), "lam"]), df
+    return float(df.sort_values(["obj", "IS"]).iloc[0]["lam"]), df
 
 
 def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", fixed=None, log=print):
@@ -295,7 +306,8 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     info["aci_gamma"] = g
     if gdf is not None:
         info["tune_aci"] = gdf.to_dict(orient="records")
-    out["ACI"] = band(cb.aci_quantiles(St, binc.sum(axis=0), alpha, g, stages))
+    qa, info["aci_capped_frac"] = cb.aci_quantiles(St, binc.sum(axis=0), alpha, g, stages, return_capped=True)
+    out["ACI"] = band(qa)
     # 8 direct quantile regression and 9 CQR
     out["QR-LGBM"] = (PT["qlo"], PT["qhi"])
     Scq, Stq = scores_cqr(PC), scores_cqr(PT)
@@ -339,7 +351,8 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     info["aci_cqr_gamma"] = gq
     if gq_tab is not None:
         info["tune_aci_cqr"] = gq_tab.to_dict(orient="records")
-    out["ACI-CQR"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gq, stages), lo=PT["qlo"], hi=PT["qhi"])
+    qa, info["aci_cqr_capped_frac"] = cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gq, stages, return_capped=True)
+    out["ACI-CQR"] = band(qa, lo=PT["qlo"], hi=PT["qhi"])
     # closest prior-art mechanisms, on the same CQR scores (see calibration.py docstrings)
     bwq_cal = PC["qhi"] / PC["s"][:, :, None] - PC["qlo"] / PC["s"][:, :, None]
     tot_all_q = bincq.sum(axis=1)
@@ -365,6 +378,48 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     info["hsc_simple"] = bsa
     out["HSC simple"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [bsa["kappa"]], stages,
                                               stage_matched=False)[0])
+    # ---- review-cycle-1 additions (PREREGISTRATION Addendum A)
+    t0 = time.time()
+    # H-A: per-building-coverage (LOBO-MACD) tuning objective, applied alike to HSC, QShrink and ACI
+    bc, bc_tab = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None], objective="cov")
+    info["hsc_cqr_simple_cov"] = bc
+    info["tune_hsc_cqr_simple_cov"] = bc_tab.replace({np.inf: "inf"}).to_dict(orient="records")
+    out["HSC-CQR simple (cov)"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [bc["kappa"]], stages,
+                                                        stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
+    info["t_tune_hsc_cov"] = time.time() - t0
+    lamc, _ = tune_qshrink(Scq, bwq_cal, alpha, objective="cov")
+    info["qshrink_lambda_cov"] = lamc
+    out["QShrink-CQR (cov)"] = band(cb.qshrink_quantiles(cct_q, cb.pooled_quantile(bincq, alpha, True)[sb], alpha,
+                                                         lamc, stages), lo=PT["qlo"], hi=PT["qhi"])
+    gqc, _ = tune_aci(Scq, alpha, objective="cov") if fixed is None else (fixed["gamma"], None)
+    info["aci_cqr_gamma_cov"] = gqc
+    out["ACI-CQR (cov)"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gqc, stages), lo=PT["qlo"],
+                                hi=PT["qhi"])
+    # H-C: recency-weighted own scores (0.95 per day), kappa by LOBO-MACD
+    br, _ = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None], objective="cov", decay=RECENCY)
+    info["hsc_cqr_recency"] = br
+    out["HSC-CQR recency"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [br["kappa"]], stages,
+                                                   stage_matched=False, decay=RECENCY)[0], lo=PT["qlo"], hi=PT["qhi"])
+    # H-B: stage-wise studentised conformal (SSC-CQR) and its combination with shrinkage
+    t0 = time.time()
+    mabs_c = np.nanmean(Sc.reshape(Sc.shape[0], -1), axis=1)  # per calibration building mean |res|/s
+    M = len(mabs_c)
+    s0_all = float(np.nanmean(mabs_c))
+    s0_loo = (np.nansum(mabs_c) - np.nan_to_num(mabs_c)) / np.maximum(M - 1, 1)  # leave-one-out for cal
+    r_c = cb.running_scale_ratio(Sc, s0_loo, KAPPA_S)
+    r_t = cb.running_scale_ratio(St, s0_all, KAPPA_S)
+    Zc, Zt = Scq / r_c[:, :, None], Stq / r_t[:, :, None]
+    q_ssc = cb.ssc_quantiles(Zc, alpha, St.shape[0])
+    rq = r_t[:, :, None] * s
+    out["SSC-CQR"] = (PT["qlo"] - q_ssc[:, :, None] * rq, PT["qhi"] + q_ssc[:, :, None] * rq)
+    info["t_ssc_apply_per_target_day"] = (time.time() - t0) / (St.shape[0] * NH)
+    info["ssc_sigma0"] = s0_all
+    bwz = bwq_cal / r_c[:, :, None]
+    bz, _ = tune_hsc(Zc, bwz, zc, alpha, stage_matched=False, Ks=[None], objective="cov")
+    info["hsc_ssc_cqr"] = bz
+    q_hz = cb.hsc_quantiles(cb.cum_counts(Zt), cb.bin_cdfs(cb.cum_counts(Zc), stages)[0], None, alpha,
+                            [bz["kappa"]], stages, stage_matched=False)[0]
+    out["HSC-SSC-CQR"] = (PT["qlo"] - q_hz[:, :, None] * rq, PT["qhi"] + q_hz[:, :, None] * rq)
     # model-agnostic check: the same layer on the MLP quantile model
     if "mqlo" in PT and "mqlo" in PC:
         Scm = np.maximum(PC["mqlo"] - PC["y"], PC["y"] - PC["mqhi"]) / PC["s"][:, :, None]
