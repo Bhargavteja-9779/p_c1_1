@@ -1,43 +1,55 @@
-# PROJECT_STATE
+# PROJECT_STATE — read this first when resuming (any new session / account)
 
-Last updated: 2026-11-15 ~13:15 UTC (session 1)
+Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuow2` (all work is pushed here).
+
+## How to resume in a NEW container (nothing outside git survives)
+1. `pip install -r requirements.txt` (CPU torch: `pip install torch --index-url https://download.pytorch.org/whl/cpu`), `pytest -q tests` (14 tests must pass).
+2. Retrain all model caches (deterministic; reproduces committed results exactly, verified 2026-11-20):
+   `setsid nohup python3 -u -c "import sys;sys.path.insert(0,'.');from src import experiments as ex;ex.train_only('full')" > results/experiment_logs/train_only.log 2>&1 &`
+   (~2–3 h on 4 cores; data download is automatic). **Run NOTHING else CPU-heavy while it trains** (OpenMP oversubscription slows it ~4x).
+3. Calibration pass (after "=== all trainings cached ===" appears in the log): `bash scripts/calibration_pass.sh`
+   (4 single-threaded workers; finished parts in results/parts are skipped). Then
+   `python3 -c "import sys;sys.path.insert(0,'.');from src import experiments as ex;ex.sensitivity('full');ex.frontier('full')"`
+   and `python run_all.py --mode full --skip-experiments` (statistics, tables, figures).
+4. Continue at "Exact next steps" below.
 
 ## Decisions (final unless reviewers force a change)
-- Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
-  Fallback: Energy and AI.
-- Topic: reliable per-building prediction intervals for day-ahead load forecasts of newly metered
-  (cold-start) buildings. Method: Hierarchical Shrinkage Conformal (HSC) calibration layer
-  (stage-matched + similarity-localised population prior, shrunk toward the building's own scores
-  with pseudo-count κ; κ,K by leave-one-building-out on calibration buildings).
-- Data: BDG2 electricity (842 buildings, 12 sites after quality filter), UCI ElectricityLoadDiagrams
-  (315 clients). Raw files in data/raw (gitignored; `src/data/datasets.py::download`).
-- Pre-registration: experiments/PREREGISTRATION.md.
+- Target journal: **Advances in Applied Energy** (Elsevier). Only well-fitting journal with publisher-reported
+  submission→acceptance ≤ 72 days (66 d current panel; older 86 d; unverified at article level). User constraints:
+  ≤ 72 days to acceptance, high-IF Q1, no MDPI; avoid DESK REJECTION (novelty + fit are the main goal).
+- Topic: per-building reliable day-ahead prediction intervals for newly metered buildings (onboarding into DR /
+  flexibility / M&V platforms). Data: BDG2 (842 bldgs, 10 sites) + UCI (315 clients).
+- Evidence on accepted AAE papers: literature/aae_fulltext_benchmark.md (structure: numbered gaps+contributions in
+  Introduction, ~7–10.5k words, 1–3 main tables, 8–12 figures, "Practical implications" + "Limitations" subsections,
+  decision/cost framing; comparison papers accepted when tied to a concrete decision).
 
-## Code status
-- src/data, src/preprocessing, src/models (forecasters, calibration), src/training/pipeline.py,
-  src/experiments.py (E1-E8, resumable), src/statistics/analysis.py, src/visualization/figures.py,
-  tests/test_core.py (6 passing), run_all.py (--mode quick|full).
+## Review cycle 1 (done) → revision in progress
+- REVIEW/review_01.md: Reviewer 1 (Major/near-reject) + author response table. Confirmed problems: no week-1 gain;
+  IS-tuned κ worse than fixed κ; TQA-B used target batch (fixed); ACI grid cap (fixed); MACD floor understated.
+- Pre-registered revision: experiments/PREREGISTRATION.md Addendum A + A.1 (written before results):
+  new variants SSC-CQR, HSC-SSC-CQR, HSC-CQR recency, coverage-objective tuning for HSC/QShrink/ACI,
+  operational outcomes (capacity headroom cost ρ∈{10,20,40}, under-protected share), day-block noise floor,
+  site-level tests, weekly per-building coverage (days-to-reliable), reliability–sharpness frontier (ex.frontier).
+  Recommendation rule (A.1): lowest under-covered share s.t. median rel. IS ≤ 1.02 × CQR on both datasets.
+- Seed-0 pipeline check (not a result): ACI-CQR(cov) forces per-building coverage but doubles IS → frontier framing;
+  HSC-CQR recency and HSC-SSC-CQR promising; SSC-CQR alone weak.
+- SSC theory: construction = HCP of Lee, Barber & Willett (arXiv 2306.06342, Eq. 6, Theorem 1, finite-sample ≥1−α);
+  Dunn et al. pooling-CDFs is only asymptotic. Draft text: manuscript/drafts/method_new_cycle1.md.
 
-## Experiment status
-- FINAL calibration pass complete (2026-11-16 17:19-18:00 UTC): 74 parts (main 30, LSO 5, cross-dataset 9,
-  robustness 30) + sensitivity + examples, all with the audited code. Analysis/tables/figures regenerated.
+## Experiment status (2026-11-20 22:30 UTC)
+- Model caches: BDG2 main s0–s4 done; UCI s0 training; then UCI s1–4, LSO f0–4, xds (BDG2 no-weather s0–2), weak s0–2.
+- results/parts (gitignored): 9 BDG2 main parts done with the new code. Committed results/raw_results.csv.gz etc. are
+  still the OLD (v1) results until the new pass finishes and `ex.collect()` runs.
 
-## Manuscript status
-- v1 built 2026-11-16 ~18:20 UTC: manuscript/Final_Manuscript.{docx,pdf,md}, supplementary, highlights,
-  title page, claim-evidence map (REVIEW/claim_evidence_map.md). Novelty re-scoped (comparison study +
-  design evidence; no new-mechanism claim).
-
-## Exact next step
-Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
-consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
-
-## Automatic resume
-Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
-session). On resume: read this file, check `ps aux | grep ex.execute`, restart stopped jobs
-(`ex.execute('full', kinds=[...])` skips finished parts), continue with the next unfinished task.
-
-## Planned recompute pass (after audit)
-Add methods: "HSC simple"/"HSC-CQR simple" (K=all, no stage matching; recommended default) and
-"CQR-MLP"/"HSC-CQR-MLP" (model-agnostic check on MLP quantiles); apply verified audit fixes; then
-delete results/parts and rerun `ex.execute('full')` (models cached → calibration only), then
-`ex.sensitivity('full')`, `python run_all.py --mode full --skip-experiments`.
+## Exact next steps
+1. Finish trainings → calibration pass → sensitivity + frontier → `run_all.py --mode full --skip-experiments`.
+2. Apply A.1 rule; update manuscript_tables.py/figures.py/values.py for new methods, frontier figure, operational
+   table, days-to-reliable figure; add new refs (Lee et al. already [24]).
+3. Rewrite manuscript to AAE pattern (benchmark checklist), ~9k words, main tables ≤3, rest to supplementary;
+   graphical abstract; highlights; cover letter. Integrate drafts/method_new_cycle1.md.
+4. Review rounds 2–10 (one independent reviewer agent per round; each must first give a desk-reject verdict):
+   R2 novelty/prior art, R3 statistics/fairness/leakage, R4 ML method + code-vs-paper, R5 data/generalisation/
+   deployment, R6 computation, R7 writing + guideline compliance, R8 competing researcher, R9 associate editor
+   desk screen, R10 final adversarial. Save REVIEW/review_XX.md with author response; fix; rerun if needed.
+5. Final audits (consistency, reproducibility), DOCX/PDF, cover letter, /Target_Journal_Submission package
+   (scripts/package_submission.py), REVIEW/final_audit.md, rejection-risk report, final decision.

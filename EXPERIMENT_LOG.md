@@ -18,3 +18,4 @@ Observations:
   bug; component ablation showing no benefit of kNN prior/stage matching; prior-art audit; code audit.
 * Final calibration pass 2026-11-16 17:19 UTC: 30 main parts, 5 LSO, 9 cross-dataset, 30 robustness parts,
   sensitivity (E7) and example extraction.
+- 2026-11-20: a niced single-threaded calibration worker next to 4-thread training slowed training ~4x (OpenMP spin-wait); calibration paused until all trainings are cached (no results affected).
