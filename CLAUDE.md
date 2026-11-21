@@ -5,7 +5,7 @@ This project is worked on across many sessions/accounts that hit usage limits. W
 
 1. Read `PROJECT_STATE.md` — section **RESUME HERE** is authoritative. Also skim the tail of
    `CHANGELOG.md` and `REVIEW_HISTORY.md`.
-2. Work on branch `claude/jolly-meitner-850g1y` (pull it first). Before starting, `git fetch` and check whether
+2. Work on the most advanced branch (as of 2026-11-21: `claude/sharp-cori-11buu9`; pull it first). Before starting, `git fetch` and check whether
    another `claude/*` branch has newer progress on this line; if so, continue from the most advanced one.
 3. Fresh container: `pip install -r requirements.txt`. Data re-downloads automatically; trained models are not in
    git (retrain per PROJECT_STATE "How to resume"; never run calibration while training runs).

@@ -14,6 +14,17 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **LATEST (2026-11-21 ~20:40 UTC, sharp-cori session, stopped for account change): most advanced branch is
+  `claude/sharp-cori-11buu9`.** Training was stopped by the user at ~16/22 jobs (caches not in git -> retrain).
+  In the NEW container: `pip install -r requirements.txt`; restore parts snapshot (step 1b below); then run
+  `bash scripts/run_c2_stage.sh` AS A HARNESS-TRACKED BACKGROUND TASK (Bash run_in_background, timeout 2 h; rerun it if
+  killed: it resumes training per job, skips finished calibration parts) and STAY ACTIVE in the turn (wait loops of
+  <=10 min) -- the container is suspended when idle and detached jobs die. Then steps 4-5 below (timing, run_all,
+  manuscript step 4), then the FINAL SUBMISSION PACKAGE the user asked for (see USER note below): clean upload set
+  (manuscript docx/pdf, title page, highlights, cover letter (update text to new title/method), supplementary, code
+  zip WITHOUT REVIEW/, state files or review notes; rename src/statistics/cycle2.py -> extended_analysis.py incl. imports
+  and results/cycle2.json), scan for AI/process traces (only the AI-use declaration may mention AI), then tell the
+  user in chat: journal, final title, honest acceptance rationale and risks.
 - 2026-11-21 18:15 UTC (sharp-cori session): jolly-meitner tree merged into branch `claude/sharp-cori-11buu9`;
   WORK CONTINUES THERE. New container: deps installed, 17 tests pass, parts snapshot 17:56 restored (222 parts),
   stale old-code caches deleted, `train_only('full')` (log train_c2.log) and `scripts/chain_c2.sh` started 18:05 UTC.
