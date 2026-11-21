@@ -17,7 +17,7 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - Branch `claude/great-ride-5vxp0a` now carries the funny-euler-sjuow2 line (tree adopted by merge commit dbaa850).
   Parallel PCS-CQR line and its 10-reviewer critique: REVIEW/archive_pcs_line/ (code in history at 90c477e).
 - Review cycle 2 on this line: 10 reviewer agents run on REVIEW/packet_cycle02.md; raw reviews in REVIEW/cycle02_raw/
-  (R1-R4, R6-R10 done, all Major revision; R5 data-leakage may be missing -> rerun it alone with the prompt pattern:
+  (all 10 done, all Major revision; R5 adds: target-year filter removes 208/1050 incl. 4 sites; uniform calibration-year offset explains part of CQR failure (18.7->14.7 %); 6-h gap fill + imputed hours scored; UCI DST unmasked, 15-min shift; headline counts building-seed rows (15.4 % seed-averaged). Prompt pattern if rerun needed:
   read scratch common instructions = role + "known risk areas a-f" listed in REVIEW/archive_pcs_line/review_02.md).
 - NEXT: write REVIEW/review_02.md (consolidate), REVIEW_HISTORY entry, then fixes. User approved the FULL plan:
   re-analysis + calibration-only recompute (symmetric ACI tuning/extended gamma grid, tolerance sensitivity,
