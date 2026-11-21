@@ -1,0 +1,9 @@
+[2026-11-21 12:22:12] === run_all mode=full: 19 jobs ===
+[2026-11-21 12:23:11] done main_UCI_s0_a0.1 (59s): HSC IS=0.730 cov=0.906 | SCP-stage IS=1.090
+[2026-11-21 12:23:45] done main_UCI_s0_a0.05 (34s): HSC IS=0.929 cov=0.954 | SCP-stage IS=1.722
+[2026-11-21 12:24:13] done main_UCI_s0_a0.2 (28s): HSC IS=0.548 cov=0.806 | SCP-stage IS=0.685
+[2026-11-21 12:25:14] done main_UCI_s1_a0.1 (60s): HSC IS=0.554 cov=0.904 | SCP-stage IS=0.662
+[2026-11-21 12:25:38] done main_UCI_s1_a0.05 (25s): HSC IS=0.695 cov=0.951 | SCP-stage IS=0.921
+[2026-11-21 12:26:06] done main_UCI_s1_a0.2 (27s): HSC IS=0.422 cov=0.802 | SCP-stage IS=0.467
+[2026-11-21 12:27:11] done main_UCI_s2_a0.1 (65s): HSC IS=0.655 cov=0.902 | SCP-stage IS=0.834
+[2026-11-21 12:27:37] done main_UCI_s2_a0.05 (27s): HSC IS=0.849 cov=0.951 | SCP-stage IS=1.220

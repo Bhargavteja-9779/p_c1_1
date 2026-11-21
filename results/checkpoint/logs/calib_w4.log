@@ -1,0 +1,3 @@
+[2026-11-21 12:22:12] === run_all mode=full: 3 jobs ===
+[2026-11-21 12:24:48] done robust_BDG2_s0_noise5 (118s): HSC IS=0.856 cov=0.900 | SCP-stage IS=1.020
+[2026-11-21 12:27:20] done robust_BDG2_s0_noise15 (106s): HSC IS=1.123 cov=0.888 | SCP-stage IS=1.385

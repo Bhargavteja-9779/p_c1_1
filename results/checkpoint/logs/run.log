@@ -52,3 +52,33 @@
 [2026-11-21 12:15:04] reuse models MODELS_BDG2_random_s0_w0_f0.4_m1_tb1.0 for BDG2_BDG2_random_s0_w0_f0.4_m1_tb1.0
 [2026-11-21 12:15:16] train BDG2_UCI_random_s1_w0_f0.4_m1_tb1.0: train=379 cal=168 tgt=95
 [2026-11-21 12:15:19]   training rows 1,322,913  validation rows 186,241
+[2026-11-21 12:18:04] reuse models MODELS_UCI_random_s1_w0_f0.4_m1_tb1.0 for UCI_BDG2_random_s1_w0_f0.4_m1_tb1.0
+[2026-11-21 12:18:13] reuse models MODELS_BDG2_random_s1_w0_f0.4_m1_tb1.0 for BDG2_BDG2_random_s1_w0_f0.4_m1_tb1.0
+[2026-11-21 12:18:25] train BDG2_UCI_random_s2_w0_f0.4_m1_tb1.0: train=379 cal=168 tgt=95
+[2026-11-21 12:18:29]   training rows 1,320,185  validation rows 185,756
+[2026-11-21 12:20:59] reuse models MODELS_UCI_random_s2_w0_f0.4_m1_tb1.0 for UCI_BDG2_random_s2_w0_f0.4_m1_tb1.0
+[2026-11-21 12:21:15] reuse models MODELS_BDG2_random_s2_w0_f0.4_m1_tb1.0 for BDG2_BDG2_random_s2_w0_f0.4_m1_tb1.0
+[2026-11-21 12:21:28] train BDG2_BDG2_random_s0_w1_f0.4_m0_tb0.1: train=37 cal=168 tgt=253
+[2026-11-21 12:21:28]   training rows 127,895  validation rows 183,714
+[2026-11-21 12:21:41] train BDG2_BDG2_random_s1_w1_f0.4_m0_tb0.1: train=37 cal=168 tgt=253
+[2026-11-21 12:21:41]   training rows 128,445  validation rows 183,030
+[2026-11-21 12:21:51] train BDG2_BDG2_random_s2_w1_f0.4_m0_tb0.1: train=37 cal=168 tgt=253
+[2026-11-21 12:21:51]   training rows 130,475  validation rows 183,224
+[2026-11-21 12:22:10] === all trainings cached ===
+[2026-11-21 12:22:12] === run_all mode=full: 19 jobs ===
+[2026-11-21 12:22:12] === run_all mode=full: 3 jobs ===
+[2026-11-21 12:22:12] === run_all mode=full: 8 jobs ===
+[2026-11-21 12:22:12] === run_all mode=full: 3 jobs ===
+[2026-11-21 12:23:11] done main_UCI_s0_a0.1 (59s): HSC IS=0.730 cov=0.906 | SCP-stage IS=1.090
+[2026-11-21 12:23:45] done main_UCI_s0_a0.05 (34s): HSC IS=0.929 cov=0.954 | SCP-stage IS=1.722
+[2026-11-21 12:24:13] done main_UCI_s0_a0.2 (28s): HSC IS=0.548 cov=0.806 | SCP-stage IS=0.685
+[2026-11-21 12:24:48] done robust_BDG2_s0_noise5 (118s): HSC IS=0.856 cov=0.900 | SCP-stage IS=1.020
+[2026-11-21 12:25:14] done main_UCI_s1_a0.1 (60s): HSC IS=0.554 cov=0.904 | SCP-stage IS=0.662
+[2026-11-21 12:25:38] done main_UCI_s1_a0.05 (25s): HSC IS=0.695 cov=0.951 | SCP-stage IS=0.921
+[2026-11-21 12:26:06] done main_UCI_s1_a0.2 (27s): HSC IS=0.422 cov=0.802 | SCP-stage IS=0.467
+[2026-11-21 12:26:15] done main_BDG2_s3_a0.1 (242s): HSC IS=0.896 cov=0.902 | SCP-stage IS=1.114
+[2026-11-21 12:26:31] done main_BDG2_s0_a0.1 (258s): HSC IS=0.815 cov=0.903 | SCP-stage IS=0.999
+[2026-11-21 12:27:11] done main_UCI_s2_a0.1 (65s): HSC IS=0.655 cov=0.902 | SCP-stage IS=0.834
+[2026-11-21 12:27:20] done robust_BDG2_s0_noise15 (106s): HSC IS=1.123 cov=0.888 | SCP-stage IS=1.385
+[2026-11-21 12:27:37] done main_UCI_s2_a0.05 (27s): HSC IS=0.849 cov=0.951 | SCP-stage IS=1.220
+[2026-11-21 12:27:54] done main_BDG2_s3_a0.05 (99s): HSC IS=1.164 cov=0.951 | SCP-stage IS=1.576
