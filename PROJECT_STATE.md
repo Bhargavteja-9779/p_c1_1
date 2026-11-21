@@ -1,6 +1,6 @@
 # PROJECT_STATE
 
-Last updated: 2026-11-15 ~13:15 UTC (session 1)
+Last updated: 2026-11-21 (session 2: review cycle 1 running)
 
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
@@ -28,6 +28,7 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
+Cycle 1 workflow launched 2026-11-21 (run wf_35978a48-2e7; rerun with REVIEW/review_workflow.js args {cycle:1} if lost).
 Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
 consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
 
