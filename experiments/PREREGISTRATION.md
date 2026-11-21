@@ -47,3 +47,31 @@ Seasonal-naive + SCP (classical); raw-kWh pooled SCP; normalised pooled SCP; sta
 Mondrian-by-usage SCP; self-only conformal (fallback to pooled); ACI (Gibbs & Candès 2021);
 LightGBM quantile regression; CQR (Romano et al. 2019); MLP-Gaussian (NLL); MLP quantile regression;
 HSC on CQR scores (variant).
+
+---
+## Amendment 1 (2026-11-21, after review cycle 1; written BEFORE any revision-1 result existed)
+Status of the original plan, stated plainly: the pre-registered primary hypothesis (absolute-score HSC
+with stage matching and kNN prior improves per-building reliability over strong baselines) was **not
+supported** in v1 (HSC lost to Self-CP on coverage deviation; the stage/kNN refinements did not help).
+Everything below is therefore a *new, post-hoc-motivated* confirmatory protocol for revision 1, declared
+before the revision-1 runs; all v1 analyses that motivated it are exploratory.
+
+1. **Protocol change (leakage fix):** out-of-time calibration. Training period < calibration windows
+   (first half of the test year, windows ending before 1 July) < target windows (second half of the
+   test year). Interpolated truths excluded from scores and metrics. Applies to every experiment.
+2. **Primary method:** the pseudo-count score mixture on CQR scores with a uniform prior (no stage
+   matching, no kNN) and κ selected by leave-one-building-out **mean absolute coverage deviation** on
+   calibration buildings (`HSC-CQR cov-κ`; displayed as "PCM-CQR"). Grid as before.
+3. **Primary endpoint:** per-building |coverage − 0.9| (MACD). Secondary: under-covered share
+   (coverage < 0.85), per-building relative interval score.
+4. **Primary family (Holm within family, per dataset):** PCM-CQR vs CQR, Self-CQR, Switch-CQR,
+   ACI-CQR, ACI-CQR clip, QShrink-CQR, QShrink-CQR fixed-λ, GHCP-CQR, TQA-B-CQR, Mondrian-site CQR
+   (BDG2 only), QR-LGBM, MLP-QR; main random protocol, α = 0.1, both datasets.
+   Effect: Hodges–Lehmann median paired difference with site-cluster (BDG2) / building (UCI) bootstrap CI;
+   site-level sign test reported next to the building-level Wilcoxon for BDG2.
+5. **Secondary family:** PCM-CQR vs its variants (fixed κ = 168 h, κ by LOBO interval score, full
+   HSC-CQR with stage matching + kNN, −stage, −kNN). Everything else (abs-score methods, α ≠ 0.1,
+   robustness, leave-site-out, cross-dataset) is reported with per-condition tests labelled exploratory.
+6. A claim that PCM-CQR is "more reliable" than a competitor requires a Holm-significant MACD
+   improvement in the primary family on BOTH datasets; otherwise the result is reported as
+   "no detectable difference".
