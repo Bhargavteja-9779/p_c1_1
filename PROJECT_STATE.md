@@ -14,6 +14,20 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **HANDOVER 2026-11-21 16:45 UTC (account change).** Cycle-2 code fixes 1a-1f DONE and committed; manuscript
+  method/intro/refs partly revised (see 'Cycle-2 manuscript progress'). The full rerun was RUNNING in the old container
+  (training 15/~22 done). Model caches/results parts are NOT in git, so in a NEW container do exactly:
+  1. `pip install -r requirements.txt` (data downloads automatically; UCI needs archive.ics.uci.edu allowed — env "p_c1_1").
+  2. `setsid nohup python3 -u -c "import sys;sys.path.insert(0,'.');import warnings;warnings.filterwarnings('ignore');from src import experiments as ex;ex.train_only('full')" > results/experiment_logs/train_c2.log 2>&1 &`  (~1.5 h)
+  3. `setsid nohup bash scripts/chain_c2.sh > /dev/null 2>&1 &`  (waits for training, then calibration pass ~2 h,
+     then sensitivity+frontier ~1 h; progress in results/experiment_logs/chain_c2.log; ends with "CHAIN DONE").
+     NEVER run other CPU-heavy work while it runs.
+  4. After CHAIN DONE: `OMP_NUM_THREADS=1 python scripts/timing_benchmark.py` (alone), then
+     `python run_all.py --mode full --skip-experiments` (writes tables incl. T2_*, results/selection.json, cycle2.json).
+  5. Then manuscript step 4: rewrite 06_results, 07_discussion, conclusion, intro contribution 4, abstract
+     (values._abstract), highlights (build_extras.py) from the new tables; Supplementary S5 (SSC stage-wise coverage);
+     rebuild DOCX/PDF/SI; REVIEW_HISTORY cycle-2 statuses; packet cycle 3 (REVIEW/build_packet.py); commit+push;
+     then ASK THE USER before review cycle 3.
 - 2026-11-21 (jolly-meitner session): great-ride tree adopted onto branch `claude/jolly-meitner-850g1y` (merge);
   work continues THERE. Third parallel line (SSC-CQR) archived: REVIEW/archive_ssc_line/README.md — its data fixes
   (no target-year filter, no imputation, DST mask; commit d763a3a) directly address cycle-2 R5 and can be ported.

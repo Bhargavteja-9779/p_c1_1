@@ -1,7 +1,7 @@
 # Resume protocol (read first)
 
 This project is worked on across many sessions/accounts that hit usage limits. When the user says
-"continue" (or similar), do NOT ask what to do:
+"continue", "start" (or similar), do NOT ask what to do:
 
 1. Read `PROJECT_STATE.md` — section **RESUME HERE** is authoritative. Also skim the tail of
    `CHANGELOG.md` and `REVIEW_HISTORY.md`.
