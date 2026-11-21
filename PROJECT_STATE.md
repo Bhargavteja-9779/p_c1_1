@@ -22,7 +22,9 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - Review cycle 2 on this line: 10 reviewer agents run on REVIEW/packet_cycle02.md; raw reviews in REVIEW/cycle02_raw/
   (all 10 done, all Major revision; R5 adds: target-year filter removes 208/1050 incl. 4 sites; uniform calibration-year offset explains part of CQR failure (18.7->14.7 %); 6-h gap fill + imputed hours scored; UCI DST unmasked, 15-min shift; headline counts building-seed rows (15.4 % seed-averaged). Prompt pattern if rerun needed:
   read scratch common instructions = role + "known risk areas a-f" listed in REVIEW/archive_pcs_line/review_02.md).
-- NEXT: write REVIEW/review_02.md (consolidate), REVIEW_HISTORY entry, then fixes. User approved the FULL plan:
+- DONE (jolly-meitner session): REVIEW/review_02.md consolidated (20 themes, tiers, execution plan) + REVIEW_HISTORY entry.
+- NEXT: execute review_02.md execution plan step 1 (code), then step 2 full rerun (retrain on relaxed set), 3, 4.
+  Track sub-steps in the 'Cycle-2 fix checklist' below (add ticks as committed). Previous NEXT text kept for context: User approved the FULL plan:
   re-analysis + calibration-only recompute (symmetric ACI tuning/extended gamma grid, tolerance sensitivity,
   autocorrelation-aware floor, one-day-delayed own-score update) + causal quality-filter retraining run; reframe claims
   to supported time scales (56-day window vs weekly).
@@ -35,6 +37,17 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
   (Bersson & Hoff, Fisch, Vejling, Batra, conformal PID, DtACI, SAOCP); D-1 information set; target-year filter.
 - Local note: stale PCS-line intermediates were moved to the session scratchpad (not needed); model caches for this
   line must be retrained before any recompute (see "How to resume" step 2).
+
+## Cycle-2 fix checklist (review_02.md execution plan)
+- [ ] 1a data: port SSC-line rules (train-period eligibility, no interpolation, DST mask, no onboarding fallback), UCI timestamp, weather cap
+- [ ] 1b sigma0 from training buildings (Prop. 1 premise); docstring/prereg attribution aligned
+- [ ] 1c constrained LOBO for all families + extended grids (gamma<=0.05, kappa 6/12) + edge reporting
+- [ ] 1d new variants: QShrink-CQR recency, Self-CQR recency (fallback), delayed own scores, radius safeguard, recommended layer on MLP, GHCP local step
+- [ ] 1e analysis: block-bootstrap reference, weekly/worst-week, share CIs + McNemar, one confirmatory family, per-building unit, tails/TOST, nested selection
+- [ ] 1f timing: whole online step, reps, threads; regenerate cost tables
+- [ ] 2  full rerun (retrain -> calibration -> sensitivity -> frontier alpha 0.05/0.1/0.2 -> run_all)
+- [ ] 3  re-analysis outputs checked
+- [ ] 4  manuscript rewrite + rebuild + packet cycle 3 -> ASK USER before cycle 3
 
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier). Only well-fitting journal with publisher-reported
