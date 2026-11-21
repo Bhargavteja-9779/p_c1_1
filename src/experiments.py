@@ -140,6 +140,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     df["cvrmse_lgb"] = np.tile(pm["cvrmse"], len(out))
     info["t_calibration_total"] = time.time() - t0
     info.update(obj["timing"])
+    info["n_tgt_dropped"] = obj.get("n_tgt_dropped", 0)
+    info["n_targets"] = int(len(mtg))
     info["point"] = {k: float(np.nanmedian(v)) for k, v in pm.items()}
     for key, nm in (("naive", "naive"), ("mu", "mlp")):
         if key in PT:

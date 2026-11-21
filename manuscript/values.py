@@ -79,6 +79,11 @@ def compute(mode="full"):
         v[k + "_r"] = f"{r.rank_biserial:.2f}"
         v[k + "_better"] = f"{100 * r.share_proposed_better:.0f}%"
         v[k + "_n"] = int(r.n_buildings)
+        if "p_site" in r and np.isfinite(r.p_site):
+            ps = r.p_site_holm if "p_site_holm" in r and np.isfinite(r.p_site_holm) else r.p_site
+            v[k + "_psite"] = "< 0.001" if ps < 0.001 else f"= {ps:.3f}"
+        if "median_diff" in r:
+            v[k + "_med"] = f"{r.median_diff:.4f}"
     # tuned parameters and cost
     info = json.load(open(os.path.join(RES, "run_info.json")))
     tag = "_quick" if mode == "quick" else ""
@@ -100,6 +105,12 @@ def compute(mode="full"):
                                                            str(int(info[k]["hsc_cqr_simple"]["kappa"]))) for k in parts}))
         v[f"tuned_{d}_kappa_mlp"] = ", ".join(sorted({("∞" if np.isinf(info[k]["hsc_cqr_mlp"]["kappa"]) else
                                                         str(int(info[k]["hsc_cqr_mlp"]["kappa"]))) for k in parts}))
+        for key, nm in (("selffb_min_hours", "selffb"), ("tqab_beta", "tqab_beta"), ("ghcp_n_sur", "ghcp_nsur")):
+            vals = [info[k].get(key) for k in parts if info[k].get(key) is not None]
+            if vals:
+                v[f"tuned_{d}_{nm}"] = ", ".join(sorted({f"{x:g}" for x in vals}))
+        v[f"n_tgt_dropped_{d.lower()}"] = f"{np.mean([info[k].get('n_tgt_dropped', 0) for k in parts]):.1f}"
+        v[f"inverted_{d}"] = int(np.sum([info[k].get("inverted_hours", 0) for k in parts]))
         v[f"cost_{d}_tune_s"] = f"{np.mean([info[k]['t_tune_hsc'] for k in parts]):.1f}"
         v[f"cost_{d}_apply_ms"] = f"{1e3 * np.mean([info[k]['t_hsc_apply_per_target_day'] for k in parts]):.3f}"
         v[f"cost_{d}_store_MB"] = f"{np.mean([info[k]['hsc_store_MB'] for k in parts]):.1f}"
@@ -136,6 +147,33 @@ def compute(mode="full"):
             sim = np.abs(rng.binomial(nv[None, :].repeat(200, 0), 0.9) / nv[None, :] - 0.9).mean()
             v[f"floor_{d}_macd"] = f"{sim:.4f}"
             v[f"nvalid_{d}_median"] = int(np.median(nv))
+    # revision 1: per-window, downstream and timing tokens
+    from scipy.stats import binom
+    v["iid_floor"] = f"{100 * binom.cdf(np.ceil(0.85 * 168) - 1, 168, 0.9):.1f} %"
+    TAB = os.path.join(ROOT, "tables")
+    for d in ["BDG2", "UCI"]:
+        f = os.path.join(TAB, f"T_windows_{d}.csv")
+        if os.path.exists(f):
+            w = pd.read_csv(f, index_col=0)
+            for m, r in w.iterrows():
+                for c in w.columns:
+                    if c.endswith("_mean"):
+                        val = r[c]
+                        v[f"win_{d}_{_san(m)}_{c[:-5]}"] = f"{100 * val:.1f}%" if c.startswith("under") else f"{val:.3f}"
+        f = os.path.join(TAB, f"T_downstream_{d}.csv")
+        if os.path.exists(f):
+            w = pd.read_csv(f, index_col=0)
+            for m, r in w.iterrows():
+                for c in w.columns:
+                    val = r[c]
+                    v[f"ds_{d}_{_san(m)}_{c}"] = (f"{100 * val:.1f}%" if c in ("exceed_rate", "share_breach_2x")
+                                                  else f"{val:.3f}")
+    f = os.path.join(TAB, "T_timing.csv")
+    if os.path.exists(f):
+        tm = pd.read_csv(f)
+        for _, r in tm.iterrows():
+            key = f"time_{r.dataset}_{_san(r.method)}_{_san(r.operation.split(',')[0])}"
+            v[key] = f"{r.median_ms:.3g}"
     v["ERROR_ANALYSIS_TEXT"] = _error_text()
     v["ABSTRACT"] = _abstract(v)
     v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"

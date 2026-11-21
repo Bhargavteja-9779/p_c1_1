@@ -53,6 +53,14 @@ in the checklist below; tick items as they are committed.
        HSC/HSC-CQR keep the IS objective.
 - [ ] 3  re-analysis: CODE DONE in analysis.py (window_table, site_table, downstream_table, site sign-flip, median CIs, families); still to do: run it, duplicate-meter check, deviations table (manuscript), update manuscript_tables.py/values.py/figures.py for new method names
 - [ ] 4  manuscript rewrite + rebuild + packet cycle 2; ask user before cycle 2
+       DONE so far: 02_intro contributions 1-2, 03_related, 04_method (SSC naming), 05_setup (rules, methods, stats,
+       sec:prereg + tables/MS_deviations.md, tables/MS_budget.md), references (+8, literature/citation_audit_r1.md),
+       values.py tokens (windows, downstream, timing, psite), manuscript_tables.py rewritten (display names DISPLAY,
+       new MS_windows/MS_sites/MS_downstream/MS_cost from T_timing, SI_abs_*).
+       TODO after results: figures.py (method names -> SSC display, Fig1 redraw as one-parameter layer, Fig4 add
+       fixed-κ, file numbering), 06_results + 07_discussion + conclusion + abstract (_abstract in values.py) +
+       highlights (build_extras.py), contribution 3 in intro, length cut to ~6000 words (abs-score tables to SI),
+       build_supplementary.py for new tables, REVIEW_HISTORY cycle-1 table.
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
