@@ -27,6 +27,40 @@ def test_features_use_only_history_window():
     assert np.allclose(s0, s1)
 
 
+def test_features_and_descriptor_causal_all_stages():
+    """v2: every stage used in the study; load AND temperature outside the window; descriptor too.
+    Temperature of the target day itself is an input (observed weather as a stand-in for a forecast)."""
+    load, temp, dates = _toy(nd=130)
+    t = 100
+    for h in (1, 7, 14, 28, 56):
+        b, tt, hh = np.array([1]), np.array([t]), np.array([h])
+        X0, _, s0 = fe.build(load, temp, dates, b, tt, hh, True)
+        z0 = fe.descriptor(load, b, tt, hh)
+        L2, T2 = load.copy(), temp.copy()
+        L2[1, t:, :] += 1000.0
+        L2[1, : t - h, :] += 1000.0
+        T2[1, t + 1:, :] += 50.0
+        T2[1, : t - h, :] += 50.0
+        X1, _, s1 = fe.build(L2, T2, dates, b, tt, hh, True)
+        z1 = fe.descriptor(L2, b, tt, hh)
+        assert np.allclose(np.nan_to_num(X0, nan=-9), np.nan_to_num(X1, nan=-9)), h
+        assert np.allclose(s0, s1) and np.allclose(np.nan_to_num(z0, nan=-9), np.nan_to_num(z1, nan=-9)), h
+
+
+def test_pcs_radius_uses_only_past_own_scores():
+    """v2: changing a target's scores at stage >= h leaves its radius at stage h unchanged."""
+    rng = np.random.default_rng(3)
+    cal = rng.exponential(size=(20, 56, 24)).astype(np.float32)
+    tgt = rng.exponential(size=(3, 56, 24)).astype(np.float32)
+    stages = np.arange(1, 57)
+    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
+    q0 = cb.hsc_quantiles(cb.cum_counts(tgt), binc, None, 0.1, [96], stages, stage_matched=False)[0]
+    t2 = tgt.copy()
+    t2[:, 30:] *= 10
+    q1 = cb.hsc_quantiles(cb.cum_counts(t2), binc, None, 0.1, [96], stages, stage_matched=False)[0]
+    assert np.allclose(q0[:, :31], q1[:, :31]) and not np.allclose(q0[:, 31:], q1[:, 31:])
+
+
 def test_lags_masked_beyond_history():
     load, temp, dates = _toy()
     names = fe.feature_names(False)
