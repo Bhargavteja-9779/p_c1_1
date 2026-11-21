@@ -57,7 +57,7 @@ in the checklist below; tick items as they are committed.
        Decisions taken: cold-start variant skipped (week-1 reported honestly); CQR-family alpha-sensitivity NOT run
        (claims limited to 90 %); all LOBO-tuned competitors use the MACD objective (IS tie-break); pre-registered
        HSC/HSC-CQR keep the IS objective.
-- [ ] 3  re-analysis: CODE DONE in analysis.py (window_table, site_table, downstream_table, site sign-flip, median CIs, families); still to do: run it, duplicate-meter check, deviations table (manuscript), update manuscript_tables.py/values.py/figures.py for new method names
+- [ ] 3  re-analysis: CODE DONE in analysis.py (window_table, site_table, downstream_table, site sign-flip, median CIs, families); duplicate-meter check DONE (scripts/duplicate_check.py: 0 pairs r>0.99 in BDG2 and UCI, tables/T_duplicates.md); still to do: run it, deviations table (manuscript), update manuscript_tables.py/values.py/figures.py for new method names
 - [ ] 4  manuscript rewrite + rebuild + packet cycle 2; ask user before cycle 2
        DONE so far: 02_intro contributions 1-2, 03_related, 04_method (SSC naming), 05_setup (rules, methods, stats,
        sec:prereg + tables/MS_deviations.md, tables/MS_budget.md), references (+8, literature/citation_audit_r1.md),
