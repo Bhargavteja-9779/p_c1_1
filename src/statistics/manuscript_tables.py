@@ -284,6 +284,45 @@ def ms_operational(s):
            "over seeds.")
 
 
+def ms_robgen(s):
+    """Under-covered share (%) of the key strategies under every stress and transfer condition (mean over runs)."""
+    meths = [primary(), "QShrink-CQR (cov)", "HSC-CQR simple (cov)", "ACI-CQR", "Self-CQR", "CQR", "MLP-QR"]
+    conds = [("robust", "noise5", "BDG2", None, "Meter noise 5 %"), ("robust", "noise15", "BDG2", None, "Meter noise 15 %"),
+             ("robust", "missing20", "BDG2", None, "Missing hours 20 %"), ("robust", "missing40", "BDG2", None, "Missing hours 40 %"),
+             ("robust", "shift+40", "BDG2", None, "Level shift +40 % (day 28)"),
+             ("robust", "shift-40", "BDG2", None, "Level shift −40 % (day 28)"),
+             ("robust", "calpool10", "BDG2", None, "Calibration pool 10 %"),
+             ("robust", "calpool25", "BDG2", None, "Calibration pool 25 %"),
+             ("robust", "weak-forecaster", "BDG2", None, "Weak forecaster"),
+             ("lso", "none", "BDG2", "leave-site-out", "Unseen sites (BDG2, 5 folds)"),
+             ("xds", "none", "BDG2", "BDG2->BDG2 (no weather)", "BDG2 → BDG2, no weather"),
+             ("xds", "none", "UCI", "BDG2->UCI (no weather)", "BDG2 → UCI (Portugal)"),
+             ("xds", "none", "BDG2", "UCI->BDG2 (no weather)", "UCI → BDG2")]
+    rows = []
+    for e, p_, ds, prot, lab in conds:
+        q = (s.exp == e) & (s.perturb == p_) & (s.dataset == ds) & (s.alpha == 0.1)
+        if prot:
+            q &= s.protocol == prot
+        x = s[q]
+        if not len(x):
+            continue
+        row = {"Condition": lab, "Runs": int(x.seed.nunique())}
+        for m in meths:
+            y = x[x.method == m]
+            row[m] = "–" if not len(y) else f"{100 * y.under_rate.mean():.1f}"
+        y = x[x.method == primary()]
+        row["Δ rel. IS vs CQR (%)"] = "–"
+        c = x[x.method == "CQR"]
+        if len(y) and len(c):
+            row["Δ rel. IS vs CQR (%)"] = f"{100 * (y.rel_IS.mean() / c.rel_IS.mean() - 1):+.1f}"
+        rows.append(row)
+    _write("MS2_robgen", pd.DataFrame(rows),
+           f"Robustness and generalisation: share of under-covered buildings (%, coverage < 0.85 over the 56-day window), "
+           f"mean over runs (stress tests: 3 seeds on BDG2; unseen sites: 5 folds; cross-dataset: 3 seeds, no weather "
+           f"features). Last column: change of the median relative interval score of {primary()} versus pooled CQR. "
+           "MLP-QR is not available for the weak-forecaster condition ('–').")
+
+
 def run():
     s = pd.read_csv(os.path.join(RES, "seed_level_metrics.csv"))
     s = s[~s.exp.isna()]
@@ -299,6 +338,7 @@ def run():
         ms_main_combined(s)
         ms_tests_primary(st)
         ms_operational(s)
+        ms_robgen(s)
 
 
 if __name__ == "__main__":

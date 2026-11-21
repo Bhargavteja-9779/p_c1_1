@@ -1,5 +1,5 @@
 ---
-title: "Reliable day-ahead prediction intervals for newly metered buildings: a building-level comparison of conformal calibration strategies"
+title: "Trustworthy day-ahead load intervals for newly metered buildings via recency-weighted shrinkage conformal calibration"
 ---
 
 **Authors:** [Author 1]^a,\*^, [Author 2]^b^
@@ -10,14 +10,14 @@ title: "Reliable day-ahead prediction intervals for newly metered buildings: a b
 
 # Highlights
 
-- Day-ahead load interval reliability is assessed per newly metered building
-- Pooled conformal calibration leaves many new buildings clearly under-covered
-- Calibration strategies incl. ACI, TQA and GHCP-style pooling are compared
-- Shrinking pooled scores toward each building's own errors is the most reliable
-- One pseudo-count suffices; similarity and onboarding-stage priors add nothing
+- Pooled conformal intervals leave many newly metered buildings under-covered
+- Recency-weighted shrinkage calibrates intervals building by building
+- Under-covered new buildings fall from {{main_BDG2_CQR_under_rate}} to {{main_BDG2_HSCCQR_recency_under_rate}} at unchanged interval score
+- The layer also reduces first-week unreliability, unlike online level control
+- Tested on 1,157 buildings, unseen sites, cross-country transfer and stress tests
 
 # Abstract
 
 {{ABSTRACT}}
 
-**Keywords:** probabilistic load forecasting; conformal prediction; cold start; building energy; prediction intervals; empirical Bayes
+**Keywords:** probabilistic load forecasting; conformal prediction; cold start; building energy; demand response; prediction intervals

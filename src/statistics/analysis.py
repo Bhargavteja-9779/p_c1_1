@@ -164,6 +164,7 @@ def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, per
                                                  site=("site_id", "first")).reset_index()
     P = b[b.method == proposed].set_index("building_id")
     res = []
+    baselines = list(dict.fromkeys(baselines))  # each baseline once per family (Holm family size)
     for bl in baselines:
         if bl not in set(b.method) or bl == proposed:
             continue

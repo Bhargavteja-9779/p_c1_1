@@ -36,19 +36,19 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - SSC theory: construction = HCP of Lee, Barber & Willett (arXiv 2306.06342, Eq. 6, Theorem 1, finite-sample ≥1−α);
   Dunn et al. pooling-CDFs is only asymptotic. Draft text: manuscript/drafts/method_new_cycle1.md.
 
-## Experiment status (2026-11-20 23:05 UTC — session 2 ended here because of usage limits)
-- All 48 model caches were rebuilt (deterministic; BDG2 and UCI reproduce committed v1 results EXACTLY, max |Δ| = 0).
-  Caches are NOT in git -> a new container must retrain (`ex.train_only('full')`, ~2 h alone on 4 cores).
-- Calibration pass with the NEW code was running; finished parts are saved in
-  `results/parts_snapshot/parts_<timestamp>.tar.gz` (extract with `tar xzf ... -C results`); `ex.execute` skips them.
-- Committed results/raw_results.csv.gz etc. are still the OLD (v1) results until the new pass finishes and
-  `run_all.py --mode full --skip-experiments` runs (it calls ex.collect()).
-- Interim (BDG2, 3 seeds, not final): HSC-CQR recency under-covered 0.5 % vs CQR 19 %; week-1 13 % vs 24 %;
-  median rel. IS +1.3 % vs CQR; under-protected 1.3 % vs 7.3 %; AVERAGE headroom cost ≈ unchanged (report honestly:
-  benefit is risk distribution across buildings, not mean cost). ACI-CQR (cov) forces coverage but doubles IS.
-  Weekly under-share of ~19 % is the sampling-noise level (under_floor_week), so judge weekly curves against it.
+## Experiment status (2026-11-21 13:40 UTC)
+- COMPLETE: all 74 calibration parts with the revised code, sensitivity, frontier, clean timing
+  (scripts/timing_benchmark.py -> results/timing.json), statistics, tables, figures. Committed.
+- Rule A.1 selected **HSC-CQR recency** (results/recommended.json).
+- Manuscript v2 (AAE structure; ~7.7k words, 3 tables, 8 figures, 52 refs, abstract 237 words) built:
+  manuscript/Final_Manuscript.{md,docx,pdf}; supplementary/Supplementary_Material.{md,docx} (Tables S1–S15).
 
-## Exact next steps
+## Exact next steps (updated)
+- Review round 2 (novelty/prior art + desk-reject screen) next; then rounds 3–10 per list below.
+- Rebuild after any change: `python run_all.py --mode full --skip-experiments && python manuscript/build_docx.py &&
+  python manuscript/build_supplementary.py` (and `python manuscript/build_extras.py` for highlights/title page).
+
+## Exact next steps (original list)
 0. New container: install; extract the newest results/parts_snapshot tarball into results/; `ex.train_only('full')`
    ALONE; then `bash scripts/calibration_pass.sh` (+ optionally a 5th worker for kind=='xds').
 1. Finish calibration pass → `ex.sensitivity('full'); ex.frontier('full')` → `python run_all.py --mode full --skip-experiments`

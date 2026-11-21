@@ -54,11 +54,11 @@ def fig_schematic():
     fs = 6.2
     boxes = [
         (0.5, 23, 21, 13, "Training buildings\n(source period)\nglobal LightGBM / QR\non normalised load $y/s$"),
-        (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nscores $e=|y-\\hat{y}|/s$\n(or CQR) per stage $h$"),
-        (26, 3, 22, 15, "Population prior $F^{prior}$\nstage-bin matched;\n$K$ nearest buildings\nby load descriptor $z$"),
-        (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures and $z$ from its\nown $h$ days only"),
-        (53, 11, 24, 17, "Hierarchical shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{prior}(e)+\\#\\{i: e_i\\leq e\\}$\n(normalised by $\\kappa+n_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
-        (81, 11, 18.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
+        (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nCQR scores $e$ in\nunits of the scale $s$"),
+        (26, 3, 22, 15, "Population score\ndistribution $F^{pop}$\n(each calibration\nbuilding weighted equally)"),
+        (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures from its\nown $h$ days only"),
+        (52.5, 10, 27, 19, "Recency-weighted shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{pop}(e)+\\Sigma_i\\, \\rho^{d_i-1} 1\\{e_i\\leq e\\}$\n(normalised by $\\kappa+n^{\\rho}_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
+        (82, 11, 17.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
     ]
     for x, y, w, h, t in boxes:
         ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.3,rounding_size=1.0", fc="#f0f5fc",
@@ -69,12 +69,12 @@ def fig_schematic():
     ax.annotate("", xy=(25.6, 29.5), xytext=(21.9, 29.5), arrowprops=arr)
     ax.annotate("", xy=(52.6, 16), xytext=(48.4, 10.5), arrowprops=arr)
     ax.annotate("", xy=(52.6, 23), xytext=(48.4, 29.5), arrowprops=arr)
-    ax.annotate("", xy=(80.6, 19.5), xytext=(77.4, 19.5), arrowprops=arr)
+    ax.annotate("", xy=(81.6, 19.5), xytext=(80.0, 19.5), arrowprops=arr)
     ax.annotate("", xy=(66, 28.6), xytext=(90, 28.6), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.9,
                                                                         connectionstyle="arc3,rad=0.45"))
-    ax.text(78, 37.2, "realised scores of day $h+1$ are added to $b$'s own scores ($n_b=24(h-1)$)", ha="center",
+    ax.text(78, 37.2, "realised scores of day $h+1$ join $b$'s own scores; older days decay by $\\rho$ per day", ha="center",
             fontsize=fs, color=INK2)
-    ax.text(24.5, 0.3, "$\\kappa$ and $K$ are chosen by leave-one-building-out on calibration buildings only",
+    ax.text(24.5, 0.3, "$\\kappa$ is chosen by leave-one-building-out on per-building coverage of calibration buildings",
             ha="center", fontsize=fs, color=INK2)
     _save(fig, "Fig1_method")
 
