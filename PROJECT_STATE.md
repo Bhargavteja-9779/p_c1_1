@@ -40,12 +40,14 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 
 ## Cycle-2 fix checklist (review_02.md execution plan)
 - [x] 1a data (BDG2 1,042 bldgs / 14 sites; UCI 316; tests/test_data_rules.py): port SSC-line rules (train-period eligibility, no interpolation, DST mask, no onboarding fallback), UCI timestamp, weather cap
-- [ ] 1b sigma0 from training buildings (Prop. 1 premise); docstring/prereg attribution aligned
-- [ ] 1c constrained LOBO for all families + extended grids (gamma<=0.05, kappa 6/12) + edge reporting
-- [ ] 1d new variants: QShrink-CQR recency, Self-CQR recency (fallback), delayed own scores, radius safeguard, recommended layer on MLP, GHCP local step
+- [x] 1b sigma0 from training buildings (Prop. 1 premise); docstring/prereg attribution aligned
+- [x] 1c constrained LOBO for all families + extended grids (gamma<=0.05, kappa 6/12) + edge reporting
+- [x] 1d new variants (GHCP: label as HCP-style in text, no code change; + 4 new stress tests outage/spikes/random-day shift/ramp; frontier at alpha 0.05/0.1/0.2): QShrink-CQR recency, Self-CQR recency (fallback), delayed own scores, radius safeguard, recommended layer on MLP, GHCP local step
 - [ ] 1e analysis: block-bootstrap reference, weekly/worst-week, share CIs + McNemar, one confirmatory family, per-building unit, tails/TOST, nested selection
 - [ ] 1f timing: whole online step, reps, threads; regenerate cost tables
-- [ ] 2  full rerun (retrain -> calibration -> sensitivity -> frontier alpha 0.05/0.1/0.2 -> run_all)
+- [ ] 2  full rerun: TRAINING STARTED 15:48 UTC (log results/experiment_logs/train_c2.log; caches results/cache not in git;
+       if container restarted: rerun train_only, it resumes per job). After '=== all trainings cached ===': `bash scripts/calibration_pass.sh`
+       (no calibration while training!), then sensitivity+frontier, then run_all --skip-experiments. Full rerun (retrain -> calibration -> sensitivity -> frontier alpha 0.05/0.1/0.2 -> run_all)
 - [ ] 3  re-analysis outputs checked
 - [ ] 4  manuscript rewrite + rebuild + packet cycle 3 -> ASK USER before cycle 3
 

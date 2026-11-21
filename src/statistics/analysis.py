@@ -293,7 +293,7 @@ def run(mode="full"):
     return st
 
 
-CQR_STRATEGIES = ["HSC-CQR recency", "HSC-SSC-CQR", "SSC-CQR", "HSC-CQR simple (cov)", "QShrink-CQR (cov)",
+CQR_STRATEGIES = ["HSC-CQR recency", "HSC-CQR recency (capped)", "QShrink-CQR recency", "Self-CQR recency", "HSC-SSC-CQR", "SSC-CQR", "HSC-CQR simple (cov)", "QShrink-CQR (cov)",
                   "ACI-CQR (cov)", "HSC-CQR", "HSC-CQR simple", "HSC-CQR fixed-κ", "Self-CQR", "ACI-CQR", "TQA-B-CQR",
                   "GHCP-CQR", "QShrink-CQR", "CQR"]
 

@@ -174,6 +174,53 @@ def perturb_missing(rate, seed):
     return f
 
 
+def perturb_outage(seed, n_blocks=2, max_days=3):
+    """Cycle 2 (R6): block outages -- n_blocks gaps of 1..max_days whole days at random positions."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(6000 + seed)
+        for b, t in zip(bidx, t0):
+            for _ in range(n_blocks):
+                L = int(rng.integers(1, max_days + 1))
+                d0 = int(rng.integers(0, pl.NH + 1 - L))
+                load[b, t + d0:t + d0 + L] = np.nan
+        return load
+    return f
+
+
+def perturb_spikes(seed, rate=0.02, factor=3.0):
+    """Cycle 2 (R6): heavy-tailed noise -- a share `rate` of hours multiplied by `factor`."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(7000 + seed)
+        for b, t in zip(bidx, t0):
+            seg = load[b, t:t + pl.NH + 1]
+            m = rng.random(seg.shape) < rate
+            seg[m] = seg[m] * factor
+            load[b, t:t + pl.NH + 1] = seg
+        return load
+    return f
+
+
+def perturb_shift_random(factor, seed, lo=3, hi=14):
+    """Cycle 2 (R6): level shift at a random onboarding day in [lo, hi] (commissioning-type change)."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(8000 + seed)
+        for b, t in zip(bidx, t0):
+            d = int(rng.integers(lo, hi + 1))
+            load[b, t + d:t + pl.NH + 1] *= factor
+        return load
+    return f
+
+
+def perturb_ramp(total):
+    """Cycle 2 (R6): gradual drift, multiplicative ramp from 1 to 1 + total over the window."""
+    def f(load, bidx, t0):
+        r = 1 + total * np.linspace(0, 1, pl.NH + 1)[:, None]
+        for b, t in zip(bidx, t0):
+            load[b, t:t + pl.NH + 1] *= r
+        return load
+    return f
+
+
 def perturb_shift(factor, day=28):
     def f(load, bidx, t0):
         for b, t in zip(bidx, t0):
@@ -294,7 +341,9 @@ def _execute_job(j, frac, mlp, tag, quick):
         s = j["seed"]
         perts = {"noise5": perturb_noise(0.05, s), "noise15": perturb_noise(0.15, s),
                  "missing20": perturb_missing(0.2, s), "missing40": perturb_missing(0.4, s),
-                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6)}
+                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6),
+                 "outage1-3d": perturb_outage(s), "spikes2": perturb_spikes(s),
+                 "shift+40@d3-14": perturb_shift_random(1.4, s), "ramp+40": perturb_ramp(0.4)}
         for name, f in perts.items():
             pid = f"robust{tag}_BDG2_s{s}_{name}"
             if _done(pid):
@@ -389,11 +438,12 @@ def frontier(mode="full"):
     sb = cb.stage_bin(stages)
     rows = []
 
-    def rec(dsn, s, fam, par, lo, hi, PT):
-        m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
+    def rec(dsn, s, fam, par, lo, hi, PT, a):
+        m, _, _ = mt.interval_metrics(PT["y"], lo, hi, a)
         cov, ce = m["coverage"], m["coverage_early"]
-        rows.append(dict(dataset=dsn, seed=s, family=fam, param=par, macd=float(np.mean(np.abs(cov - 0.9))),
-                         under=float(np.mean(cov < 0.85)), under_wk1=float(np.mean(ce < 0.85)),
+        thr = 1 - a - 0.05
+        rows.append(dict(dataset=dsn, seed=s, alpha=a, family=fam, param=par, macd=float(np.mean(np.abs(cov - (1 - a)))),
+                         under=float(np.mean(cov < thr)), under_wk1=float(np.mean(ce < thr)),
                          p10=float(np.quantile(cov, 0.1)), rel_IS=float(np.median(m["rel_IS"])),
                          rel_IS_mean=float(np.mean(m["rel_IS"])), rel_width=float(np.median(m["rel_width"]))))
     for dsn in ["BDG2", "UCI"]:
@@ -406,15 +456,18 @@ def frontier(mode="full"):
             cct = cb.cum_counts(St)
             sc = PT["s"][:, :, None]
             band = lambda q: (PT["qlo"] - q[:, :, None] * sc, PT["qhi"] + q[:, :, None] * sc)
-            for dec in [1.0, 0.95, 0.9, 0.8]:
-                q = cb.hsc_quantiles(cct, binc, None, 0.1, pl.KAPPAS, stages, stage_matched=False, decay=dec)
-                for ki, kap in enumerate(pl.KAPPAS):
-                    rec(dsn, s, f"HSC (decay {dec})", kap, *band(q[ki]), PT)
-            qp = cb.pooled_quantile(binc, 0.1, True)[sb]
-            for lam in pl.KAPPAS:
-                rec(dsn, s, "QShrink", lam, *band(cb.qshrink_quantiles(cct, qp, 0.1, lam, stages)), PT)
-            for g in pl.GAMMAS + [0.02, 0.05]:
-                rec(dsn, s, "ACI", g, *band(cb.aci_quantiles(St, binc.sum(axis=0), 0.1, g, stages)), PT)
+            for a in ([0.1] if quick else [0.1, 0.05, 0.2]):  # cycle 2: frontier at three nominal levels
+                for dec in [1.0, 0.95, 0.9, 0.8]:
+                    q = cb.hsc_quantiles(cct, binc, None, a, pl.KAPPAS, stages, stage_matched=False, decay=dec)
+                    for ki, kap in enumerate(pl.KAPPAS):
+                        rec(dsn, s, f"HSC (decay {dec})", kap, *band(q[ki]), PT, a)
+                qp = cb.pooled_quantile(binc, a, True)[sb]
+                for dec in [1.0, 0.95]:
+                    fam = "QShrink" if dec == 1.0 else "QShrink (decay 0.95)"
+                    for lam in pl.KAPPAS:
+                        rec(dsn, s, fam, lam, *band(cb.qshrink_quantiles(cct, qp, a, lam, stages, decay=dec)), PT, a)
+                for g in pl.GAMMAS:
+                    rec(dsn, s, "ACI", g, *band(cb.aci_quantiles(St, binc.sum(axis=0), a, g, stages)), PT, a)
             _log(f"frontier {dsn} s{s} done")
     pd.DataFrame(rows).to_csv(os.path.join(RES, f"frontier{tag}.csv"), index=False)
 

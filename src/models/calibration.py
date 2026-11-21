@@ -87,10 +87,22 @@ def own_defined(n_own, alpha):
     return np.ceil((1 - alpha) * (n_own + 1)) <= n_own
 
 
-def own_counts_before(self_cc):
-    """(nt, NH) number of own scores available before each stage."""
+def own_counts_before(self_cc, decay=1.0):
+    """(nt, NH) number of own scores available before each stage (effective, decayed count if decay < 1)."""
     tot = self_cc[:, :, -1].astype(float)
-    return np.concatenate([np.zeros((tot.shape[0], 1)), np.cumsum(tot, axis=1)[:, :-1]], axis=1)
+    if decay == 1.0:
+        return np.concatenate([np.zeros((tot.shape[0], 1)), np.cumsum(tot, axis=1)[:, :-1]], axis=1)
+    out = np.zeros_like(tot)
+    for h in range(1, tot.shape[1]):
+        out[:, h] = decay * out[:, h - 1] + tot[:, h - 1]
+    return out
+
+
+def delay_counts(self_cc, lag=1):
+    """Own-score counts delayed by `lag` stages (data-latency variant: the stage-h radius uses own scores up to
+    stage h-1-lag only). self_cc: (nt, NH, NG)."""
+    z = np.zeros_like(self_cc[:, :lag])
+    return np.concatenate([z, self_cc[:, :-lag]], axis=1)
 
 
 def pooled_quantile_lobo(cal_counts_bin, alpha):
@@ -211,13 +223,15 @@ def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, 
     return q
 
 
-def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages, return_capped=False):
+def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages, return_capped=False, delay=0):
     """ACI (Gibbs & Candes, 2021) with daily batches of 24 hourly feedback signals.
 
     alpha_{h+1} = alpha_h + gamma * sum_j (alpha - err_{h,j}); radius = prior quantile at 1-alpha_h.
     target_scores: (nt, NH, 24); prior_counts_bin: (nbins, NG) or (nt, nbins, NG) cumulative counts.
+    delay: number of extra stages before a day's feedback is applied (data-latency variant; 0 = next day).
     """
     nt, NH, _ = target_scores.shape
+    pending = []
     P = prior_counts_bin.astype(np.float32)
     if P.ndim == 2:
         P = np.broadcast_to(P, (nt,) + P.shape)
@@ -238,7 +252,9 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages, return_
         e = target_scores[:, hi, :]
         valid = ~np.isnan(e)
         err = (e > q[:, hi:hi + 1]) & valid
-        a = a + gamma * (alpha * valid.sum(1) - err.sum(1))
+        pending.append(gamma * (alpha * valid.sum(1) - err.sum(1)))
+        if len(pending) > delay:
+            a = a + pending.pop(0)
     if return_capped:
         return q, capped / float(nt * len(stages))
     return q
@@ -280,15 +296,16 @@ def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
     return q
 
 
-def qshrink_quantiles(self_cc, q_pool, alpha, lam, stages):
+def qshrink_quantiles(self_cc, q_pool, alpha, lam, stages, decay=1.0):
     """Quantile-level shrinkage ("regularised Mondrian", Rafe & Das, arXiv:2605.05562):
     q = w q_own + (1-w) q_pool, w = n/(n+lam); q_own = split-conformal quantile of the building's own past
     scores; w = 0 while q_own does not exist (decided from the number of own scores). lam = 0 -> own only
-    (with pooled fallback), lam = inf -> pooled. q_pool: (nt, NH) or (NH,) pooled radius."""
+    (with pooled fallback), lam = inf -> pooled. q_pool: (nt, NH) or (NH,) pooled radius.
+    decay < 1: recency variant (own counts decayed per day; n is then the effective count; cycle 2)."""
     nt, NH, NG = self_cc.shape
     q_own = hsc_quantiles(self_cc, np.zeros((1, len(STAGE_EDGES) - 1, NG), dtype=np.float32), None, alpha, [0],
-                          stages)[0]
-    n_own = own_counts_before(self_cc)
+                          stages, decay=decay)[0]
+    n_own = own_counts_before(self_cc, decay)
     defined = own_defined(n_own, alpha)
     w = np.where(defined, 1.0 if lam == 0 else (0.0 if np.isinf(lam) else n_own / (n_own + lam)), 0.0)
     qp = np.broadcast_to(q_pool, (nt, NH))

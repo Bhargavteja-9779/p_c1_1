@@ -56,3 +56,11 @@
   mean ≥1 kWh/h); no imputation; UCI DST hours masked; UCI labels treated as interval starts (no −15 min shift);
   weather gaps >6 h left missing; targets without a ≥80 %-valid window are dropped (no fallback) and counted.
   BDG2: 842 → 1,042 buildings, 10 → 14 sites. UCI: 315 → 316. Caches renamed *_r2. Tests: tests/test_data_rules.py.
+- Tuning (#2, #8): one constrained coverage objective for every family (min LOBO-MACD s.t. LOBO-IS ≤ 1.02 × the
+  family's pooled limit; `pipeline.select`); ACI-CQR IS now uses the same band widths; γ grid to 0.05, κ/λ grid adds
+  6 and 12; grid-edge flags in run info.
+- New variants: QShrink-CQR recency, Self-CQR recency, HSC-CQR recency (capped at the pooled 1−α/10 radius),
+  HSC-CQR recency κ=∞, one-day-delayed own scores/feedback (HSC recency, QShrink (cov), ACI-CQR (cov)),
+  HSC-CQR recency on the MLP quantiles. SSC σ0 from validation buildings (same for calibration and targets).
+- Stress tests: 1–3-day block outages, 2 % spikes ×3, +40 % shift at a random day 3–14, +40 % ramp.
+  Frontier at α ∈ {0.05, 0.1, 0.2}, QShrink recency added to it.
