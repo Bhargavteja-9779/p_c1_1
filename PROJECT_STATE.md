@@ -13,6 +13,26 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
    and `python run_all.py --mode full --skip-experiments` (statistics, tables, figures).
 4. Continue at "Exact next steps" below.
 
+## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- Branch `claude/great-ride-5vxp0a` now carries the funny-euler-sjuow2 line (tree adopted by merge commit dbaa850).
+  Parallel PCS-CQR line and its 10-reviewer critique: REVIEW/archive_pcs_line/ (code in history at 90c477e).
+- Review cycle 2 on this line: 10 reviewer agents run on REVIEW/packet_cycle02.md; raw reviews in REVIEW/cycle02_raw/
+  (R1-R4, R6-R10 done, all Major revision; R5 data-leakage may be missing -> rerun it alone with the prompt pattern:
+  read scratch common instructions = role + "known risk areas a-f" listed in REVIEW/archive_pcs_line/review_02.md).
+- NEXT: write REVIEW/review_02.md (consolidate), REVIEW_HISTORY entry, then fixes. User approved the FULL plan:
+  re-analysis + calibration-only recompute (symmetric ACI tuning/extended gamma grid, tolerance sensitivity,
+  autocorrelation-aware floor, one-day-delayed own-score update) + causal quality-filter retraining run; reframe claims
+  to supported time scales (56-day window vs weekly).
+- Consensus issues so far: 56-day headline hides ~19-21 % weekly under-coverage (A); ACI coverage objective picks grid
+  edge gamma=0.01 in all runs, ACI not tuned under same sharpness constraint, decides rule A.1 (A); recency gain is from
+  kappa not rho (week-1 14.2 vs 13.7 % at equal kappa); rule ranks on target metric with tiny margins; noise reference
+  method-dependent; mean IS +3.7 % (tail blow-ups, Rat_office_Colby 23x width); at 80 % nominal rule would pick ACI-CQR;
+  Proposition 1 = corollary of Lee-Barber-Willett and its premises violated (sigma0 asymmetric, pipeline.py:404-410);
+  recency ESS bound off by factor 24; Shahid 2026 already tunes n0 by leave-one-site-out (novelty claim); missing refs
+  (Bersson & Hoff, Fisch, Vejling, Batra, conformal PID, DtACI, SAOCP); D-1 information set; target-year filter.
+- Local note: stale PCS-line intermediates were moved to the session scratchpad (not needed); model caches for this
+  line must be retrained before any recompute (see "How to resume" step 2).
+
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier). Only well-fitting journal with publisher-reported
   submission→acceptance ≤ 72 days (66 d current panel; older 86 d; unverified at article level). User constraints:
