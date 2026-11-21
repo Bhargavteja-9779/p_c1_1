@@ -1,11 +1,11 @@
-checkpoint: 2026-11-21 12:27 UTC
-finished result parts: 37
+checkpoint: 2026-11-21 12:38 UTC
+finished result parts: 94
 trained model sets cached locally: 21
 full pass done: no
 post pass done: no
 last run.log lines:
-[2026-11-21 12:26:31] done main_BDG2_s0_a0.1 (258s): HSC IS=0.815 cov=0.903 | SCP-stage IS=0.999
-[2026-11-21 12:27:11] done main_UCI_s2_a0.1 (65s): HSC IS=0.655 cov=0.902 | SCP-stage IS=0.834
-[2026-11-21 12:27:20] done robust_BDG2_s0_noise15 (106s): HSC IS=1.123 cov=0.888 | SCP-stage IS=1.385
-[2026-11-21 12:27:37] done main_UCI_s2_a0.05 (27s): HSC IS=0.849 cov=0.951 | SCP-stage IS=1.220
-[2026-11-21 12:27:54] done main_BDG2_s3_a0.05 (99s): HSC IS=1.164 cov=0.951 | SCP-stage IS=1.576
+[2026-11-21 12:36:07] done main_BDG2_s1_a0.05 (111s): HSC IS=1.197 cov=0.945 | SCP-stage IS=1.545
+[2026-11-21 12:36:45] done lso_BDG2_f0 (270s): HSC IS=0.965 cov=0.878 | SCP-stage IS=1.194
+[2026-11-21 12:37:31] done main_BDG2_s4_a0.2 (107s): HSC IS=0.593 cov=0.807 | SCP-stage IS=0.655
+[2026-11-21 12:37:52] done main_BDG2_s1_a0.2 (106s): HSC IS=0.667 cov=0.797 | SCP-stage IS=0.761
+[2026-11-21 12:37:55] done robust_BDG2_s0_shift-40 (109s): HSC IS=1.063 cov=0.870 | SCP-stage IS=1.216

@@ -1,2 +1,7 @@
 [2026-11-21 12:22:12] === run_all mode=full: 3 jobs ===
 [2026-11-21 12:26:31] done main_BDG2_s0_a0.1 (258s): HSC IS=0.815 cov=0.903 | SCP-stage IS=0.999
+[2026-11-21 12:28:14] done main_BDG2_s0_a0.05 (103s): HSC IS=1.096 cov=0.952 | SCP-stage IS=1.405
+[2026-11-21 12:29:58] done main_BDG2_s0_a0.2 (104s): HSC IS=0.607 cov=0.799 | SCP-stage IS=0.689
+[2026-11-21 12:34:15] done main_BDG2_s1_a0.1 (257s): HSC IS=0.907 cov=0.897 | SCP-stage IS=1.103
+[2026-11-21 12:36:07] done main_BDG2_s1_a0.05 (111s): HSC IS=1.197 cov=0.945 | SCP-stage IS=1.545
+[2026-11-21 12:37:52] done main_BDG2_s1_a0.2 (106s): HSC IS=0.667 cov=0.797 | SCP-stage IS=0.761
