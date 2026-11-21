@@ -280,13 +280,13 @@ def ms_operational(s):
                    "Under-prot. (%)": _pm(xs.underprot.mean(), xs.underprot.std(), pct=True)}
             for r in [10, 20, 40]:
                 d = 100 * (xs[f"cost{r}"] / base[f"cost{r}"] - 1)
-                row[f"Cost Δ ρ={r} (%)"] = f"{d.mean():+.1f} ± {d.std():.1f}"
+                row[f"Cost Δ ρ_p={r} (%)"] = f"{d.mean():+.1f} ± {d.std():.1f}"
             rows.append(row)
     _write("MS2_operational", pd.DataFrame(rows),
-           "Operational consequence: day-ahead capacity-headroom offers planned on the upper bound (Eq. 9). Upper "
+           "Operational consequence: day-ahead capacity-headroom offers planned on the upper bound (Eq. 7). Upper "
            "exceed.: mean share of hours above the upper bound (nominal 5 %); Under-prot.: share of buildings with "
-           "more than 10 % exceedance; Cost Δ: change of the mean relative cost (planning load + ρ × violation) versus "
-           "pooled CQR for penalty ratios ρ (ρ = 20 is cost-optimal for a calibrated 95 % upper bound); mean ± s.d. "
+           "more than 10 % exceedance; Cost Δ: change of the mean relative cost (planning load + ρ_p × violation) versus "
+           "pooled CQR for penalty ratios ρ_p (ρ_p = 20 is cost-optimal for a calibrated 95 % upper bound); mean ± s.d. "
            "over seeds.")
 
 
