@@ -1,11 +1,11 @@
-checkpoint: 2026-11-21 12:07 UTC
+checkpoint: 2026-11-21 12:17 UTC
 finished result parts: 0
-trained model sets cached locally: 14
+trained model sets cached locally: 16
 full pass done: no
 post pass done: no
 last run.log lines:
-[2026-11-21 12:00:01]   training rows 1,500,804  validation rows 208,226
-[2026-11-21 12:03:10] train BDG2_BDG2_lso3_s3_w1_f0.4_m1_tb1.0: train=439 cal=210 tgt=145
-[2026-11-21 12:03:14]   training rows 1,528,150  validation rows 208,361
-[2026-11-21 12:07:35] train BDG2_BDG2_lso4_s4_w1_f0.4_m1_tb1.0: train=433 cal=207 tgt=154
-[2026-11-21 12:07:39]   training rows 1,504,198  validation rows 209,262
+[2026-11-21 12:12:04]   training rows 1,318,757  validation rows 183,509
+[2026-11-21 12:14:54] reuse models MODELS_UCI_random_s0_w0_f0.4_m1_tb1.0 for UCI_BDG2_random_s0_w0_f0.4_m1_tb1.0
+[2026-11-21 12:15:04] reuse models MODELS_BDG2_random_s0_w0_f0.4_m1_tb1.0 for BDG2_BDG2_random_s0_w0_f0.4_m1_tb1.0
+[2026-11-21 12:15:16] train BDG2_UCI_random_s1_w0_f0.4_m1_tb1.0: train=379 cal=168 tgt=95
+[2026-11-21 12:15:19]   training rows 1,322,913  validation rows 186,241
