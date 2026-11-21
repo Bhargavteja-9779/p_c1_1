@@ -42,7 +42,7 @@ All conformal-type methods share the same forecaster, scores, grid and stage bin
 * **SSC-CQR** (primary): Eq. ([-@eq:hsc]) on the CQR scores, $\kappa$ by LOBO on MACD; **SSC-CQR (κ=168)**: fixed one-week pseudo-count, i.e. a donor–local mixture with fixed pseudo-count as in [@jeon2026]; **SSC-CQR (IS-tuned)**: $\kappa$ by LOBO on the interval score; **SSC-CQR +stage+kNN**: the full pre-registered design with both refinements ($\kappa$, $K$ by LOBO on the interval score), with ablations removing each element. **SSC** variants on the absolute score are defined analogously; the pre-registered primary method was SSC +stage+kNN on the absolute score (Section [-@sec:prereg]).
 * **CQR (MLP)** and **SSC-CQR (MLP)**: CQR and SSC-CQR on the quantiles of the MLP quantile model, to check that the calibration layer is not specific to LightGBM.
 
-Table [-@tbl:budget] lists the tuning budget of every tuned method. All leave-one-building-out selections use the same objective as for $\kappa$ (per-building MACD with interval-score tie-break), except the pre-registered SSC +stage+kNN variants and their ablations, which keep the pre-registered interval-score objective.
+Table [-@tbl:budget] lists the tuning budget of every tuned method. All leave-one-building-out selections use the same rule as for $\kappa$ (sharpest setting with at most 5 % clearly under-covered pseudo-targets), except the pre-registered SSC +stage+kNN variants and their ablations, which keep the pre-registered interval-score objective.
 
 <<TABLE:MS_budget|tbl:budget>>
 

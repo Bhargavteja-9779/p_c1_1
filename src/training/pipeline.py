@@ -217,8 +217,8 @@ TQA_BETAS = [0.5, 0.8, 0.95]
 def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, kappas=KAPPAS, objective="IS"):
     """Leave-one-building-out selection of (kappa, K) on calibration buildings.
 
-    objective "IS": pre-registered mean normalised interval score; "macd" (revision 1): LOBO per-building
-    coverage deviation with IS tie-break (cb.pick)."""
+    objective "IS": pre-registered mean normalised interval score; "macd" (revision 1, name kept): sharpest
+    setting with <= 5 % clearly under-covered LOBO pseudo-targets (cb.pick)."""
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
@@ -227,11 +227,11 @@ def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, ka
         nb = nbrs_by_stage(z_cal, z_cal, K, exclude_self=True)
         excl = np.arange(cal_scores.shape[0]) if K is None else None
         q = cb.hsc_quantiles(cc, binc, nb, alpha, kappas, stages, excl=excl, stage_matched=stage_matched)
-        macd, IS = cb.macd_objective(q, cal_scores, cal_base_w, alpha)
+        macd, IS, und = cb.macd_objective(q, cal_scores, cal_base_w, alpha)
         for ki, kap in enumerate(kappas):
-            res.append(dict(K=K, kappa=kap, obj=float(IS[ki]), macd=float(macd[ki])))
+            res.append(dict(K=K, kappa=kap, obj=float(IS[ki]), macd=float(macd[ki]), under=float(und[ki])))
     df = pd.DataFrame(res)
-    best = df.loc[df.obj.idxmin()] if objective == "IS" else df.iloc[cb.pick((df.macd.values, df.obj.values))]
+    best = df.loc[df.obj.idxmin()] if objective == "IS" else df.iloc[cb.pick((df.macd.values, df.obj.values, df.under.values))]
     return dict(K=None if pd.isna(best.K) else int(best.K), kappa=float(best.kappa)), df
 
 
@@ -244,10 +244,10 @@ def tune_aci(cal_scores, alpha, gammas=GAMMAS):
     res = []
     for g in gammas:
         q = cb.aci_quantiles(cal_scores, prior, alpha, g, stages)
-        macd, IS = cb.macd_objective(q[None], cal_scores, np.zeros_like(cal_scores), alpha)
-        res.append(dict(gamma=g, obj=float(IS[0]), macd=float(macd[0])))
+        macd, IS, und = cb.macd_objective(q[None], cal_scores, np.zeros_like(cal_scores), alpha)
+        res.append(dict(gamma=g, obj=float(IS[0]), macd=float(macd[0]), under=float(und[0])))
     df = pd.DataFrame(res)
-    return float(df.gamma.values[cb.pick((df.macd.values, df.obj.values))]), df
+    return float(df.gamma.values[cb.pick((df.macd.values, df.obj.values, df.under.values))]), df
 
 
 def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS)):
@@ -260,10 +260,10 @@ def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS)):
     res = []
     for lam in lams:
         q = cb.qshrink_quantiles(cc, q_pool, alpha, lam, stages)
-        macd, IS = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
-        res.append(dict(lam=lam, obj=float(IS[0]), macd=float(macd[0])))
+        macd, IS, und = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
+        res.append(dict(lam=lam, obj=float(IS[0]), macd=float(macd[0]), under=float(und[0])))
     df = pd.DataFrame(res)
-    return float(df.lam.values[cb.pick((df.macd.values, df.obj.values))]), df
+    return float(df.lam.values[cb.pick((df.macd.values, df.obj.values, df.under.values))]), df
 
 
 def tune_selffb(cal_scores, cal_base_w, alpha, grid=tuple(SELF_MIN_HOURS)):
@@ -275,10 +275,10 @@ def tune_selffb(cal_scores, cal_base_w, alpha, grid=tuple(SELF_MIN_HOURS)):
     res = []
     for m in grid:
         q = cb.selffb_quantiles(cc, q_pool, alpha, m, stages)
-        macd, IS = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
-        res.append(dict(min_hours=m, obj=float(IS[0]), macd=float(macd[0])))
+        macd, IS, und = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
+        res.append(dict(min_hours=m, obj=float(IS[0]), macd=float(macd[0]), under=float(und[0])))
     df = pd.DataFrame(res)
-    return int(df.min_hours.values[cb.pick((df.macd.values, df.obj.values))]), df
+    return int(df.min_hours.values[cb.pick((df.macd.values, df.obj.values, df.under.values))]), df
 
 
 def tune_ghcp(cal_scores, cal_base_w, alpha, grid=tuple(GHCP_NSUR)):
@@ -289,10 +289,10 @@ def tune_ghcp(cal_scores, cal_base_w, alpha, grid=tuple(GHCP_NSUR)):
     res = []
     for n in grid:
         q = cb.ghcp_quantiles(cc, tot_all, alpha, stages, n, excl=excl)
-        macd, IS = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
-        res.append(dict(n_sur=n, obj=float(IS[0]), macd=float(macd[0])))
+        macd, IS, und = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
+        res.append(dict(n_sur=n, obj=float(IS[0]), macd=float(macd[0]), under=float(und[0])))
     df = pd.DataFrame(res)
-    return float(df.n_sur.values[cb.pick((df.macd.values, df.obj.values))]), df
+    return float(df.n_sur.values[cb.pick((df.macd.values, df.obj.values, df.under.values))]), df
 
 
 def tune_tqab(cal_scores, cal_base_w, alpha, grid=tuple(TQA_BETAS)):
@@ -305,10 +305,10 @@ def tune_tqab(cal_scores, cal_base_w, alpha, grid=tuple(TQA_BETAS)):
     for beta in grid:
         q = np.stack([cb.tqab_quantiles(cal_scores[i:i + 1], cal_scores, tot - binc[i], alpha, stages, beta)[0]
                       for i in range(cal_scores.shape[0])])
-        macd, IS = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
-        res.append(dict(beta=beta, obj=float(IS[0]), macd=float(macd[0])))
+        macd, IS, und = cb.macd_objective(q[None], cal_scores, cal_base_w, alpha)
+        res.append(dict(beta=beta, obj=float(IS[0]), macd=float(macd[0]), under=float(und[0])))
     df = pd.DataFrame(res)
-    return float(df.beta.values[cb.pick((df.macd.values, df.obj.values))]), df
+    return float(df.beta.values[cb.pick((df.macd.values, df.obj.values, df.under.values))]), df
 
 
 def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", fixed=None, log=print):

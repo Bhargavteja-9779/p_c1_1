@@ -68,3 +68,7 @@
   reached the lowest MACD (0.005) at a higher interval score (0.611 vs 0.572 for SSC-CQR). γ grid extended to
   {…, 0.02, 0.05}; seed-0 parts recomputed. This changes the expected conclusion: ACI on CQR scores is now the
   most exact per-building strategy on coverage, shrinkage the sharpest among near-nominal strategies.
+- Seed-0 check 2: with γ up to 0.05, the pure MACD objective selected γ = 0.05 for ACI-CQR (MACD 0.0025 on
+  pseudo-targets, below the sampling floor; target width +55 %, median IS 0.77 vs 0.57). MACD alone rewards
+  coverage-forcing. Selection rule changed (before any full calibration pass) to "sharpest reliable": smallest
+  normalised IS among settings with <= 5 % clearly under-covered LOBO pseudo-targets (fallback: smallest share).

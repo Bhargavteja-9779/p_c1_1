@@ -248,18 +248,27 @@ def lobo_coverage(q, scores):
     return hit.sum(axis=(-1, -2)) / np.maximum(valid.sum(axis=(-1, -2)), 1)
 
 
+UNDER_TARGET = 0.05  # at most 5 % of (pseudo-)target buildings clearly under-covered (coverage < 1 - alpha - 0.05)
+
+
 def macd_objective(q, scores, base_w, alpha):
-    """Revision-1 tuning objective (pre-stated reliability target, R1/R3/R10): mean absolute per-building
-    coverage deviation of the leave-one-building-out pseudo-targets, ties (within 1e-4) broken by the
-    normalised interval score. Returns (macd, IS) arrays over the leading axis of q."""
+    """Revision-1 tuning statistics on leave-one-building-out pseudo-targets: (MACD, normalised IS, share of
+    pseudo-targets with coverage < 1 - alpha - 0.05), each over the leading axis of q."""
     cov = lobo_coverage(q, scores)
-    return np.abs(cov - (1 - alpha)).mean(axis=-1), normalized_IS(q, scores, base_w, alpha)
+    return (np.abs(cov - (1 - alpha)).mean(axis=-1), normalized_IS(q, scores, base_w, alpha),
+            (cov < 1 - alpha - 0.05).mean(axis=-1))
 
 
-def pick(objs, tol=1e-4):
-    """Index minimising MACD with IS tie-break: among candidates within `tol` of the best MACD, lowest IS."""
-    macd, IS = np.asarray(objs[0], float), np.asarray(objs[1], float)
-    cand = np.where(macd <= np.nanmin(macd) + tol)[0]
+def pick(objs, target=UNDER_TARGET):
+    """Sharpest setting subject to per-building reliability (revision 1): among settings whose LOBO share of
+    clearly under-covered pseudo-targets is <= `target`, the one with the smallest normalised interval score;
+    if none qualifies, the smallest under-covered share (ties: smallest IS). objs = (macd, IS, under).
+    (A pure MACD objective was rejected on the first seed-0 check: it rewards coverage-forcing at any width
+    cost, e.g. ACI with gamma -> 0.05 and +55 % width.)"""
+    IS, under = np.asarray(objs[1], float), np.asarray(objs[2], float)
+    cand = np.where(under <= target + 1e-12)[0]
+    if not len(cand):
+        cand = np.where(under <= np.nanmin(under) + 1e-12)[0]
     return int(cand[np.argmin(IS[cand])])
 
 
