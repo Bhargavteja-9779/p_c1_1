@@ -48,6 +48,8 @@ in the checklist below; tick items as they are committed.
        (b) then calibration pass `bash scripts/calibration_pass.sh` (4 single-threaded workers) or `ex.execute('full')`;
        (c) `ex.sensitivity('full')`; (d) `python run_all.py --mode full --skip-experiments`.
        Network: environment "p_c1_1" (allows archive.ics.uci.edu for UCI; setup script installs requirements).
+       Tuning rule FROZEN (2026-11-21 08:50): sharpest setting with <=5% under-covered LOBO pseudo-targets (cb.pick);
+       ACI gamma grid up to 0.05. main_BDG2_s0 parts already computed with the final code (kept).
        Decisions taken: cold-start variant skipped (week-1 reported honestly); CQR-family alpha-sensitivity NOT run
        (claims limited to 90 %); all LOBO-tuned competitors use the MACD objective (IS tie-break); pre-registered
        HSC/HSC-CQR keep the IS objective.
