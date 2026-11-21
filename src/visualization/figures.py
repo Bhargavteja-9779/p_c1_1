@@ -15,17 +15,21 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from matplotlib.patches import FancyBboxPatch  # noqa: E402
 
+from src.statistics.names import disp  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RES = os.path.join(ROOT, "results")
 FIG = os.path.join(ROOT, "figures")
 MM = 1 / 25.4
-COL = {"HSC-CQR": "#2a78d6", "CQR": "#eb6834", "ACI-CQR": "#1baf7a", "Self-CQR": "#eda100", "TQA-B-CQR": "#e87ba4",
-       "QShrink-CQR": "#008300", "GHCP-CQR": "#6250d6", "SCP-stage": "#e34948"}
-MARK = {"HSC-CQR": "o", "CQR": "s", "ACI-CQR": "^", "Self-CQR": "v", "TQA-B-CQR": "D", "QShrink-CQR": "P",
-        "GHCP-CQR": "X", "SCP-stage": "*"}
+PRIMARY = "HSC-CQR cov-κ"
+COL = {PRIMARY: "#2a78d6", "CQR": "#eb6834", "ACI-CQR clip": "#1baf7a", "Self-CQR": "#eda100", "Switch-CQR": "#e87ba4",
+       "QShrink-CQR": "#008300", "HSC-CQR fixed-κ": "#6250d6", "SCP-stage": "#e34948"}
+MARK = {PRIMARY: "o", "CQR": "s", "ACI-CQR clip": "^", "Self-CQR": "v", "Switch-CQR": "D", "QShrink-CQR": "P",
+        "HSC-CQR fixed-κ": "X", "SCP-stage": "*"}
+BOLD = (PRIMARY, "HSC-CQR fixed-κ")
 GREY = "#8a8984"
 INK, INK2 = "#0b0b0b", "#52514e"
-KEY = ["HSC-CQR", "CQR", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "SCP-stage"]
+KEY = [PRIMARY, "HSC-CQR fixed-κ", "Self-CQR", "Switch-CQR", "QShrink-CQR", "ACI-CQR clip", "CQR", "SCP-stage"]
 
 plt.rcParams.update({"font.size": 7.5, "axes.titlesize": 8, "axes.labelsize": 7.5, "legend.fontsize": 6.5,
                      "xtick.labelsize": 6.5, "ytick.labelsize": 6.5, "axes.spines.top": False,
@@ -47,17 +51,17 @@ def _c(m):
 
 
 def fig_schematic():
-    fig, ax = plt.subplots(figsize=(190 * MM, 72 * MM))
+    fig, ax = plt.subplots(figsize=(190 * MM, 80 * MM))
     ax.set_axis_off()
     ax.set_xlim(0, 100)
-    ax.set_ylim(0, 40)
+    ax.set_ylim(-9, 40)
     fs = 6.2
     boxes = [
-        (0.5, 23, 21, 13, "Training buildings\n(source period)\nglobal LightGBM / QR\non normalised load $y/s$"),
-        (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nscores $e=|y-\\hat{y}|/s$\n(or CQR) per stage $h$"),
-        (26, 3, 22, 15, "Population prior $F^{prior}$\nstage-bin matched;\n$K$ nearest buildings\nby load descriptor $z$"),
-        (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures and $z$ from its\nown $h$ days only"),
-        (53, 11, 24, 17, "Hierarchical shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{prior}(e)+\\#\\{i: e_i\\leq e\\}$\n(normalised by $\\kappa+n_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
+        (0.5, 23, 21, 13, "Training buildings\n(training year)\nglobal LightGBM quantile\nmodels on normalised load"),
+        (0.5, 3, 21, 15, "Calibration buildings\n(test year, Jan–Jun)\nsimulated onboarding;\nCQR scores $e$ pooled\ninto $F^{pool}$"),
+        (26, 23, 22, 13, "New building $b$\n(test year, Jul–Dec)\nfeatures from its own\n$h$ days only"),
+        (26, 3, 22, 15, "Pseudo-count $\\kappa$\nleave-one-building-out\non calibration buildings\n(coverage deviation)"),
+        (52, 11, 26, 17, "Pseudo-count mixture (PCM)\n$\\tilde{F}(e)\\propto\\kappa F^{pool}(e)+\\#\\{i\\leq n_b: e_i\\leq e\\}$\n(normalised by $\\kappa+n_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
         (81, 11, 18.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
     ]
     for x, y, w, h, t in boxes:
@@ -65,17 +69,23 @@ def fig_schematic():
                                     ec="#2a78d6", lw=0.8))
         ax.text(x + w / 2, y + h / 2, t, ha="center", va="center", fontsize=fs, color=INK, linespacing=1.6)
     arr = dict(arrowstyle="-|>", color=INK2, lw=0.8)
-    ax.annotate("", xy=(25.6, 10.5), xytext=(21.9, 10.5), arrowprops=arr)
     ax.annotate("", xy=(25.6, 29.5), xytext=(21.9, 29.5), arrowprops=arr)
-    ax.annotate("", xy=(52.6, 16), xytext=(48.4, 10.5), arrowprops=arr)
-    ax.annotate("", xy=(52.6, 23), xytext=(48.4, 29.5), arrowprops=arr)
-    ax.annotate("", xy=(80.6, 19.5), xytext=(77.4, 19.5), arrowprops=arr)
+    ax.annotate("", xy=(25.6, 10.5), xytext=(21.9, 10.5), arrowprops=arr)
+    ax.annotate("", xy=(51.6, 16), xytext=(48.4, 10.5), arrowprops=arr)
+    ax.annotate("", xy=(51.6, 23), xytext=(48.4, 29.5), arrowprops=arr)
+    ax.annotate("", xy=(80.6, 19.5), xytext=(78.4, 19.5), arrowprops=arr)
     ax.annotate("", xy=(66, 28.6), xytext=(90, 28.6), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.9,
                                                                         connectionstyle="arc3,rad=0.45"))
     ax.text(78, 37.2, "realised scores of day $h+1$ are added to $b$'s own scores ($n_b=24(h-1)$)", ha="center",
             fontsize=fs, color=INK2)
-    ax.text(24.5, 0.3, "$\\kappa$ and $K$ are chosen by leave-one-building-out on calibration buildings only",
-            ha="center", fontsize=fs, color=INK2)
+    # timeline of the out-of-time protocol
+    y0 = -5
+    for x0, x1, lab, c in [(2, 34, "training year: forecaster", "#8a8984"),
+                           (36, 66, "test year H1: calibration windows", "#2a78d6"),
+                           (68, 98, "test year H2: target windows", "#eb6834")]:
+        ax.plot([x0, x1], [y0, y0], color=c, lw=3, solid_capstyle="butt")
+        ax.text((x0 + x1) / 2, y0 - 3.2, lab, ha="center", fontsize=fs, color=INK2)
+    ax.text(0, y0 + 2.2, "time", fontsize=fs, color=INK2)
     _save(fig, "Fig1_method")
 
 
@@ -122,9 +132,9 @@ def fig_stage_curves(cv, tag):
             if not len(gm):
                 continue
             gb = _blocks(gm)
-            kw = dict(color=_c(m), marker=MARK.get(m, "o"), markersize=3, lw=1.8 if m.startswith("HSC") else 0.9,
-                      ls="-" if m.startswith("HSC") else (0, (3, 1)))
-            axs[0, j].plot(gb.x, gb.coverage, label=m, **kw)
+            kw = dict(color=_c(m), marker=MARK.get(m, "o"), markersize=3, lw=1.8 if m in BOLD else 0.9,
+                      ls="-" if m in BOLD else (0, (3, 1)))
+            axs[0, j].plot(gb.x, gb.coverage, label=disp(m), **kw)
             axs[1, j].plot(gb.x, gb.rel_IS, **kw)
         axs[0, j].axhline(0.9, color=INK, lw=0.8, ls="--")
         axs[0, j].set_title(f"{'ab'[j]}  {ds}: mean coverage", loc="left")
@@ -148,8 +158,8 @@ def fig_cov_dist(df):
             c = np.sort(d[d.method == m].coverage.values)
             if not len(c):
                 continue
-            axs[j].plot(c, np.arange(1, len(c) + 1) / len(c), color=_c(m), lw=1.6 if m.startswith("HSC") else 1.0,
-                        label=m, ls="-" if m.startswith("HSC") else (0, (3, 1)))
+            axs[j].plot(c, np.arange(1, len(c) + 1) / len(c), color=_c(m), lw=1.6 if m in BOLD else 1.0,
+                        label=disp(m), ls="-" if m in BOLD else (0, (3, 1)))
         axs[j].axvline(0.9, color=INK, lw=0.8, ls="--")
         axs[j].axvline(0.85, color=INK2, lw=0.6, ls=":")
         axs[j].set_xlim(0.55, 1.0)
@@ -162,8 +172,9 @@ def fig_cov_dist(df):
 
 def fig_tradeoff(s):
     """Dot plot (no label overlap): methods sorted by BDG2 MACD; MACD and median relative IS; both datasets."""
-    meths = ["HSC-CQR simple", "HSC-CQR", "HSC-CQR (MLP)", "QShrink-CQR", "Self-CQR", "ACI-CQR", "Self-CP", "HSC",
-             "TQA-B-CQR", "GHCP-CQR", "CQR", "CQR (MLP)", "MLP-QR", "MLP-Gauss", "QR-LGBM", "ACI", "SCP-stage",
+    meths = [PRIMARY, "HSC-CQR fixed-κ", "HSC-CQR simple", "HSC-CQR", "HSC-CQR (MLP)", "QShrink-CQR",
+             "QShrink-CQR fixed-λ", "Self-CQR", "Switch-CQR", "ACI-CQR clip", "ACI-CQR", "Mondrian-site CQR", "Self-CP",
+             "HSC", "TQA-B-CQR", "GHCP-CQR", "CQR", "CQR (MLP)", "MLP-QR", "MLP-Gauss", "QR-LGBM", "ACI", "SCP-stage",
              "Mondrian-usage", "Naive+SCP"]
     d = s[(s.exp == "main") & (s.alpha == 0.1) & (s.perturb == "none")]
     g = d.groupby(["dataset", "method"])[["macd", "rel_IS"]].agg(["mean", "std"])
@@ -182,17 +193,17 @@ def fig_tradeoff(s):
         axs[j].set_title(f"{'ab'[j]}", loc="left")
         axs[j].grid(axis="y", color="#f0efec")
     axs[0].set_yticks(y)
-    axs[0].set_yticklabels(meths)
+    axs[0].set_yticklabels([disp(m) for m in meths])
     for t in axs[0].get_yticklabels():
-        if t.get_text().startswith("HSC-CQR"):
+        if t.get_text() == disp(PRIMARY):
             t.set_fontweight("bold")
     axs[0].legend(frameon=False, loc="upper right")
     _save(fig, "Fig5_tradeoff")
 
 
 def fig_ablation(s):
-    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR -shrink",
-             "Self-CQR", "CQR"]
+    meths = [PRIMARY, "HSC-CQR fixed-κ", "HSC-CQR simple", "HSC-CQR -kNN", "HSC-CQR -stage", "HSC-CQR",
+             "HSC-CQR -shrink", "Self-CQR", "Switch-CQR", "CQR"]
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 58 * MM))
     w = 0.38
     for j, metric, lab in [(0, "macd", "MACD"), (1, "rel_IS", "Median rel. interval score")]:
@@ -203,7 +214,7 @@ def fig_ablation(s):
             axs[j].bar(x, g["mean"], w * 0.92, yerr=g["std"], color=["#2a78d6", "#eb6834"][k], label=ds,
                        error_kw=dict(lw=0.6, capsize=1.5))
         axs[j].set_xticks(np.arange(len(meths)))
-        axs[j].set_xticklabels(meths, rotation=35, ha="right")
+        axs[j].set_xticklabels([disp(m) for m in meths], rotation=35, ha="right")
         axs[j].set_ylabel(lab)
         axs[j].set_title(f"{'ab'[j]}  {lab}", loc="left")
     axs[0].legend(frameon=False)
@@ -214,26 +225,27 @@ def fig_robust(s):
     rb = s[s.exp == "robust"]
     if not len(rb):
         return
-    perts = ["noise5", "noise15", "missing20", "missing40", "shift+40", "shift-40", "calpool10", "calpool25",
-             "calpool50", "weak-forecaster"]
-    perts = [p for p in perts if p in set(rb.perturb)]
-    meths = KEY
-    fig, axs = plt.subplots(2, 1, figsize=(190 * MM, 95 * MM), sharex=True)
+    perts = ["noise15", "noise15 (cal+target)", "missing40", "outage 3d@d10", "shift+40@d5", "shift+40", "shift-40",
+             "vol x2@d28", "temp-forecast error 2°C", "calpool10", "weak-forecaster"]
+    nice = {"noise15": "noise\n15%", "noise15 (cal+target)": "noise 15%\ncal+tgt", "missing40": "missing\n40%",
+            "outage 3d@d10": "outage\n3 d", "shift+40@d5": "level +40%\nday 5", "shift+40": "level +40%\nday 28",
+            "shift-40": "level −40%\nday 28", "vol x2@d28": "volatility\n×2", "temp-forecast error 2°C": "temp. fc\nerror",
+            "calpool10": "10% cal.\npool", "weak-forecaster": "weak\nforecaster"}
+    meths = KEY[:-1]
+    fig, axs = plt.subplots(2, 1, figsize=(190 * MM, 100 * MM))
+    fig.subplots_adjust(hspace=0.55)
     w = 0.8 / len(meths)
-    for j, metric, lab in [(0, "macd", "MACD"), (1, "under_rate", "Share of buildings under-covered (<0.85)")]:
+    for j, ds in enumerate(["BDG2", "UCI"]):
+        pp = [p for p in perts if p in set(rb[rb.dataset == ds].perturb)]
         for k, m in enumerate(meths):
-            g = rb[rb.method == m].groupby("perturb")[metric].mean().reindex(perts)
-            axs[j].bar(np.arange(len(perts)) + (k - len(meths) / 2 + 0.5) * w, g.values, w * 0.9, color=_c(m),
-                       label=m)
-        axs[j].set_ylabel(lab)
-    axs[1].set_xticks(np.arange(len(perts)))
-    nice = {"noise5": "noise 5%", "noise15": "noise 15%", "missing20": "missing 20%", "missing40": "missing 40%",
-            "shift+40": "level +40%\n(day 28)", "shift-40": "level −40%\n(day 28)", "calpool10": "10% cal.\npool",
-            "calpool25": "25% cal.\npool", "calpool50": "50% cal.\npool", "weak-forecaster": "weak\nforecaster*"}
-    axs[1].set_xticklabels([nice.get(p, p) for p in perts], rotation=0)
-    axs[0].legend(ncol=8, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.2), fontsize=5.8)
-    axs[0].set_title("a  Per-building miscalibration under stress (BDG2, 3 seeds)", loc="left", pad=14)
-    axs[1].set_title("b  Under-coverage", loc="left")
+            g = rb[(rb.method == m) & (rb.dataset == ds)].groupby("perturb")["macd"].mean().reindex(pp)
+            axs[j].bar(np.arange(len(pp)) + (k - len(meths) / 2 + 0.5) * w, g.values, w * 0.9, color=_c(m),
+                       label=disp(m) if j == 0 else None)
+        axs[j].set_xticks(np.arange(len(pp)))
+        axs[j].set_xticklabels([nice.get(p, p) for p in pp])
+        axs[j].set_ylabel("MACD")
+        axs[j].set_title(f"{'ab'[j]}  {ds}: per-building miscalibration under stress (3 seeds)", loc="left")
+    axs[0].legend(ncol=4, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.42), fontsize=5.8)
     _save(fig, "Fig7_robustness")
 
 
@@ -255,7 +267,7 @@ def fig_generalisation(s):
             v = d[d.method == m]
             for j, metric in enumerate(["macd", "rel_IS"]):
                 axs[j].bar(ci + (k - len(meths) / 2 + 0.5) * w, v[metric].mean(), w * 0.9, color=_c(m),
-                           label=m if ci == 0 else None)
+                           label=disp(m) if ci == 0 else None)
     for j, lab in enumerate(["MACD", "Median rel. interval score"]):
         axs[j].set_xticks([c for c, _ in labs])
         axs[j].set_xticklabels([l for _, l in labs], rotation=30, ha="right")
@@ -266,51 +278,63 @@ def fig_generalisation(s):
 
 
 def fig_sensitivity(tag):
+    """Target-building MACD and median IS of the uniform-prior mixture (PCM-CQR) over the κ grid, with the
+    distribution of κ selected on calibration buildings by LOBO-CD and LOBO-IS (never used for selection)."""
     p = os.path.join(RES, f"sensitivity{tag}.csv")
     if not os.path.exists(p):
         return
+    import json
     d = pd.read_csv(p)
-    d = d[np.isfinite(d.kappa) | (d.kappa == np.inf)]
-    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 100 * MM))
-    fig.subplots_adjust(hspace=0.45, wspace=0.25)
+    info = json.load(open(os.path.join(RES, "run_info.json")))
+    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 95 * MM))
+    fig.subplots_adjust(hspace=0.5, wspace=0.25)
     for j, ds in enumerate(["BDG2", "UCI"]):
-        g = d[(d.dataset == ds) & (d.score == "cqr")].groupby(["K", "kappa"])[["macd", "rel_IS"]].mean().reset_index()
+        g = d[(d.dataset == ds) & (d.score == "cqr") & (d.K.astype(str) == "uniform")]
+        g = g.groupby(["seed", "kappa"])[["macd", "rel_IS"]].mean().reset_index()
         g = g[g.kappa > 0]
+        picks = {lab: [info[k][key]["kappa"] for k in info if k.startswith(f"main{tag}_{ds}_s") and k.endswith("a0.1")
+                       and key in info[k]] for lab, key in [("LOBO-CD", "hsc_cqr_covk"), ("LOBO-IS", "hsc_cqr_simple")]}
         for i, metric in enumerate(["macd", "rel_IS"]):
-            for kk, K in enumerate(["10", "25", "50", "100", "all"]):
-                gk = g[g.K.astype(str) == K]
-                xs = np.where(np.isinf(gk.kappa), 3000, gk.kappa)
-                axs[i, j].plot(xs, gk[metric], marker="o", ms=2.5, lw=1.0,
-                               color=["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"][kk], label=f"K={K}")
+            for sd, gs in g.groupby("seed"):
+                xs = np.where(np.isinf(gs.kappa), 3000, gs.kappa)
+                axs[i, j].plot(xs, gs[metric], color="#c3c2bd", lw=0.7)
+            m = g.groupby("kappa")[metric].mean()
+            xs = np.where(np.isinf(m.index), 3000, m.index)
+            axs[i, j].plot(xs, m.values, color=INK, marker="o", ms=2.5, lw=1.2, label="mean over seeds")
+            for lab, col, off in [("LOBO-CD", "#2a78d6", 0.0), ("LOBO-IS", "#eb6834", 0.08)]:
+                for kk in picks[lab]:
+                    x = 3000 if np.isinf(kk) else kk
+                    axs[i, j].axvline(x * (1 + off), color=col, lw=0.8, alpha=0.6,
+                                      label=f"κ chosen by {lab}" if kk == picks[lab][0] else None)
             axs[i, j].set_xscale("log")
             axs[i, j].minorticks_off()
             axs[i, j].set_xticks([24, 96, 336, 1344, 3000])
             axs[i, j].set_xticklabels(["24", "96", "336", "1344", "∞"])
-            axs[i, j].set_title(f"{'abcd'[2 * i + j]}  {ds}: HSC-CQR {'MACD' if metric == 'macd' else 'median rel. IS'}",
-                                loc="left")
-        axs[1, j].set_xlabel("Prior pseudo-count κ (hours of scores)")
-    axs[0, 0].legend(frameon=False, ncol=3)
+            axs[i, j].set_title(f"{'abcd'[2 * i + j]}  {ds}: {'MACD' if metric == 'macd' else 'median rel. IS'} "
+                                "on target buildings", loc="left")
+        axs[1, j].set_xlabel("Pseudo-count κ (hours of pooled scores)")
+    axs[0, 0].legend(frameon=False, fontsize=5.8)
     _save(fig, "Fig9_sensitivity")
 
 
 def fig_errors(df):
     d = df[(df.exp == "main") & (df.alpha == 0.1) & (df.dataset == "BDG2")]
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM))
-    for m in ["CQR", "HSC-CQR"]:
+    for m in ["CQR", PRIMARY]:
         dm = d[d.method == m]
-        axs[0].scatter(dm.cvrmse_lgb, dm.coverage, s=3, alpha=0.45, color=_c(m), label=m, linewidths=0)
+        axs[0].scatter(dm.cvrmse_lgb, dm.coverage, s=3, alpha=0.45, color=_c(m), label=disp(m), linewidths=0)
     axs[0].set_xscale("log")
     axs[0].axhline(0.9, color=INK, lw=0.8, ls="--")
     axs[0].set_xlabel("Point-forecast CV(RMSE) of the building (log)")
     axs[0].set_ylabel("Per-building coverage")
     axs[0].legend(frameon=False, markerscale=3)
     axs[0].set_title("a  Coverage vs. forecast difficulty (BDG2)", loc="left")
-    dm = d[d.method == "HSC-CQR"]
+    dm = d[d.method == PRIMARY]
     u = dm.groupby("usage").coverage.agg(["mean", "size"]).query("size >= 30").sort_values("mean")
     dc = d[d.method == "CQR"].groupby("usage").coverage.mean().reindex(u.index)
     y = np.arange(len(u))
     axs[1].scatter(dc.values, y, color=_c("CQR"), marker="s", s=14, label="CQR", zorder=3)
-    axs[1].scatter(u["mean"].values, y, color=_c("HSC-CQR"), marker="o", s=14, label="HSC-CQR", zorder=3)
+    axs[1].scatter(u["mean"].values, y, color=_c(PRIMARY), marker="o", s=14, label=disp(PRIMARY), zorder=3)
     for yi, a, b in zip(y, dc.values, u["mean"].values):
         axs[1].plot([a, b], [yi, yi], color=GREY, lw=0.6, zorder=1)
     axs[1].set_yticks(y)
@@ -335,14 +359,14 @@ def fig_examples(tag):
         em0 = e[e.method == "CQR"].sort_values(["stage", "hour"])
         t = (em0.stage.values) * 24 + em0.hour.values
         axs[i].plot(t, em0.y, color=INK, lw=0.8, label="observed", zorder=3)
-        for m, ls in [("CQR", (0, (3, 1.5))), ("HSC-CQR", "-")]:
+        for m, ls in [("CQR", (0, (3, 1.5))), (PRIMARY, "-")]:
             em = e[e.method == m].sort_values(["stage", "hour"])
-            axs[i].plot(t, em.lo, color=_c(m), lw=0.9, ls=ls, label=f"{m} 90 % bounds")
+            axs[i].plot(t, em.lo, color=_c(m), lw=0.9, ls=ls, label=f"{disp(m)} 90 % bounds")
             axs[i].plot(t, em.hi, color=_c(m), lw=0.9, ls=ls)
             miss = (em.y.values < em.lo.values) | (em.y.values > em.hi.values)
             axs[i].scatter(t[miss], em.y.values[miss], s=9, marker="x" if m == "CQR" else "o", color=_c(m),
-                           zorder=4, linewidths=0.8, facecolors="none" if m == "HSC-CQR" else None,
-                           label=f"missed by {m}")
+                           zorder=4, linewidths=0.8, facecolors="none" if m == PRIMARY else None,
+                           label=f"missed by {disp(m)}")
         axs[i].set_title(f"{'ab'[i]}  {b}: {'10th' if pick == 'p10' else '50th'} percentile of CQR coverage "
                          f"(seed 0, first 10 forecast days)", loc="left")
         axs[i].set_ylabel("kWh")

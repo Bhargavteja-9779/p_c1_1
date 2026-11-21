@@ -415,9 +415,9 @@ def sensitivity(mode="full"):
                 St = pl.scores_abs(PT) if score == "abs" else pl.scores_cqr(PT)
                 binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
                 cct = cb.cum_counts(St)
-                for K in pl.KS:
-                    nb = pl.nbrs_by_stage(PT["z"], PC["z"], K)
-                    q = cb.hsc_quantiles(cct, binc, nb, 0.1, pl.KAPPAS, stages)
+                for K in pl.KS + ["uniform"]:  # "uniform": K = all, no stage matching (= PCM, revision 1)
+                    nb = pl.nbrs_by_stage(PT["z"], PC["z"], None if K == "uniform" else K)
+                    q = cb.hsc_quantiles(cct, binc, nb, 0.1, pl.KAPPAS, stages, stage_matched=K != "uniform")
                     for ki, kap in enumerate(pl.KAPPAS):
                         if score == "abs":
                             lo, hi = PT["yhat"] - q[ki][:, :, None] * PT["s"][:, :, None], PT["yhat"] + q[ki][:, :, None] * PT["s"][:, :, None]
@@ -425,7 +425,7 @@ def sensitivity(mode="full"):
                             lo, hi = PT["qlo"] - q[ki][:, :, None] * PT["s"][:, :, None], PT["qhi"] + q[ki][:, :, None] * PT["s"][:, :, None]
                         m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
                         cov = m["coverage"]
-                        out.append(dict(dataset=dsn, seed=s, score=score, K="all" if K is None else K,
+                        out.append(dict(dataset=dsn, seed=s, score=score, K="all" if K is None else K, stage_matched=K != "uniform",
                                         kappa=kap, macd=float(np.mean(np.abs(cov - 0.9))),
                                         under=float(np.mean(cov < 0.85)), mean_cov=float(cov.mean()),
                                         rel_IS=float(np.median(m["rel_IS"])),
@@ -446,7 +446,7 @@ def _examples(dsn, ds, obj, tag):
     picks = {"p10": order[int(0.1 * (len(cov) - 1))], "p50": order[int(0.5 * (len(cov) - 1))]}
     rows = []
     for lab, i in picks.items():
-        for meth in ["CQR", "HSC-CQR" if "HSC-CQR" in out else "HSC", "HSC"]:
+        for meth in ["CQR", "HSC-CQR cov-κ", "HSC-CQR fixed-κ", "Self-CQR"]:
             lo, hi = out[meth]
             for h in range(pl.NH):
                 for j in range(24):
