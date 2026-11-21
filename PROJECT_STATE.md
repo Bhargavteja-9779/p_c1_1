@@ -101,3 +101,15 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
    desk screen, R10 final adversarial. Save REVIEW/review_XX.md with author response; fix; rerun if needed.
 5. Final audits (consistency, reproducibility), DOCX/PDF, cover letter, /Target_Journal_Submission package
    (scripts/package_submission.py), REVIEW/final_audit.md, rejection-risk report, final decision.
+
+### Cycle-2 manuscript progress (step 4, results-independent parts)
+- DONE: 04_method (credibility attribution Bühlmann/Efron, Shahid LOO credit, [37] as software record, DP reading
+  only rho=1, kappa->inf limit qualified, ESS bound 24/(1-rho), rho history corrected, constrained objective + grid,
+  sigma0 from validation, Corollary 1 credited to LBW + premise violated, Bersson & Hoff, algorithm box, D-1 info set).
+- DONE: 02_intro related work + gaps 2-3 + contributions 1-3 reframed (evaluation/frontier first; layer = adaptation).
+  Contribution 4 (operational) + results/discussion/abstract/highlights: after results.
+- PENDING refs (agent verifying): kath2021, gibbs2024dtaci, bhatnagar2023saocp, lu2023fed (+ optional zhang posterior,
+  hoff2023, bhattacharyya). Add to references.py when verified; else delete the citations from 02_intro.
+- TODO later: Supplementary S5 = SSC-CQR stage-wise coverage (cited in 04_method); GHCP labelled "HCP-style" and
+  delete "most likely favours GHCP-CQR" in supplement (#17); Table 3 caption Eq. ref; rho overload (penalty -> rho_p);
+  figure file renaming; "buildings and clients" in highlights; REPRODUCIBILITY_STATUS update; per-part commit hash.

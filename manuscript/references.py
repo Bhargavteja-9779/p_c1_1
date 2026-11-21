@@ -66,5 +66,9 @@ REFS = {
     "moradi2025": "Moradi A, Tanneau M, Zandehshahvar R, Van Hentenryck P. Enhanced renewable energy forecasting using context-aware conformal prediction. arXiv:2510.15780 [Preprint]; 2025. https://doi.org/10.48550/arXiv.2510.15780.",
     "vejling2026": "Vejling MV, Biscio CAN, Mazoyer A, Popovski P, Pandey SR. Multi-agent conformal prediction with personalized statistical validity. arXiv:2606.00717 [Preprint]; 2026. https://doi.org/10.48550/arXiv.2606.00717.",
     "almeida2015": "Almeida V, Gama J. Prediction intervals for electric load forecast: Evaluation for different profiles. In: 2015 18th International Conference on Intelligent System Application to Power Systems (ISAP); 2015. https://doi.org/10.1109/isap.2015.7325539.",
+    "guan2023": "Guan L. Localized conformal prediction: A generalized inference framework for conformal prediction. Biometrika 2023;110:33–50. https://doi.org/10.1093/biomet/asac040.",
+    "buhlmann1967": "Bühlmann H. Experience rating and credibility. ASTIN Bull 1967;4:199–207. https://doi.org/10.1017/S0515036100008989.",
+    "efron1973": "Efron B, Morris C. Stein's estimation rule and its competitors—An empirical Bayes approach. J Am Stat Assoc 1973;68:117–30. https://doi.org/10.2307/2284155.",
+    "angelopoulos2023pid": "Angelopoulos AN, Candès EJ, Tibshirani RJ. Conformal PID control for time series prediction. In: Advances in Neural Information Processing Systems 36 (NeurIPS 2023); 2023. https://arxiv.org/abs/2307.16895.",
     "shi2026": "Shi L, Shen Z, Lyu T. Local online conformal prediction for power load forecasting intervals. Electr Power Syst Res 2026;261:113412. https://doi.org/10.1016/j.epsr.2026.113412.",
 }
