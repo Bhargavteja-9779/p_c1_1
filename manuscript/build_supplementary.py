@@ -21,7 +21,9 @@ def _tab(name, caption):
 def build():
     s = ["---\ntitle: \"Supplementary material: Reliable day-ahead prediction intervals for newly metered buildings\"\n---\n"]
     s.append("# S1. Full results (all methods; mean ± s.d. over seeds)\n\nIn these tables, *Rel. IS (median)* and "
-             "*Rel. width (median)* are medians over buildings; mean values are in tables/*_raw.csv.\n\n")
+             "*Rel. width (median)* are medians over buildings; mean values are in tables/*_raw.csv. Method names are the code "
+             "names: HSC-CQR simple = SSC-CQR (primary); HSC-CQR fixed-κ = SSC-CQR (κ=168); HSC-CQR = SSC-CQR +stage+kNN; "
+             "HSC = SSC +stage+kNN on the absolute score (pre-registered); HSC simple = SSC (abs).\n\n")
     n = 1
     for name, cap in [("T_main_BDG2", "BDG2, random-building protocol, nominal 90 %"),
                       ("T_main_UCI", "UCI, random-building protocol, nominal 90 %"),
@@ -37,21 +39,38 @@ def build():
         if t:
             s.append(t)
             n += 1
+    for name, cap in [("SI_abs_BDG2", "Absolute-score methods, BDG2"), ("SI_abs_UCI", "Absolute-score methods, UCI"),
+                      ("T_windows_BDG2", "Per-window reliability, BDG2 (all window metrics incl. P10)"),
+                      ("T_windows_UCI", "Per-window reliability, UCI"),
+                      ("T_sites_BDG2", "Per-site MACD and under-covered share, BDG2"),
+                      ("T_downstream_BDG2", "Downstream reservation case study, BDG2 (all penalty ratios)"),
+                      ("T_downstream_UCI", "Downstream reservation case study, UCI")]:
+        p = os.path.join(T, name + ".md")
+        if os.path.exists(p):
+            body = open(p).read()
+            if body.startswith("**"):
+                body = body.split("\n", 2)[2]
+            s.append(f"**Table S{n}. {cap}.**\n\n{body}\n\n")
+            n += 1
     s.append("# S2. Statistical tests\n\n")
-    s.append(_tab("T_tests", f"Table S{n}. All paired Wilcoxon signed-rank tests at nominal 90 % (Holm-adjusted)."))
+    s.append(_tab("T_tests", f"Table S{n}. All paired tests at nominal 90 % (site sign-flip and building-level Wilcoxon; Holm within family × metric)."))
     n += 1
     s.append("# S3. Robustness (all methods)\n\n")
-    s.append(_tab("T_robustness", f"Table S{n}. Robustness conditions on BDG2 (mean over 3 seeds)."))
+    s.append(_tab("T_robustness", f"Table S{n}. Robustness conditions on BDG2 (mean and s.d. over 3 seeds)."))
     n += 1
     s.append("# S4. Selected hyper-parameters (leave-one-building-out on calibration buildings)\n\n")
     info = json.load(open(os.path.join(ROOT, "results", "run_info.json")))
-    rows = ["| Run | HSC (κ, K) | HSC-CQR (κ, K) | ACI γ | ACI-CQR γ |", "|:--|:--|:--|:--|:--|"]
+    rows = ["| Run | SSC-CQR κ | SSC-CQR (IS-tuned) κ | +stage+kNN (κ, K) | QShrink λ | Self-CQR-fb m | ACI-CQR γ | "
+            "TQA-B β | GHCP n | inverted h |", "|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|"]
     for k, v in sorted(info.items()):
         if "a0.1" in k or k.startswith(("lso", "xds")):
             hq = v.get("hsc_cqr", {})
-            rows.append(f"| {k} | {v.get('hsc_kappa')}, {v.get('hsc_K') or 'all'} | {hq.get('kappa')}, "
-                        f"{hq.get('K') or 'all'} | {v.get('aci_gamma')} | {v.get('aci_cqr_gamma')} |")
-    s.append(f"**Table S{n}. Selected κ (hours), K and γ per run.**\n\n" + "\n".join(rows) + "\n\n")
+            rows.append(f"| {k} | {v.get('hsc_cqr_simple', {}).get('kappa')} | "
+                        f"{v.get('hsc_cqr_simple_IS', {}).get('kappa')} | {hq.get('kappa')}, {hq.get('K') or 'all'} | "
+                        f"{v.get('qshrink_lambda')} | {v.get('selffb_min_hours')} | {v.get('aci_cqr_gamma')} | "
+                        f"{v.get('tqab_beta')} | {v.get('ghcp_n_sur')} | {v.get('inverted_hours', 0)} |")
+    s.append(f"**Table S{n}. Parameters selected by leave-one-building-out per run (hours for κ, λ, m, n).**\n\n"
+             + "\n".join(rows) + "\n\n")
     n += 1
     s.append("# S5. Pre-registration\n\n" + open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read()
              .replace("# Pre-registered", "Pre-registered") + "\n")
