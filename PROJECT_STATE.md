@@ -1,6 +1,6 @@
 # PROJECT_STATE
 
-Last updated: 2026-11-15 ~13:15 UTC (session 1)
+Last updated: 2026-11-21 ~10:40 UTC (session 3)
 
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
@@ -28,6 +28,10 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
+Session 3 (2026-11-21): fresh container -> requirements reinstalled, 11 tests pass; review cycle 1
+workflow launched (run wf_51fec9ab-794); model cache being rebuilt in background (`ex.train_only('full')`,
+log results/experiment_logs/train_only.log) so that fixes requiring recomputation are not blocked.
+
 Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
 consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
 

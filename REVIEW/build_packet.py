@@ -41,7 +41,7 @@ CODE_MAP = """
 - src/statistics/analysis.py — seed-level tables, paired Wilcoxon + Holm + rank-biserial + cluster bootstrap.
 - src/statistics/manuscript_tables.py, error_analysis.py; manuscript/values.py (every number in the text);
   manuscript/build_docx.py; tests/test_core.py (11 tests); experiments/PREREGISTRATION.md; CHANGELOG.md.
-- results/raw_results.csv (per building × seed × method), results/statistics.csv, results/run_info.json
+- results/raw_results.csv.gz (gzip; per building × seed × method), results/statistics.csv, results/run_info.json
   (tuned parameters + tuning tables), results/seed_level_metrics.csv, results/stage_curves.csv.
 """
 
