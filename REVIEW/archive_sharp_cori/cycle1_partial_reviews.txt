@@ -1,0 +1,527 @@
+{
+  "summary": "Ten independent reviewer agents (distinct scientific perspectives) review manuscript, code and results for one improvement cycle",
+  "agentCount": 10,
+  "logs": [
+    "[R6-robustness-generalisation] failed: You've hit your 5-hour limit · resets 3:30pm (UTC)",
+    "[R7-computational] failed: You've hit your 5-hour limit · resets 3:30pm (UTC)",
+    "[R8-literature-citations] failed: You've hit your 5-hour limit · resets 3:30pm (UTC)",
+    "[R9-associate-editor] failed: You've hit your 5-hour limit · resets 3:30pm (UTC)",
+    "[R10-hostile-competitor] failed: You've hit your 5-hour limit · resets 3:30pm (UTC)",
+    "[R5-data-leakage] failed: You've hit your 5-hour limit · resets 3:30pm (UTC)"
+  ],
+  "result": [
+    {
+      "role": "R1-novelty-prior-art",
+      "recommendation": "Major revision",
+      "summary": "Novelty/prior-art review, cycle 1. I read the packet, checked results/run_info.json and results/sensitivity.csv, and inspected the code archive of the closest prior work (Jeon, Zenodo 10.5281/zenodo.24002627, v1.2, 6 Nov 2026; the record says the companion paper is under review at Sci Rep). After the pre-review audit, the authors already concede that the mechanism is not new. My checks go further: the study design is largely the same as Jeon's. The one methodological differentiator left, leave-one-building-out (LOBO) tuning of kappa, has already been used (Shahid, arXiv:2606.20115, which picks n0 by leave-one-site-out). On the paper's own reliability endpoints it is also beaten by Jeon's fixed pseudo-count. The remaining contribution is an applied benchmark on building loads with more baselines (GHCP, TQA-B, QShrink, Mondrian). That can suit AAE, but only if the paper is reframed as such and the comparisons are made fair. The closest panel-data competitor is missing (Tu & Giesecke 2026, W-TQA). I found no relevant patents. Recommendation: Major revision.",
+      "issues": [
+        {
+          "severity": "Critical",
+          "title": "Closest prior art (Jeon 2026) has the same study design; contributions 1 and 3 claim too much",
+          "evidence": "In the Jeon archive, src/run_cp_matrix.py (~L407-416) and src/revision_r1_analysis.py:96-107 implement M4 'donor+local mixture': each local score has weight 1, the pooled donor scores share total mass m, and the threshold is (1-alpha)(m+n+1). This is Eq. (5) with kappa=m and a uniform prior, i.e. 'HSC simple'. m=150 is the main value, with a sensitivity run over {50,400}. research/DESIGN.md Sec. 1/4/5 sets out the same question with matching parts. RQ1 is a per-unit validity audit at new sites, reported as the share of stations within +/-2 pp plus worst-slice coverage. RQ2 is a 'budget law' (the number of days until coverage is reliable). RQ3 tests similarity-weighted donors (geodesic and kt-Wasserstein). RQ4 compares pooled, local-only and mixture calibration with cold-started ACI. The forecasters are LGBM-QR and MLP-QR with CQR, under leave-one-station-out and across-site Wilcoxon tests. The manuscript cites [29] only as an 'analysis-code record' and says the 'missing' evidence is per-unit reliability and the value of similarity. Jeon already studied both, in solar irradiance.",
+          "action": "Describe [29] as a full parallel study (and cite the paper once it is published). Add a side-by-side table comparing Jeon, Shahid, Rafe & Das, GHCP, TQA, W-TQA and this work. Reframe the paper as a transfer and extension of the onboarding-calibration benchmark to building loads, with more baselines. Drop 'we formalise' and present HSC as a known estimator. If any author overlaps with [29], disclose it to the editor (redundant-publication policy)."
+        },
+        {
+          "severity": "Major",
+          "title": "The only methodological differentiator, LOBO-tuned kappa, is not new and does worse than a fixed kappa",
+          "evidence": "Shahid (arXiv:2606.20115) already selects n0 by leave-one-site-out. Fixed kappa=168 beats tuned HSC-CQR on MACD and under-covered share in 6/6 settings: BDG2 0.015/1.9% vs 0.018/3.4%; UCI 0.013/0.4% vs 0.014/0.6%; leave-site-out 0.016/1.7% vs 0.020/5.3%; BDG2->BDG2 0.015/1.6% vs 0.017/2.9%; BDG2->UCI 0.011/0.4% vs 0.013/0.4%; UCI->BDG2 0.019/4.3% vs 0.023/8.7%. The cost in median relative interval score (IS) is at most 0.002, and under UCI->BDG2 the fixed variant is sharper. The LOBO objective is nearly flat: in run_info, kappa=168 vs 336 differs by only 0.08-0.24% across the BDG2 seeds (s0: 0.59647 vs 0.59560). Yet the abstract and highlights promote the tuned variant.",
+          "action": "Either recommend a fixed kappa of about one week and report it in the abstract, or develop a selection rule aimed at reliability (LOBO on MACD or under-coverage, or IS subject to a coverage-dispersion constraint) and show that it beats fixed kappa.",
+          "experiment": "Calibration-only rerun of LOBO with reliability-oriented objectives, on stored scores."
+        },
+        {
+          "severity": "Major",
+          "title": "The closest panel competitor (W-TQA) is missing; one 'untested remedy' already exists",
+          "evidence": "Tu D., Giesecke K., 'Online Conformal Prediction for Non-Exchangeable Panel Data', arXiv:2605.17705 (v1 18 May 2026, v2 5 Oct 2026). Its W-TQA method weights peers by similarity learned from each unit's history and adds a target-specific adaptive miscoverage level. It reports the highest coverage on the worst-covered target units. That is the 'similarity plus online miscoverage control' combination that Sec. 6.4(6) lists as untested. Also uncited: Zhang Y., Candes E.J., 'Posterior Conformal Prediction', arXiv:2409.19712, which models scores as a mixture of cluster distributions and has approximate cluster-conditional validity.",
+          "action": "Cite and position both papers, and add W-TQA (adapted to CQR scores) as a baseline in the main and stress tables.",
+          "experiment": "W-TQA-CQR on BDG2/UCI, main protocol and level-shift tests."
+        },
+        {
+          "severity": "Major",
+          "title": "The HSC vs QShrink mechanism comparison is confounded by shrinkage strength",
+          "evidence": "In run_info, QShrink chose lambda=672 in 4/5 BDG2 seeds (1344 in s4), while HSC-CQR chose kappa=336 in 5/5. In sensitivity.csv, HSC-CQR at kappa=672 (K=all) gives MACD 0.0212 and 5.3% under-covered on BDG2, close to QShrink-CQR's 0.022 and 4.1%. The 'advantage for the distribution mixture' (Table 4: r_rb=0.40; Sec. 6.1) may therefore come from the tuned strength rather than the mechanism.",
+          "action": "Compare the two at matched strength (kappa=lambda) across the whole grid, and only claim a mechanism difference if it holds there.",
+          "experiment": "QShrink-CQR target sensitivity over the lambda grid (calibration-only), and paired tests at matched kappa=lambda."
+        },
+        {
+          "severity": "Moderate",
+          "title": "'Similarity adds nothing' is too general",
+          "evidence": "Only kNN on a load-shape descriptor was tested (Sec. 3.4(ii)). The prior art measures similarity in score space instead: Ding et al. [47] (cited but not run), Jeon's kt-Wasserstein weighting, and W-TQA's learned weights. Yet the abstract and highlights state the conclusion in general terms.",
+          "action": "Limit the claim to load-shape similarity, or test similarity based on early own scores (for example, the Wasserstein distance between a building's first-day CQR scores and each calibration building's score distribution)."
+        },
+        {
+          "severity": "Moderate",
+          "title": "The 'pre-registered' framing does not match the pre-registration file",
+          "evidence": "CHANGELOG.md:36 says 'Pre-registered primary comparison remains HSC-CQR'. PREREGISTRATION.md, however, lists 'HSC on CQR scores (variant)' among the baselines, and its H0 expects benefits from the similarity prior and stage matching. The pre-registered HSC (absolute scores) has a worse IS than SCP-stage (0.642 vs 0.639) and a worse MACD than Self-CP (0.029 vs 0.026).",
+          "action": "Report the outcome of H0 explicitly, mark HSC-CQR as the post-hoc headline, and correct the CHANGELOG."
+        },
+        {
+          "severity": "Minor",
+          "title": "The new acronym suggests a new method, and 'hierarchical' clashes with HCP/GHCP",
+          "evidence": "'Hierarchical shrinkage conformal (HSC)' names the DP posterior-mean / credibility / Jeon M4 estimator. In HCP and GHCP [23-25], 'hierarchical' has a specific exchangeability meaning.",
+          "action": "Use a descriptive name such as 'pseudo-count score mixture (donor-local mixture)'."
+        },
+        {
+          "severity": "Minor",
+          "title": "Missing related citations",
+          "evidence": "(i) 'Horizon-aware group-conditional conformal prediction: Post-hoc shrinkage for sparse multi-horizon coverage auditing', Machine Learning with Applications 2026, ScienceDirect PII S2666827026002033 (I could not retrieve the authors). It shrinks cell quantiles toward an anchor, with strength chosen by cross-validation, and gives a finite-sample bound. This bears on Limitation 1 and the future-work item on guarantees. (ii) Park Y.J., Germain F., Liu J., Wang Y., Koike-Akino T., Wichern G., Azizan N., Laughman C.R., Chakrabarty A., 'Probabilistic Forecasting for Building Energy Systems using Time-Series Foundation Models', arXiv:2506.00630 (2025), relevant to Limitation 7. (iii) Ashouritaklimi K., Cortinovis S., Caron F., 'Robust Bayes-Assisted Conformal Prediction', ICML 2026, arXiv:2607.04236.",
+          "action": "Cite these and position the paper against them; soften the future-work wording on guarantees."
+        }
+      ]
+    },
+    {
+      "role": "R2-methodology",
+      "recommendation": "Major revision",
+      "summary": "Eqs. (1)-(6), the stage bins, the asinh grid, the LOBO grids, and the GHCP, QShrink and TQA-B adaptations match the code. Checked: calibration.py:173-210 against Eq. 5, features.py:61-65 against Eq. 1, pipeline.py:28-29 and 193-208, and metrics.py:18-44. I found no leakage bug. Four things weaken the methodology. (1) The manuscript says the study was pre-registered, but the method it recommends was designed after looking at target results. (2) The LOBO selection of kappa, which the paper presents as what sets it apart from [29], loses on the paper's own reliability endpoint to a fixed kappa of 168 h, the same fixed-pseudo-count mixture as [29]. (3) The main adaptive competitor, ACI, is held back by how the code handles the radius when alpha_h <= 0. (4) Some negative findings and the generality claims rest on design choices the paper does not discuss: the kNN descriptor, the information timing, the in-period calibration windows, and running HSC-CQR at alpha = 0.1 only. Each can be fixed with calibration-only reruns or a change of wording.",
+      "issues": [
+        {
+          "severity": "Major",
+          "title": "The 'pre-registered' claim is contradicted by the project log; the recommended variant was designed after looking at target results",
+          "evidence": "Manuscript §4.4 (packet l.203): 'All settings were fixed in a pre-registration file before any full experiment was run'; the abstract also says 'pre-registered'. But experiments/PREREGISTRATION.md lists HSC on absolute scores as the primary method and 'HSC on CQR scores (variant)' only under Baselines. EXPERIMENT_LOG.md:17-18 says 'Interim observations used only for design decisions: ... component ablation showing no benefit of kNN prior/stage matching'. After that look, CHANGELOG 2026-11-16 and PROJECT_STATE.md:44 add the 'simple' variant (named 'recommended default'), fixed-kappa, GHCP, QShrink and TQA-B. The pre-registered primary loses to Self-CP on per-building coverage deviation (statistics.csv: BDG2 HSC vs Self-CP abs_dev r=-0.19, p_holm=1e-5).",
+          "action": "Add a deviation table that says what was pre-registered and what was added or changed, and when. Label HSC-CQR as the elevated primary, and label the simple and fixed-kappa variants as exploratory. Report the outcome of the pre-registered hypothesis (absolute-score HSC against all baselines) in the main text. Tone down 'pre-registered' in the abstract.",
+          "experiment": "None"
+        },
+        {
+          "severity": "Major",
+          "title": "LOBO kappa selection loses to an untuned kappa on the primary reliability endpoint and does not set the method apart from [29]",
+          "evidence": "Table 4: tuned HSC-CQR vs fixed-kappa on BDG2, CD +0.0026 [+0.0015,+0.0036], r_rb=-0.45, p<0.001. Table 5: fixed-kappa has MACD 0.015 with 1.9% under-covered, vs 0.018 and 3.4% for tuned. Yet §2.3 (l.62) gives 'select the pseudo-count by leave-one-building-out rather than fixing it' as the differentiator from [29]. The LOBO objective barely separates the candidates: run_info.json main_BDG2_s0 tune_hsc_cqr_simple gives 0.5965 at kappa=168 and 0.5956 at 336, a 0.15% difference.",
+          "action": "Either drop LOBO selection as a contribution or pre-specify a tuning objective that targets reliability, and tune both HSC and QShrink with it: for example LOBO MACD or under-covered share, or the interval score subject to a coverage constraint. Rewrite the abstract and §2.3 so they agree with what the data show.",
+          "experiment": "Calibration-only rerun with the new objective (models are cached)."
+        },
+        {
+          "severity": "Major",
+          "title": "The ACI baselines are held back by the 500·s radius cap combined with interval-score tuning",
+          "evidence": "calibration.py:231 sets the radius to GRID[-1]=500·s when alpha_h<=0. Under interval-score tuning this makes any responsive gamma unusable. run_info.json main_BDG2_s0 tune_aci_cqr: objective 0.224 at gamma=1e-3, 1.51 at 2e-3, 15.0 at 5e-3 and 56.8 at 1e-2. The capped intervals also appear on targets: per-building rel_width reaches 170 (BDG2) and 335 (UCI) in raw_results. §5.2 (l.275) explains ACI's poor showing by its 'small step size', but that step size is a product of this cap.",
+          "action": "Implement ACI with a finite cap, such as the largest calibration score in the bin, or with alpha_h clipped to a range, or use the AgACI aggregation [21]. Tune gamma on the reliability objective too, and show a target-side gamma sweep like Fig. 9. Separately, the empty-set rule for CQR scores can invert intervals and has no test (tests/test_core.py:138 covers absolute scores only).",
+          "experiment": "Calibration-only rerun of ACI and ACI-CQR."
+        },
+        {
+          "severity": "Moderate",
+          "title": "The kNN prior's descriptor and the general claim that similarity priors 'add nothing'",
+          "evidence": "features.py:137 builds 24 shape dimensions, 1 variability dimension and 1 log-mean dimension, all standardised with equal weight (calibration.py:132-136). Load shape therefore dominates the distance, and variability, the most plausible driver of score dispersion, counts for 1/26. The kNN prior also does harm: at stage 1, HSC-CQR coverage is 0.868 against 0.881 for CQR (stage_curves.csv, main BDG2), and -shrink leaves 21.7% under-covered against 18.7% for CQR (Table 5). The evidence is mixed rather than null: for absolute-score HSC on UCI, removing kNN worsens MACD from 0.021 to 0.027.",
+          "action": "Reword the highlights, abstract and §6.2 to say that the tested descriptor gives no consistent benefit and is harmful in the first days. Optionally, test a descriptor based on variability or score scale.",
+          "experiment": "Optional calibration-only ablation."
+        },
+        {
+          "severity": "Moderate",
+          "title": "The information timing is optimistic for day-ahead use",
+          "evidence": "features.py:57-59 uses all 24 hours of day t-1 as features, including hour 23. calibration.py:209 makes the day t-1 scores available when computing day t's radius. Under a gate closure at, say, noon on D-1, neither would be available. This favours every own-score method. Limitation 3 covers only observed weather, and the authors themselves cite delayed-feedback ACI [29].",
+          "action": "Add a one-day feedback delay for all adaptive methods, or state the zero-lag assumption explicitly as a limitation.",
+          "experiment": "Calibration-only rerun with own scores up to h-2."
+        },
+        {
+          "severity": "Moderate",
+          "title": "The headline method was not evaluated at the 95% and 80% levels",
+          "evidence": "experiments.py:121-125 drops every CQR-based method when alpha≠0.1, so supplementary Tables S3-S6 include only absolute-score methods. At those levels Self-CP's MACD is lower than or equal to HSC's: BDG2 95% 0.017 vs 0.019, and 80% 0.038 vs 0.039.",
+          "action": "Evaluate HSC-CQR and its competitors at alpha=0.05 and 0.2. CQR remains valid even with the existing 5%/95% quantile models.",
+          "experiment": "Optionally retrain the quantile models (3 LightGBM fits per seed), then a calibration rerun."
+        },
+        {
+          "severity": "Moderate",
+          "title": "Calibration windows come from the training period, while targets come from a later period",
+          "evidence": "experiments.py:89-90 draws calibration windows in trS, the same year the forecaster was trained on, using same-site and same-date buildings. Targets are in 2017. Pooled calibration therefore faces a temporal shift that the shrinkage methods partly absorb; for example, SCP-stage mean coverage is 0.881 on BDG2.",
+          "action": "Report CQR's per-building coverage dispersion from LOBO on the calibration buildings. If the dispersion remains without the temporal shift, the finding holds.",
+          "experiment": "Cheap diagnostic from existing LOBO quantities."
+        },
+        {
+          "severity": "Minor",
+          "title": "The Dirichlet-process reading, the kappa→∞ limit and the cost claim are overstated",
+          "evidence": "Self-CQR coverage at stage 2 is 0.775, where exchangeable scores would give at least 23/25 = 0.92. Hourly scores are therefore strongly dependent, so kappa 'hours' are not effective observations. At kappa=∞ the code uses a building-weighted F with a score-count correction (calibration.py:160-170, 201-204), and with K<all the neighbour selection depends on the test building, so it is not split conformal. The 0.437 ms timing was measured on the absolute-score kNN HSC (pipeline.py:319-321), not on the recommended layer. TQA-B's lambda comes from g.max() across the target batch, which is transductive (calibration.py:325-326).",
+          "action": "Call the DP reading heuristic. Restate the limits accurately. Time the simple layer. Compute lambda per building or from calibration buildings only.",
+          "experiment": "None"
+        }
+      ]
+    },
+    {
+      "role": "R3-experimental-design",
+      "recommendation": "Major revision",
+      "summary": "The protocol is clean in the places I checked. Splits are disjoint by building and by period, every tuning step (tune_hsc, tune_aci, tune_qshrink) uses calibration buildings only, the fixed-κ value of 168 h was in the code before the full run, and all methods share one evaluation mask. The problems are elsewhere. (1) The onboarding claim rests on a 56-day average: in week 1, HSC-CQR leaves as many buildings under-covered as pooled CQR. (2) The online baseline (ACI) is handicapped by how the code handles α ≤ 0. (3) The headline configuration is significantly worse than its own simplified variants. (4) The \"pre-registered\" label does not match the record. Most fixes are re-analysis or calibration-only reruns; no forecaster retraining is needed.",
+      "issues": [
+        {
+          "severity": "Critical",
+          "title": "Per-building reliability in the first week is not shown and does not support the onboarding framing",
+          "evidence": "Fig. 5 and Sec. 5.3 resolve onboarding only by MEAN coverage, which is the pooled metric the paper criticises. I recomputed from raw_results.csv.gz (coverage_early = days 1-7, main protocol, α = 0.1). Share of buildings with week-1 coverage below 0.85 on BDG2: HSC-CQR 24.5%, CQR 23.8%, ACI-CQR 23.9%, GHCP 22.0%, QShrink 21.5%, fixed-κ 19.8%. On UCI: HSC-CQR 17.5%, CQR 16.0%. For weeks 2-8 the BDG2 shares are 4.9% for HSC-CQR and 18.5% for CQR. The headline 3.4% therefore comes entirely after week 1. Three statements are not supported as written: Sec. 6.3 says it 'keeps the share ... small throughout onboarding', the introduction asks 'from which day onwards', and Sec. 3.1 sets the goal 'from the first days'.",
+          "action": "Report per-building MACD, under-covered share and P10 by week, with a sampling-noise reference for 168-hour windows. Then rewrite the abstract, Sec. 6.3 and the conclusion to say that week-1 reliability is no better than pooled calibration.",
+          "experiment": "Store the per-building stage coverage that interval_metrics already computes (stage_cov), then recompute the evaluation only; no retraining is needed."
+        },
+        {
+          "severity": "Major",
+          "title": "The ACI baseline is limited by a 500·s cap combined with interval-score tuning, and its grid was changed after results were seen",
+          "evidence": "In calibration.py:231, α_h ≤ 0 sets the radius to GRID[-1] = 500·s. The LOBO objective then falls steadily as γ grows until it jumps: ACI-CQR on BDG2 seed 0 goes from 0.224 (γ = 1e-3) to 1.51 (2e-3) to 15.0 (5e-3); ACI (absolute score) goes from 0.82 (2e-4) to 25.3 (5e-3). So γ is chosen by this artefact, not by an adaptivity trade-off. The artefact is visible in the results: ACI-CQR relative width reaches 170 (BDG2) and 335 (UCI), and Table 4 shows mean IS differences of -0.17 (BDG2) and -1.91 (UCI). The grid extension after the interim results also weakened ACI. In the interim results (git 9dc62a8^), BDG2 ACI had MACD 0.059 and 22.2% under-covered; the final run gives 0.078 and 26.2%. As a result, the text's explanation that ACI is slow because of 'a small step size' is an artefact of the setup.",
+          "action": "Rerun ACI and ACI-CQR with α_h clipped to [ε, 1), or with the radius capped at the largest calibration score. Add an online quantile-tracking variant that updates the radius directly on the normalised score scale. Tune both with the same LOBO procedure and report the pre-registered grid as a sensitivity check.",
+          "experiment": "Calibration-only rerun of the main, leave-site-out and robustness parts."
+        },
+        {
+          "severity": "Major",
+          "title": "The headline variant is significantly worse than its own ablations, and 'added nothing' understates the effect",
+          "evidence": "In statistics.csv (BDG2, |cov - 0.9|), HSC-CQR loses to its ablations: against -stage r = -0.18 (p = 1.4e-4), against -kNN r = -0.16 (p = 2.8e-4), against simple r = -0.19 (p = 7e-5) and against fixed-κ r = -0.45 (p = 5e-24). For the absolute-score HSC, the kNN prior significantly improves IS (BDG2 r = 0.37, UCI r = 0.56) and UCI MACD (r = 0.52). Despite this, the abstract, Table 4 and the highlights headline the dominated variant. The 0.437 ms cost was timed for absolute-score HSC with kNN (pipeline.py:318-321), not for the recommended one-parameter layer.",
+          "action": "Make the recommended configuration the primary one, or label HSC-CQR as the pre-registered but dominated choice. Add the tests for the simple variant (rows 60-71 and 156-167, already computed) to Table 4. Correct the 'added nothing' wording, and time the simple layer.",
+          "experiment": "Timing only."
+        },
+        {
+          "severity": "Major",
+          "title": "The pre-registration claim is overstated",
+          "evidence": "Sec. 4.4 says 'All settings were fixed in a pre-registration file before any full experiment was run.' PREREGISTRATION.md states the hypothesis for HSC on absolute scores and lists HSC-CQR only as a 'variant'. After interim full results for all five BDG2 seeds had been seen, the following were added or changed: the GHCP, QShrink and TQA-B baselines, HSC simple (declared 'recommended'), the MLP variants, the ACI grid and empty-set rule, and the score grid (from 60 to 500·s). CHANGELOG states that the 'pre-registered primary comparison remains HSC-CQR', which contradicts the pre-registration file. The pre-registered hypothesis also failed on the Self-CP comparison: HSC is worse than Self-CP on BDG2 (r = -0.19, p_holm = 1e-5).",
+          "action": "Add a deviations table and label the post-hoc additions as exploratory. State the result for the pre-registered primary hypothesis explicitly, or drop the 'pre-registered' qualifier.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Moderate",
+          "title": "Calibration windows fall in the forecaster's training period while target windows fall a year later",
+          "evidence": "Calibration windows are drawn in 2016 (UCI: 2012-13), the same period as the forecaster's training data; targets are in 2017 (UCI: 2014). Pooled methods under-cover on average (SCP-stage 0.881, Mondrian 0.883 on BDG2). This mixes between-building heterogeneity with temporal shift, which favours methods that use the building's own scores.",
+          "action": "Report the LOBO per-building coverage distribution of pooled CQR on the calibration buildings. Also run a variant that draws calibration windows from the test period on dates disjoint from the target windows.",
+          "experiment": "Calibration-only recompute."
+        },
+        {
+          "severity": "Moderate",
+          "title": "'Most reliable' does not hold across all stress and transfer settings",
+          "evidence": "With 15% noise, Self-CQR beats HSC-CQR (r = -0.66, p = 4e-41). With a 10% calibration pool, QShrink beats it (r = -0.23). Under leave-site-out, the simple variant (3.5%) and QShrink (4.2%) both leave fewer buildings under-covered than HSC-CQR (5.3%). Under UCI→BDG2, Self-CQR is at 6.9% versus 8.7%. Despite this, the conclusion and highlights state an unconditional ranking.",
+          "action": "Qualify these claims and mark the paired-test outcomes in Tables 6 and 7; the tests already exist in statistics.csv.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Moderate",
+          "title": "Group-wise baselines are incomplete",
+          "evidence": "Mondrian-usage is run only on absolute scores, yet Sec. 5.1 places it next to CQR and Sec. 6.2 generalises from it. Clustered conformal prediction [47] is cited but not run, even though it is the natural competitor to the kNN prior.",
+          "action": "Add Mondrian-usage-CQR and a clustered-CQR baseline that groups buildings by descriptor.",
+          "experiment": "Calibration-only."
+        },
+        {
+          "severity": "Moderate",
+          "title": "No noise-floor reference for the under-covered share",
+          "evidence": "The paper gives a sampling floor only for MACD and only under independent misses (0.0066). Gaps of 1.9-4.1% in under-covered share between the top methods cannot be interpreted without a floor for that metric.",
+          "action": "Estimate the under-covered share expected under perfect calibration by a block bootstrap using the observed autocorrelation of misses.",
+          "experiment": "Analysis only."
+        },
+        {
+          "severity": "Minor",
+          "title": "Reproducibility and reporting gaps",
+          "evidence": "config/default.yaml is not read by any code and is out of date (3000 grid points up to 60, a 5-value γ grid). Training uses only 40% of training days (experiments.py:201), which the manuscript does not disclose. BDG2 is downloaded from the unpinned master branch (datasets.py:24). The UCI LightGBM time of 298 s is a mean inflated by seed 1 (1317 s, against 27-52 s for the other seeds). The selected κ includes 672 h, which the stated 'one to two weeks' leaves out.",
+          "action": "Delete or synchronise the config file, disclose the subsampling, pin the BDG2 commit, report median timings, and correct the stated κ range.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Minor",
+          "title": "TQA-B scaling uses other target buildings",
+          "evidence": "At calibration.py:325-326, λ is set from g.max() over the current batch of target buildings. Some of those buildings' scores come from later calendar dates.",
+          "action": "Compute λ from the calibration buildings instead.",
+          "experiment": "Calibration-only."
+        }
+      ]
+    },
+    {
+      "role": "R4-statistics",
+      "recommendation": "Major revision",
+      "summary": "Statistical review, cycle 1. I recomputed numbers from results/raw_results.csv.gz and they match Tables 2 and 4: HSC-CQR MACD 0.0176±0.0010 against CQR 0.0382; Wilcoxon p=3.4e-88; 84% of buildings better. The main claim, that shrinkage beats pooled CQR, TQA-B and GHCP, survives a site-level re-analysis: HSC-CQR is better at all 10 of 10 sites, and the exact sign-flip test gives p=0.002, the smallest value possible with 10 sites. The weak points are the secondary claims. (a) The paired tests treat buildings as independent and ignore site clustering. (b) The stated noise floor for MACD assumes independent misses, which badly understates it. (c) The ablation text contradicts the authors' own paired tests. (d) Paired tests were run for every stress and transfer setting but none are reported, and several unfavourable ones are left out. (e) Confidence intervals of the mean are reported next to rank-based tests. Each needs re-analysis, and in two cases a calibration-only re-run with no retraining. Scratch scripts are in /tmp/claude-0/review_scratch_1/.",
+      "issues": [
+        {
+          "severity": "Major",
+          "title": "BDG2 p-values ignore site clustering and disagree with the paper's own site-cluster confidence intervals",
+          "evidence": "Targets are spread very unevenly across sites: Rat has 389 of 1265 building×seed units, Moose has 9. With only 10 sites, an exact cluster-level test cannot give p below about 0.002, yet Table 4 reports p<0.001 for every BDG2 row. In several rows the building-level test and the site-bootstrap interval disagree. HSC-CQR vs HSC-CQR simple on coverage deviation: p_holm=7.3e-5, but the site CI is [-0.00026,+0.00135] and my site-level sign-flip test gives p=0.93 (HSC-CQR better at 5 of 10 sites). HSC-CQR vs -kNN: p_holm=2.8e-4, but sign-flip p=0.84. HSC vs HSC -kNN: p_holm=0.045, but the CI [-0.0032,+0.0016] contains zero. Self-CQR on coverage deviation survives only weakly: HSC-CQR better at 7 of 10 sites, sign-flip p=0.029 before multiplicity correction. Source: src/statistics/analysis.py paired_tests().",
+          "action": "Use site-level inference as the primary test for BDG2 (exact sign-flip or randomisation test over the 10 sites, or a mixed model with a site random effect and wild-cluster bootstrap-t). Report the smallest attainable p. Keep the building-level Wilcoxon as secondary. Do the same for leave-site-out (5 folds).",
+          "experiment": "Re-analysis only."
+        },
+        {
+          "severity": "Major",
+          "title": "The MACD noise floor (0.0066) assumes independent hourly misses and badly understates it; the leading methods sit at the real floor",
+          "evidence": "Section 5.2 and Limitation 8 give 0.0066 for independent misses (my exact value is 0.00653). The paper's own example series (results/examples_*.csv) show strongly autocorrelated misses: lag-1 autocorrelation 0.57–0.73 on BDG2 and 0.31–0.48 on UCI. Treating each day as a block gives a design effect of 7–11 on BDG2 and 2–5 on UCI. That puts the expected MACD of perfectly calibrated intervals at about 0.017–0.021 on BDG2, with 1–3% of such buildings falling below 0.85 coverage by chance. HSC-CQR (0.018), simple (0.017), fixed-κ (0.015) and QShrink-CQR (0.022), and their under-covered shares of 1.9–4.1%, are therefore within sampling noise of each other.",
+          "action": "Store the hourly miss indicators for each building. Estimate the variance of each building's coverage by daily-block bootstrap or HAC. Report a noise-corrected spread of coverage across buildings and the under-covered share a perfectly calibrated method would show. Revise Section 5.2, Section 6.2 and Limitation 8, and stop ranking the top methods on MACD or under-covered share alone.",
+          "experiment": "Re-run the calibration and evaluation pass from cached models, saving the per-hour miss sequences."
+        },
+        {
+          "severity": "Major",
+          "title": "Ablation conclusions contradict the paired tests, and the headline numbers come from the weaker variant",
+          "evidence": "Section 5.4 argues the refinements matter little because removing them 'changes the MACD by less than its seed-to-seed standard deviation'. That is not a valid inference: a seed SD is not the standard error of a paired difference. statistics.csv rows 51/53/59 show that on BDG2 the full HSC-CQR is significantly worse than -stage (r=-0.18, p_holm=1.4e-4), -kNN (r=-0.16, p_holm=2.8e-4) and simple (r=-0.19, p_holm=7.3e-5). The -stage effect also holds at site level: only 1 of 10 sites favours the full model, sign-flip p=0.006. Fixed-κ is better again (r=-0.45). Yet the abstract, highlights and conclusion quote 3.4% and 0.018 for the full HSC-CQR while recommending the one-parameter simple layer.",
+          "action": "Add the paired ablation tests, at both building and site level, to Table 5. Rephrase 'added nothing' as 'slightly worsened reliability on BDG2, no difference on UCI'. Report the recommended simple variant's numbers next to the pre-registered primary in the abstract and conclusion.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Major",
+          "title": "Paired tests for stress and transfer settings are computed but not reported, and the 'most reliable' claim is generalised beyond what they support",
+          "evidence": "statistics.csv holds paired tests for every condition in Tables 6–7; the manuscript reports none of them. Unfavourable results that the text does not mention: 15% meter noise, where Self-CQR beats HSC-CQR (r=-0.66, p_holm=3.8e-41; MACD 0.010 vs 0.018); 10% calibration pool, where QShrink-CQR beats it (r=-0.23, p_holm=1.4e-5). Against Self-CQR, HSC-CQR shows no reliability advantage under leave-site-out (p=0.96, better for 50% of buildings), missing 40% (p=0.78), level shift +40% (p=1.0) or the weak forecaster (p=0.50). Under these shifts its advantage is in sharpness only (leave-site-out interval score r=0.73).",
+          "action": "Add a supplementary table of all paired tests for Tables 6–7, with site-level p-values. Qualify the abstract, Section 5.5 and the conclusion: the advantage over self-only calibration is in reliability under the random-building protocol, and only in sharpness under shift.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Moderate",
+          "title": "Confidence intervals of the mean are paired with rank-based tests, and 'statistically indistinguishable' contradicts the intervals",
+          "evidence": "HSC-CQR vs QShrink-CQR, interval score, BDG2: p=0.688, yet the CI [-0.0098,-0.00002] excludes zero. The mean difference is -0.0034 while the Hodges–Lehmann estimate is -0.00004, so a few buildings drive the mean. UCI fixed-κ, coverage deviation: the text says 'statistically indistinguishable (p=0.058)', yet the CI [+0.0004,+0.0017] excludes zero. UCI MLP-QR, interval score: the CI includes zero while p<0.001. UCI ACI-CQR, interval score: mean difference -1.91 because individual buildings reach a relative interval score of 336, caused by the 500·s radius cap.",
+          "action": "Report the Hodges–Lehmann (or median) difference with a cluster-bootstrap CI, so the effect estimate matches the Wilcoxon test. Replace 'indistinguishable' with 'no evidence of a difference', or run a TOST equivalence test against a margin stated in advance.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Moderate",
+          "title": "The headline under-covered shares carry no uncertainty and no test",
+          "evidence": "On UCI, HSC-CQR's 0.6% is 3 of 475 units (Wilson interval 0.2–1.8%), against Self-CQR 6, simple 5 and QShrink-CQR 8. The per-seed values [1.1,0,0,0,2.1]% are reported as '0.6 ± 0.9'. On BDG2 the counts are 43 for HSC-CQR, 37 for simple, 24 for fixed-κ and 52 for QShrink-CQR, out of 1265 units. Only |coverage − 0.9| and interval score are tested.",
+          "action": "Report pooled counts with cluster-adjusted Wilson intervals, and test the paired under-coverage indicator (McNemar, or at cluster level). Do not rank the top methods by under-covered share.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Moderate",
+          "title": "The headline method HSC-CQR is never evaluated at 95% or 80% nominal coverage",
+          "evidence": "T_alpha0.05/0.2 contain only absolute-score methods, and on those Self-CP is as good as or better than HSC (BDG2 α=0.05: r=-0.24, p_holm=2.8e-8). Section 5.7's 'same ordering' statement therefore says nothing about HSC-CQR. At α=0.05 a building needs at least 19 own scores before its own quantile exists, which could change the κ trade-off.",
+          "action": "Run the CQR-score strategies (HSC-CQR, simple, QShrink-CQR, Self-CQR, ACI-CQR, CQR) at α=0.05 and 0.2.",
+          "experiment": "Calibration-only pass with the cached quantile models."
+        },
+        {
+          "severity": "Minor",
+          "title": "Holm families are described inaccurately",
+          "evidence": "The Table 4 caption says 'Holm-adjusted within dataset and metric'. In the code, each paired_tests() call is its own family: 15 baselines for the main block, four of which are not shown in Table 4, and a separate 5-test ablation family that supplies the fixed-κ row. statistics.csv holds 570 tests in total.",
+          "action": "Define each family explicitly in Section 4.4 and the table captions, or use one family per dataset × metric × protocol.",
+          "experiment": "None."
+        },
+        {
+          "severity": "Minor",
+          "title": "The error analysis contradicts the stated unit of analysis and over-interprets small differences",
+          "evidence": "The Mann–Whitney and Spearman tests use 1265 building×seed units, but only 713 buildings, 407 of which appear in two or more seeds. The Spearman correlations -0.65 vs -0.36 are compared without an interval or a test. 'Largest reduction for Education' is a tie with Public services: both 0.0216 in error_analysis.json. The UCI first-week volatility difference (p=0.0012) is not reported, while the null BDG2 result (p=0.725) is. The UCI analysis rests on 3 under-covered units.",
+          "action": "Aggregate to buildings, or use cluster-robust tests. Add a bootstrap CI for the difference in Spearman correlations. Report the UCI volatility result. Drop or soften the claim about usage classes.",
+          "experiment": "None."
+        }
+      ]
+    },
+    {
+      "role": "R5-data-leakage",
+      "failed": true
+    },
+    {
+      "role": "R6-robustness-generalisation",
+      "failed": true
+    },
+    {
+      "role": "R7-computational",
+      "failed": true
+    },
+    {
+      "role": "R8-literature-citations",
+      "failed": true
+    },
+    {
+      "role": "R9-associate-editor",
+      "failed": true
+    },
+    {
+      "role": "R10-hostile-competitor",
+      "failed": true
+    }
+  ],
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Review"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "R1-novelty-prior-art",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "acb04be2d507fa636",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1795257221797,
+      "queuedAt": 1795257221743,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Major revision",
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: NOVELTY AND PRIOR-ART REVIEWER. Investigate whether the contribution is genuinely different from existing research (conformal prediction fo…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257577450,
+      "tokens": 232664,
+      "toolCalls": 56,
+      "durationMs": 355651,
+      "resultPreview": "{\"recommendation\":\"Major revision\",\"summary\":\"Novelty/prior-art review, cycle 1. I read the packet, checked results/run_info.json and results/sensitivity.csv, and inspected the code archive of the closest prior work (Jeon, Zenodo 10.5281/zenodo.24002627, v1.2, 6 Nov 2026; the record says the companion paper is under review at Sci Rep). After the pre-review audit, the authors already concede that t…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "R2-methodology",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "ab8a9de7d93176126",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1795257221798,
+      "queuedAt": 1795257221743,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Major revision",
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: METHODOLOGY REVIEWER. Check mathematical correctness of Eq. (scale, scores, interval, prior, HSC mixture, tuning), assumptions (exchangeabi…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257649003,
+      "tokens": 211293,
+      "toolCalls": 28,
+      "durationMs": 426513,
+      "resultPreview": "{\"recommendation\":\"Major revision\",\"summary\":\"Eqs. (1)-(6), the stage bins, the asinh grid, the LOBO grids, and the GHCP, QShrink and TQA-B adaptations match the code. Checked: calibration.py:173-210 against Eq. 5, features.py:61-65 against Eq. 1, pipeline.py:28-29 and 193-208, and metrics.py:18-44. I found no leakage bug. Four things weaken the methodology. (1) The manuscript says the study was p…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "R3-experimental-design",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "ae06b91dadedf5a71",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1795257577460,
+      "queuedAt": 1795257221743,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Major revision",
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: EXPERIMENTAL DESIGN REVIEWER. Check fairness of baselines (same forecaster/scores/tuning budget), dataset choice, hyper-parameter selection…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257933538,
+      "tokens": 222037,
+      "toolCalls": 34,
+      "durationMs": 356077,
+      "resultPreview": "{\"recommendation\":\"Major revision\",\"summary\":\"The protocol is clean in the places I checked. Splits are disjoint by building and by period, every tuning step (tune_hsc, tune_aci, tune_qshrink) uses calibration buildings only, the fixed-κ value of 168 h was in the code before the full run, and all methods share one evaluation mask. The problems are elsewhere. (1) The onboarding claim rests on a 56-…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "R4-statistics",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "aa66dd9a381165efb",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1795257649057,
+      "queuedAt": 1795257221743,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Major revision",
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: STATISTICAL REVIEWER. Check confidence intervals, seeds, unit of analysis, Wilcoxon/Holm/rank-biserial usage, cluster bootstrap, multiple c…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257969405,
+      "tokens": 190870,
+      "toolCalls": 25,
+      "durationMs": 320348,
+      "resultPreview": "{\"recommendation\":\"Major revision\",\"summary\":\"Statistical review, cycle 1. I recomputed numbers from results/raw_results.csv.gz and they match Tables 2 and 4: HSC-CQR MACD 0.0176±0.0010 against CQR 0.0382; Wilcoxon p=3.4e-88; 84% of buildings better. The main claim, that shrinkage beats pooled CQR, TQA-B and GHCP, survives a site-level re-analysis: HSC-CQR is better at all 10 of 10 sites, and the …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "R5-data-leakage",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a95b7cd3024467827",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1795257933546,
+      "queuedAt": 1795257221744,
+      "attempt": 1,
+      "lastToolName": "Bash",
+      "lastToolSummary": "cd /home/user/p_c1_1; ls -la data data/* results/cache | he…",
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: DATASET AND LEAKAGE REVIEWER. Check data quality rules, licensing, duplicate buildings/meters, building/site/temporal leakage between train…",
+      "promptFramed": true,
+      "lastProgressAt": 1795258015747,
+      "error": "You've hit your 5-hour limit · resets 3:30pm (UTC)",
+      "tokens": 167265,
+      "toolCalls": 11,
+      "durationMs": 82201
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "R6-robustness-generalisation",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a5ed620fba50dc9c0",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1795257969411,
+      "queuedAt": 1795257221744,
+      "attempt": 1,
+      "lastToolName": "Read",
+      "lastToolSummary": "/home/user/p_c1_1/REVIEW/packet_cycle01.md",
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: ROBUSTNESS AND GENERALISATION REVIEWER. Try to show that the method fails under distribution shift, noise, missing data, level shifts, unse…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257979082,
+      "error": "You've hit your 5-hour limit · resets 3:30pm (UTC)",
+      "tokens": 113954,
+      "toolCalls": 5,
+      "durationMs": 9671
+    },
+    {
+      "type": "workflow_agent",
+      "index": 7,
+      "label": "R7-computational",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a14452b9042387f39",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1795257979086,
+      "queuedAt": 1795257221744,
+      "attempt": 1,
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: COMPUTATIONAL EFFICIENCY REVIEWER. Check complexity, memory, latency, scalability to large portfolios, deployment feasibility, and whether …",
+      "promptFramed": true,
+      "lastProgressAt": 1795257979339,
+      "error": "You've hit your 5-hour limit · resets 3:30pm (UTC)",
+      "tokens": 0,
+      "toolCalls": 0,
+      "durationMs": 253
+    },
+    {
+      "type": "workflow_agent",
+      "index": 8,
+      "label": "R8-literature-citations",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "aca7fd3131876473b",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1795257979342,
+      "queuedAt": 1795257221744,
+      "attempt": 1,
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: LITERATURE AND CITATION REVIEWER. Verify references in manuscript/references.py (authors, year, venue, DOI) — spot-check at least 8 via Web…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257979560,
+      "error": "You've hit your 5-hour limit · resets 3:30pm (UTC)",
+      "tokens": 0,
+      "toolCalls": 0,
+      "durationMs": 218
+    },
+    {
+      "type": "workflow_agent",
+      "index": 9,
+      "label": "R9-associate-editor",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a7ce13aaf11bf35b5",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1795257979564,
+      "queuedAt": 1795257221744,
+      "attempt": 1,
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: ASSOCIATE EDITOR of Advances in Applied Energy (Elsevier). Evaluate scope fit (applied energy innovation), novelty relative to the journal …",
+      "promptFramed": true,
+      "lastProgressAt": 1795257979889,
+      "error": "You've hit your 5-hour limit · resets 3:30pm (UTC)",
+      "tokens": 0,
+      "toolCalls": 0,
+      "durationMs": 325
+    },
+    {
+      "type": "workflow_agent",
+      "index": 10,
+      "label": "R10-hostile-competitor",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "aa394dce94e8c79df",
+      "model": "claude-opus-5-5",
+      "state": "error",
+      "startedAt": 1795257979894,
+      "queuedAt": 1795257221744,
+      "attempt": 1,
+      "promptPreview": "You are an independent peer reviewer (review cycle 1 of 10) for a manuscript targeted at the Elsevier journal \"Advances in Applied Energy\" (applied energy innovation; full-length research articles ~10-15 printed pages; abstract <= 250 words).\nYour perspective: HOSTILE COMPETING RESEARCHER who built a similar method. Try to demonstrate the work is incremental, incorrectly evaluated, unfairly compar…",
+      "promptFramed": true,
+      "lastProgressAt": 1795257980154,
+      "error": "You've hit your 5-hour limit · resets 3:30pm (UTC)",
+      "tokens": 0,
+      "toolCalls": 0,
+      "durationMs": 260
+    }
+  ],
+  "totalTokens": 1138083,
+  "totalToolCalls": 159
+}
