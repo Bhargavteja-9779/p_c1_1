@@ -4,9 +4,13 @@ Protocol (manuscript Section 5):
   * buildings are split into disjoint sets: model-training (incl. 10 % validation buildings for early
     stopping), calibration (source buildings used only to collect nonconformity scores) and targets
     (newly metered buildings);
-  * the forecaster and all calibration scores use the *training period* only (BDG2: 2016,
-    UCI: 2012-2013); targets are onboarded at a random date in the *test period* (BDG2: 2017,
-    UCI: 2014) and followed for NH = 56 daily forecasts (stage h = 1..56 days of history);
+  * the forecaster is trained on the *training period* only (BDG2: 2016, UCI: 2012-2013);
+  * out-of-time calibration (revision 1): calibration buildings are onboarded at a random date in the
+    FIRST half of the test period (BDG2: 2017, UCI: 2014) such that their whole window ends before the
+    half-year boundary; targets are onboarded at a random date in the SECOND half and followed for
+    NH = 56 daily forecasts (stage h = 1..56 days of history). Hence training < calibration < target
+    in time, and the forecaster never saw any period that is scored;
+  * hours whose truth was filled by short-gap interpolation are excluded from all scores/metrics;
   * every hyper-parameter (kappa, K for HSC; gamma for ACI) is selected by leave-one-building-out on
     the calibration buildings with a pre-specified objective (mean normalised interval score);
     target buildings are never used for any choice.
@@ -51,6 +55,14 @@ def site_folds(meta, n_folds=5):
         folds[i].append(site)
         load[i] += n
     return folds
+
+
+def onboard_periods(ds):
+    """(calibration-window period, target-window period) of the out-of-time protocol."""
+    te0, te1 = periods(ds)[1]
+    d = ds["dates"]
+    mid = int(np.where((d.year == d[te0].year) & (d.month == 7) & (d.day == 1))[0][0])
+    return (te0, mid - 1), (mid, te1)
 
 
 def split(ds, seed, protocol="random", fold=None, frac=(0.5, 0.2, 0.3)):
@@ -121,7 +133,7 @@ def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, 
 def onboard_dates(ds, bidx, period, rng, min_valid=0.8):
     """Random onboarding day per building such that >= 80 % of the window's hours are valid."""
     p0, p1 = period
-    starts = np.arange(p0, p1 - NH + 1)
+    starts = np.arange(p0, p1 - NH + 1)  # window days t0 .. t0+NH lie inside [p0, p1]
     out = np.empty(len(bidx), dtype=int)
     for i, b in enumerate(bidx):
         v = (~np.isnan(ds["load"][b, p0:p1 + 1])).mean(axis=1)  # valid share per day
@@ -144,19 +156,26 @@ def seasonal_naive(load, B, T, H):
     return out
 
 
-def window_predictions(ds, bidx, t0, models, perturb=None):
-    """Forecasts for stages h=1..NH of each building's onboarding window starting at t0."""
+def window_predictions(ds, bidx, t0, models, perturb=None, perturb_temp=None):
+    """Forecasts for stages h=1..NH of each building's onboarding window starting at t0.
+    perturb(load, bidx, t0) alters the load history AND truth; perturb_temp(temp, bidx, t0) alters only the
+    temperature input (day-ahead temperature-forecast error)."""
     load = ds["load"]
     if perturb is not None:
         load = perturb(load.copy(), bidx, t0)
     dsx = dict(ds, load=load)
+    if perturb_temp is not None and ds["temp"] is not None:
+        dsx["temp"] = perturb_temp(ds["temp"].copy(), bidx, t0)
     n = len(bidx)
     B = np.repeat(bidx, NH)
     H = np.tile(np.arange(1, NH + 1), n)
     T = np.repeat(t0, NH) + H
     X, y, s = fe.build(dsx["load"], dsx["temp"], dsx["dates"], B, T, H, models["use_weather"])
     srep = np.repeat(s, 24)
-    out = dict(y=y.reshape(n, NH, 24), s=s.reshape(n, NH))
+    y = y.reshape(n, NH, 24)
+    if "interp" in ds:  # interpolated truths are not observations: excluded from scores and metrics
+        y = np.where(ds["interp"][B, T].reshape(n, NH, 24), np.nan, y)
+    out = dict(y=y, s=s.reshape(n, NH))
     t1 = time.time()
     nt_ = int(os.environ.get("OMP_NUM_THREADS", "4"))  # respect single-threaded calibration workers
     out["yhat"] = (models["lgb"].predict(X, num_threads=nt_) * srep).reshape(n, NH, 24)
@@ -190,8 +209,19 @@ def nbrs_by_stage(z_t, z_c, K, exclude_self=False):
     return [cb.neighbours(z_t[h], z_c[h], K, exclude_self) for h in range(NH)]
 
 
-def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, kappas=KAPPAS):
-    """Leave-one-building-out selection of (kappa, K) on calibration buildings."""
+def lobo_macd(q, scores, alpha):
+    """Mean absolute per-building coverage deviation of radius q (..., ncal, NH) on calibration scores."""
+    e = scores[None]
+    valid = ~np.isnan(e)
+    cov = ((np.where(valid, e, np.inf) <= q[..., None]) & valid).sum(axis=(-1, -2)) / np.maximum(
+        valid.sum(axis=(-1, -2)), 1)
+    return np.abs(cov - (1 - alpha)).mean(axis=-1)
+
+
+def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, kappas=KAPPAS, objective="IS"):
+    """Leave-one-building-out selection of (kappa, K) on calibration buildings.
+    objective: 'IS' (mean normalised interval score; pre-specified) or 'MACD' (mean absolute per-building
+    coverage deviation; reliability-oriented rule added in revision 1). Both are stored in the table."""
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
@@ -201,14 +231,15 @@ def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, ka
         excl = np.arange(cal_scores.shape[0]) if K is None else None
         q = cb.hsc_quantiles(cc, binc, nb, alpha, kappas, stages, excl=excl, stage_matched=stage_matched)
         obj = cb.normalized_IS(q, cal_scores, cal_base_w, alpha)
+        macd = lobo_macd(q, cal_scores, alpha)
         for ki, kap in enumerate(kappas):
-            res.append(dict(K=K, kappa=kap, obj=float(obj[ki])))
+            res.append(dict(K=K, kappa=kap, obj=float(obj[ki]), macd=float(macd[ki])))
     df = pd.DataFrame(res)
-    best = df.loc[df.obj.idxmin()]
+    best = df.loc[(df.obj if objective == "IS" else df.macd).idxmin()]
     return dict(K=None if pd.isna(best.K) else int(best.K), kappa=float(best.kappa)), df
 
 
-def tune_aci(cal_scores, alpha, gammas=GAMMAS):
+def tune_aci(cal_scores, alpha, gammas=GAMMAS, clip=None):
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
@@ -216,11 +247,38 @@ def tune_aci(cal_scores, alpha, gammas=GAMMAS):
     prior = tot[None] - binc  # leave-one-building-out pooled prior per pseudo-target
     res = []
     for g in gammas:
-        q = cb.aci_quantiles(cal_scores, prior, alpha, g, stages)
+        q = cb.aci_quantiles(cal_scores, prior, alpha, g, stages, clip=clip)
         obj = cb.normalized_IS(q[None], cal_scores, np.zeros_like(cal_scores), alpha)
         res.append(dict(gamma=g, obj=float(obj[0])))
     df = pd.DataFrame(res)
     return float(df.loc[df.obj.idxmin(), "gamma"]), df
+
+
+SWITCH_DAYS = [1, 2, 3, 5, 7, 10, 14, 21, 28]
+
+
+def switch_quantiles(self_cc, q_pool, alpha, n_days):
+    """Warm-up switch: pooled radius q_pool (nt, NH) until n_days of own scores exist, then the building's
+    own split-conformal radius (kappa = 0; pooled while the own quantile is undefined)."""
+    stages = np.arange(1, NH + 1)
+    q_self = cb.hsc_quantiles(self_cc, np.zeros((1, len(cb.STAGE_EDGES) - 1, self_cc.shape[2]), np.float32),
+                              None, alpha, [0], stages)[0]
+    ok = cb.own_defined(cb.own_counts_before(self_cc), alpha) & ((stages - 1)[None, :] >= n_days)
+    return np.where(ok, q_self, q_pool)
+
+
+def tune_switch(cal_scores, cal_base_w, alpha, days=SWITCH_DAYS):
+    stages = np.arange(1, NH + 1)
+    cc = cb.cum_counts(cal_scores)
+    binc, _ = cb.bin_cdfs(cc, stages)
+    q_pool = cb.pooled_quantile_lobo(binc, alpha)[:, cb.stage_bin(stages)]
+    res = []
+    for d in days:
+        q = switch_quantiles(cc, q_pool, alpha, d)
+        res.append(dict(days=d, obj=float(cb.normalized_IS(q[None], cal_scores, cal_base_w, alpha)[0]),
+                        macd=float(lobo_macd(q[None], cal_scores, alpha)[0])))
+    df = pd.DataFrame(res)
+    return int(df.loc[df.obj.idxmin(), "days"]), df
 
 
 def tune_qshrink(cal_scores, cal_base_w, alpha, lams=tuple(KAPPAS)):
@@ -365,6 +423,38 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     info["hsc_simple"] = bsa
     out["HSC simple"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [bsa["kappa"]], stages,
                                               stage_matched=False)[0])
+    # ---- revision-1 additions (reviewer cycle 1)
+    # (a) simple variant with kappa selected by LOBO coverage deviation (reliability-oriented objective)
+    bcv, _ = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None], objective="MACD")
+    info["hsc_cqr_covk"] = bcv
+    out["HSC-CQR cov-κ"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [bcv["kappa"]], stages,
+                                                 stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
+    # (b) warm-up switch: pooled CQR for the first n* days, then self-only CQR (n* by LOBO, same IS objective)
+    nsw, sw_tab = tune_switch(Scq, bwq_cal, alpha)
+    info["switch_days"] = nsw
+    info["tune_switch"] = sw_tab.to_dict(orient="records")
+    out["Switch-CQR"] = band(switch_quantiles(cct_q, np.broadcast_to(q_fbq[None, :], PT["s"].shape), alpha, nsw),
+                             lo=PT["qlo"], hi=PT["qhi"])
+    # (c) quantile-level shrinkage with the same fixed pseudo-count (one week) as HSC-CQR fixed-κ
+    out["QShrink-CQR fixed-λ"] = band(cb.qshrink_quantiles(cct_q, q_fbq, alpha, 168, stages),
+                                      lo=PT["qlo"], hi=PT["qhi"])
+    # (d) ACI on CQR scores with the working level clipped to [0.005, 0.5] (standard safeguard)
+    gqc, gqc_tab = tune_aci(Scq, alpha, clip=(0.005, 0.5))
+    info["aci_cqr_clip_gamma"] = gqc
+    info["tune_aci_cqr_clip"] = gqc_tab.to_dict(orient="records")
+    out["ACI-CQR clip"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gqc, stages, clip=(0.005, 0.5)),
+                               lo=PT["qlo"], hi=PT["qhi"])
+    # (e) Mondrian by site (pooled CQR within the target's site; needs >= 10 calibration buildings there)
+    if meta_cal is not None and meta_tgt is not None and meta_cal.site_id.nunique() > 1:
+        lo, hi = out["CQR"][0].copy(), out["CQR"][1].copy()
+        for site in np.unique(meta_tgt.site_id.values):
+            mc = meta_cal.site_id.values == site
+            if mc.sum() < 10:
+                continue
+            l2, h2 = band(cb.pooled_quantile(bincq, alpha, True, weights=mc.astype(float)), lo=PT["qlo"], hi=PT["qhi"])
+            mtg = meta_tgt.site_id.values == site
+            lo[mtg], hi[mtg] = l2[mtg], h2[mtg]
+        out["Mondrian-site CQR"] = (lo, hi)
     # model-agnostic check: the same layer on the MLP quantile model
     if "mqlo" in PT and "mqlo" in PC:
         Scm = np.maximum(PC["mqlo"] - PC["y"], PC["y"] - PC["mqhi"]) / PC["s"][:, :, None]

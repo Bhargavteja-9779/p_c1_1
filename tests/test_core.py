@@ -5,6 +5,7 @@ import pandas as pd
 from src.preprocessing import features as fe
 from src.models import calibration as cb
 from src.evaluation import metrics as mt
+from src.training import pipeline as pl
 
 
 def _toy(nb=3, nd=60, seed=0):
@@ -142,3 +143,51 @@ def test_aci_level_below_zero_gives_noninverted_interval():
     tgt = np.zeros((2, 56, 24), dtype=np.float32)  # always covered -> alpha_h drifts above 1 with large gamma
     q = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, np.arange(1, 57))
     assert (q >= 0).all()
+
+
+# ---------------------------------------------------------------- revision 1 (review cycle 1)
+def _toy_ds(name="BDG2"):
+    import pandas as pd
+    dates = pd.date_range("2016-01-01", "2017-12-31", freq="D") if name == "BDG2" else \
+        pd.date_range("2012-01-01", "2014-12-31", freq="D")
+    n = len(dates)
+    return dict(name=name, dates=dates, load=np.ones((3, n, 24), np.float32), temp=None)
+
+
+def test_out_of_time_windows_are_ordered():
+    """training period < every calibration window < every target window."""
+    for name in ["BDG2", "UCI"]:
+        ds = _toy_ds(name)
+        tr, _ = pl.periods(ds)
+        cal, tgt = pl.onboard_periods(ds)
+        rng = np.random.default_rng(0)
+        t0c = pl.onboard_dates(ds, np.arange(3), cal, rng)
+        t0t = pl.onboard_dates(ds, np.arange(3), tgt, rng)
+        assert tr[1] < t0c.min()
+        assert (t0c + pl.NH).max() < t0t.min()
+        assert (t0t + pl.NH).max() <= tgt[1]
+
+
+def test_switch_rule_uses_pooled_then_own():
+    stages = np.arange(1, 57)
+    own = np.full((1, 56, 24), 3.0, dtype=np.float32)
+    q = pl.switch_quantiles(cb.cum_counts(own), np.full((1, 56), 0.5), 0.1, 7)
+    assert np.allclose(q[0, :7], 0.5)  # stages 1..7: fewer than 7 days of own scores
+    assert np.all(q[0, 7:] > 2.9)  # own radius afterwards
+
+
+def test_aci_clip_bounds_working_level():
+    rng = np.random.default_rng(1)
+    prior = cb.cum_counts(rng.exponential(size=(30, 56, 24)).astype(np.float32))
+    binc, _ = cb.bin_cdfs(prior, np.arange(1, 57))
+    tgt = np.full((1, 56, 24), 1e3, dtype=np.float32)  # always missed -> level would go to 1 (infinite radius)
+    q = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, np.arange(1, 57), clip=(0.005, 0.5))
+    assert (q < cb.INF_RADIUS * 0.999).all()
+
+
+def test_interpolated_truth_excluded():
+    import pandas as pd
+    df = pd.DataFrame({"a": [1.0, np.nan, np.nan, 4.0, 5.0]})
+    from src.data.datasets import _clean_hourly
+    out = _clean_hourly(df)
+    assert out.attrs["interp"]["a"].tolist() == [False, True, True, False, False]

@@ -85,10 +85,10 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
         with open(mpath, "wb") as f:
             pickle.dump(models, f)
     rng = np.random.default_rng(2000 + seed)
-    trS, _ = pl.periods(dsS)
-    _, teT = pl.periods(dsT)
-    t0c = pl.onboard_dates(dsS, sp["cal"], trS, rng)
-    t0t = pl.onboard_dates(dsT, tgt_idx, teT, rng)
+    calS, _ = pl.onboard_periods(dsS)  # out-of-time protocol: training < calibration < target windows
+    _, tgtT = pl.onboard_periods(dsT)
+    t0c = pl.onboard_dates(dsS, sp["cal"], calS, rng)
+    t0t = pl.onboard_dates(dsT, tgt_idx, tgtT, rng)
     PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
     PT = pl.window_predictions(dsT, tgt_idx, t0t, models)
     obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, t0c=t0c, t0t=t0t, models=models,
@@ -122,7 +122,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
         for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR", "Self-CQR", "ACI-CQR", "HSC-CQR -stage", "HSC-CQR -kNN",
                   "HSC-CQR -shrink", "GHCP-CQR", "QShrink-CQR", "TQA-B-CQR", "HSC-CQR simple", "CQR (MLP)",
-                  "HSC-CQR (MLP)", "HSC-CQR fixed-κ"]:
+                  "HSC-CQR (MLP)", "HSC-CQR fixed-κ", "HSC-CQR cov-κ", "Switch-CQR", "QShrink-CQR fixed-λ",
+                  "ACI-CQR clip", "Mondrian-site CQR"]:
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     ok = pl.common_mask(out, PT)
@@ -178,6 +179,42 @@ def perturb_shift(factor, day=28):
     return f
 
 
+def perturb_vol(factor, day=28):
+    """Volatility regime change: deviations from the building's window mean scaled by `factor` from `day`."""
+    def f(load, bidx, t0):
+        for b, t in zip(bidx, t0):
+            seg = load[b, t + day:t + pl.NH + 1]
+            mu = np.nanmean(load[b, t:t + pl.NH + 1])
+            load[b, t + day:t + pl.NH + 1] = np.maximum(mu + factor * (seg - mu), 0)
+        return load
+    return f
+
+
+def perturb_outage(start=10, days=3):
+    """Contiguous outage: `days` whole days missing (no history, no truth) from day `start`."""
+    def f(load, bidx, t0):
+        for b, t in zip(bidx, t0):
+            load[b, t + start:t + start + days] = np.nan
+        return load
+    return f
+
+
+def perturb_temp_ar1(sd, seed, phi=0.8):
+    """Day-ahead temperature-forecast error: AR(1) hourly noise with stationary s.d. `sd` degC, applied to
+    the temperature input of every forecast window (calibration AND target buildings)."""
+    def f(temp, bidx, t0):
+        rng = np.random.default_rng(6000 + seed)
+        for b, t in zip(bidx, t0):
+            n = (pl.NH + 1) * 24
+            e = np.empty(n)
+            e[0] = rng.normal(0, sd)
+            for i in range(1, n):
+                e[i] = phi * e[i - 1] + rng.normal(0, sd * np.sqrt(1 - phi ** 2))
+            temp[b, t:t + pl.NH + 1] = temp[b, t:t + pl.NH + 1] + e.reshape(pl.NH + 1, 24)
+        return temp
+    return f
+
+
 def subsample_cal(PC, frac, seed):
     n = PC["y"].shape[0]
     rng = np.random.default_rng(5000 + seed)
@@ -216,6 +253,7 @@ def plan(mode):
     # E4: robustness (BDG2)
     for s in rseeds:
         jobs.append(dict(kind="robust", ds="BDG2", seed=s))
+        jobs.append(dict(kind="robust", ds="UCI", seed=s))  # revision 1: core stress tests on UCI too
         jobs.append(dict(kind="weak", ds="BDG2", seed=s))
     return jobs, frac, mlp, quick
 
@@ -228,7 +266,7 @@ def train_only(mode="full"):
         try:
             k = j["kind"]
             if k in ("main", "robust"):
-                ds = get_ds(j["ds"])
+                ds = get_ds(j["ds"])  # robust jobs reuse the main models of the same seed
                 prepared(j["ds"], j["ds"], j["seed"], "random", None, ds["temp"] is not None, frac, mlp, tag=tag)
             elif k == "lso":
                 prepared("BDG2", "BDG2", j["seed"], "lso", j["seed"], True, frac, mlp, tag=tag)
@@ -285,27 +323,52 @@ def _execute_job(j, frac, mlp, tag, quick):
                  extra=dict(cols=dict(exp="xds", dataset=j["tgt"], protocol=f"{j['src']}->{j['tgt']} (no weather)",
                                       seed=j["seed"], perturb="none")))
     elif k == "robust":
-        ds = get_ds("BDG2")
-        obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, mlp, tag=tag)
+        dsn = j["ds"]
+        ds = get_ds(dsn)
+        obj = prepared(dsn, dsn, j["seed"], "random", None, ds["temp"] is not None, frac, mlp, tag=tag)
         s = j["seed"]
         perts = {"noise5": perturb_noise(0.05, s), "noise15": perturb_noise(0.15, s),
                  "missing20": perturb_missing(0.2, s), "missing40": perturb_missing(0.4, s),
-                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6)}
+                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6),
+                 # revision 1: perturbations aimed at the shrinkage layer itself
+                 "shift+40@d5": perturb_shift(1.4, day=5), "vol x2@d28": perturb_vol(2.0),
+                 "outage 3d@d10": perturb_outage()}
         for name, f in perts.items():
-            pid = f"robust{tag}_BDG2_s{s}_{name}"
+            pid = f"robust{tag}_{dsn}_s{s}_{name.replace(' ', '_').replace('@', 'at')}"
             if _done(pid):
                 continue
             PT = pl.window_predictions(ds, obj["tgt_idx"], obj["t0t"], obj["models"], perturb=f)
             run_part(pid, obj, ds, ds, 0.1, methods="core", PT=PT,
-                     extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=s, perturb=name)))
+                     extra=dict(cols=dict(exp="robust", dataset=dsn, protocol="random", seed=s, perturb=name)))
+        # noise on calibration buildings too (both pools noisy)
+        pid = f"robust{tag}_{dsn}_s{s}_noise15_both"
+        if not _done(pid):
+            PT = pl.window_predictions(ds, obj["tgt_idx"], obj["t0t"], obj["models"], perturb=perturb_noise(0.15, s))
+            PC = pl.window_predictions(ds, obj["sp"]["cal"], obj["t0c"], obj["models"],
+                                       perturb=perturb_noise(0.15, s + 100))
+            run_part(pid, obj, ds, ds, 0.1, methods="core", PT=PT, PC=PC,
+                     extra=dict(cal_idx=obj["sp"]["cal"],
+                                cols=dict(exp="robust", dataset=dsn, protocol="random", seed=s,
+                                          perturb="noise15 (cal+target)")))
+        if ds["temp"] is not None:  # temperature-forecast error in calibration and target windows
+            pid = f"robust{tag}_{dsn}_s{s}_tempfc2"
+            if not _done(pid):
+                PT = pl.window_predictions(ds, obj["tgt_idx"], obj["t0t"], obj["models"],
+                                           perturb_temp=perturb_temp_ar1(2.0, s))
+                PC = pl.window_predictions(ds, obj["sp"]["cal"], obj["t0c"], obj["models"],
+                                           perturb_temp=perturb_temp_ar1(2.0, s + 100))
+                run_part(pid, obj, ds, ds, 0.1, methods="core", PT=PT, PC=PC,
+                         extra=dict(cal_idx=obj["sp"]["cal"],
+                                    cols=dict(exp="robust", dataset=dsn, protocol="random", seed=s,
+                                              perturb="temp-forecast error 2°C")))
         for fr in [0.1, 0.25, 0.5]:
-            pid = f"robust{tag}_BDG2_s{s}_cal{int(fr * 100)}"
+            pid = f"robust{tag}_{dsn}_s{s}_cal{int(fr * 100)}"
             if _done(pid):
                 continue
             PCs, idx = subsample_cal(obj["PC"], fr, s)
             run_part(pid, obj, ds, ds, 0.1, methods="core", PC=PCs,
                      extra=dict(cal_idx=obj["sp"]["cal"][idx],
-                                cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=s,
+                                cols=dict(exp="robust", dataset=dsn, protocol="random", seed=s,
                                           perturb=f"calpool{int(fr * 100)}")))
     elif k == "weak":
         ds = get_ds("BDG2")

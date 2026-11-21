@@ -210,7 +210,7 @@ def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, 
     return q
 
 
-def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
+def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages, clip=None):
     """ACI (Gibbs & Candes, 2021) with daily batches of 24 hourly feedback signals.
 
     alpha_{h+1} = alpha_h + gamma * sum_j (alpha - err_{h,j}); radius = prior quantile at 1-alpha_h.
@@ -225,6 +225,8 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
     q = np.empty((nt, NH), dtype=np.float32)
     for hi, h in enumerate(stages):
         k = int(stage_bin(h))
+        if clip is not None:  # optional safeguard: working miscoverage level kept in [clip[0], clip[1]]
+            a = np.clip(a, clip[0], clip[1])
         lev = 1 - a
         idx = _first_ge(F[:, k, :], np.clip(lev, 0, 1))
         idx_min = _first_ge(F[:, k, :], np.full(nt, 1e-5))  # smallest observed score (empty-set convention)

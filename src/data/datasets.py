@@ -65,7 +65,9 @@ def _clean_hourly(df: pd.DataFrame) -> pd.DataFrame:
                 if e_ - s_ + 1 >= 24:  # run of >= 24 identical values incl. the first one
                     v[s_ - 1:e_] = np.nan
         out[c] = v
+    miss = out.isna()
     out = out.interpolate(limit=6, limit_area="inside", axis=0)
+    out.attrs["interp"] = miss & out.notna()  # hours filled by interpolation (excluded from evaluation)
     return out
 
 
@@ -84,12 +86,14 @@ def load_bdg2(raw_dir: str, cache_dir: str) -> dict:
     if os.path.exists(cache):
         z = np.load(cache, allow_pickle=True)
         meta = pd.read_csv(os.path.join(cache_dir, "bdg2_meta.csv"))
-        return dict(load=z["load"], temp=z["temp"], dates=pd.DatetimeIndex(z["dates"]), meta=meta, name="BDG2")
+        return dict(load=z["load"], temp=z["temp"], dates=pd.DatetimeIndex(z["dates"]), meta=meta, name="BDG2",
+                    interp=z["interp"])
     b = os.path.join(raw_dir, "bdg2")
     e = pd.read_csv(os.path.join(b, "electricity_cleaned.csv"), parse_dates=["timestamp"], index_col=0)
     meta = pd.read_csv(os.path.join(b, "metadata.csv"))
     w = pd.read_csv(os.path.join(b, "weather.csv"), parse_dates=["timestamp"])
     e = _clean_hourly(e)
+    ip = e.attrs.pop("interp")
     keep = []
     for c in e.columns:
         ok = True
@@ -100,6 +104,8 @@ def load_bdg2(raw_dir: str, cache_dir: str) -> dict:
         keep.append(ok)
     e = e.loc[:, keep]
     load, dates = _to_cube(e)
+    interp, _ = _to_cube(ip.loc[:, keep].astype(float))
+    interp = interp == 1
     meta = meta.set_index("building_id").loc[list(e.columns)]
     meta.index.name = "building_id"
     meta = meta.reset_index()
@@ -118,9 +124,11 @@ def load_bdg2(raw_dir: str, cache_dir: str) -> dict:
     meta = meta[["building_id", "site_id", "usage", "sqm", "timezone"]].copy()
     meta["usage"] = meta["usage"].fillna("Unknown")
     os.makedirs(cache_dir, exist_ok=True)
-    np.savez_compressed(cache, load=load.astype("float32"), temp=temp.astype("float32"), dates=dates.values)
+    np.savez_compressed(cache, load=load.astype("float32"), temp=temp.astype("float32"), dates=dates.values,
+                        interp=interp)
     meta.to_csv(os.path.join(cache_dir, "bdg2_meta.csv"), index=False)
-    return dict(load=load.astype("float32"), temp=temp.astype("float32"), dates=dates, meta=meta, name="BDG2")
+    return dict(load=load.astype("float32"), temp=temp.astype("float32"), dates=dates, meta=meta, name="BDG2",
+                interp=interp)
 
 
 def load_uci(raw_dir: str, cache_dir: str) -> dict:
@@ -129,7 +137,8 @@ def load_uci(raw_dir: str, cache_dir: str) -> dict:
     if os.path.exists(cache):
         z = np.load(cache, allow_pickle=True)
         meta = pd.read_csv(os.path.join(cache_dir, "uci_meta.csv"))
-        return dict(load=z["load"], temp=None, dates=pd.DatetimeIndex(z["dates"]), meta=meta, name="UCI")
+        return dict(load=z["load"], temp=None, dates=pd.DatetimeIndex(z["dates"]), meta=meta, name="UCI",
+                    interp=z["interp"])
     zf = zipfile.ZipFile(os.path.join(raw_dir, "uci", "eld.zip"))
     with zf.open("LD2011_2014.txt") as f:
         d = pd.read_csv(f, sep=";", decimal=",", index_col=0, parse_dates=True)
@@ -138,6 +147,7 @@ def load_uci(raw_dir: str, cache_dir: str) -> dict:
     h = d.resample("h").sum() / 4.0
     h = h.loc["2012-01-01":"2014-12-31"]
     h = _clean_hourly(h)
+    ip = h.attrs.pop("interp")
     keep = []
     for c in h.columns:
         ok = True
@@ -148,9 +158,11 @@ def load_uci(raw_dir: str, cache_dir: str) -> dict:
         keep.append(ok)
     h = h.loc[:, keep]
     load, dates = _to_cube(h)
+    interp, _ = _to_cube(ip.loc[:, keep].astype(float))
+    interp = interp == 1
     meta = pd.DataFrame({"building_id": h.columns, "site_id": "UCI", "usage": "Unknown", "sqm": np.nan,
                          "timezone": "Europe/Lisbon"})
     os.makedirs(cache_dir, exist_ok=True)
-    np.savez_compressed(cache, load=load.astype("float32"), dates=dates.values)
+    np.savez_compressed(cache, load=load.astype("float32"), dates=dates.values, interp=interp)
     meta.to_csv(os.path.join(cache_dir, "uci_meta.csv"), index=False)
-    return dict(load=load.astype("float32"), temp=None, dates=dates, meta=meta, name="UCI")
+    return dict(load=load.astype("float32"), temp=None, dates=dates, meta=meta, name="UCI", interp=interp)

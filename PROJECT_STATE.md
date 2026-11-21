@@ -28,9 +28,12 @@ Last updated: 2026-11-21 (session 2: review cycle 1 running)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
-Cycle 1 workflow launched 2026-11-21 (run wf_35978a48-2e7; rerun with REVIEW/review_workflow.js args {cycle:1} if lost).
-Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
-consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
+Review cycle 1 done (REVIEW/review_01.md: action plan A1-A22). Revision-1 recompute launched 2026-11-21
+~11:25 UTC via `scripts/full_pass.sh` (training -> 4 calibration workers -> sensitivity -> analysis; marker
+FULL_PASS_DONE in results/experiment_logs/train.log). New main protocol = out-of-time calibration.
+If the container restarts: rerun `setsid nohup bash scripts/full_pass.sh &` (resumes from cached
+models/parts). Then: analysis items A4, A11-A18, A20; manuscript rewrite A16, A19, A21, A22; rebuild
+packet (REVIEW/build_packet.py) -> cycle 2.
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
