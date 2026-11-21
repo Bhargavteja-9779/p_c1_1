@@ -5,7 +5,7 @@ robustness with week-1/one-sided/post-shift metrics (#13), offset/heterogeneity 
 nominal-level sensitivity of the recommendation rule.
 
 Unit of analysis: one building (metrics averaged over the seeds in which it was a target), unless stated.
-Outputs: tables/T2_*.{csv,md}, results/selection.json, results/cycle2.json.
+Outputs: tables/T2_*.{csv,md}, results/selection.json, results/extended_analysis.json.
 """
 from __future__ import annotations
 
@@ -351,6 +351,6 @@ def run(df):
     res["offset"] = offset_decomposition(df)
     threshold_sensitivity(df, MAIN)
     res["selection"] = {k: v for k, v in sel.items() if not k.endswith("table")}
-    with open(os.path.join(RES, "cycle2.json"), "w") as f:
+    with open(os.path.join(RES, "extended_analysis.json"), "w") as f:
         json.dump(res, f, indent=1, default=float)
     return res

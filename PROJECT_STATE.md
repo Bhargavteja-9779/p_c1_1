@@ -14,6 +14,10 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **LATEST (2026-11-21 20:55 UTC, dazzling-ramanujan session): most advanced branch is now
+  `claude/dazzling-ramanujan-j9ysli`** (fast-forwarded from sharp-cori). Deps installed, 17 tests pass, parts snapshot
+  17:56 restored (222 parts), `scripts/run_c2_stage.sh` restarted 20:52 UTC as harness-tracked background task.
+  DONE for package: src/statistics/cycle2.py renamed -> extended_analysis.py (output results/extended_analysis.json).
 - **LATEST (2026-11-21 ~20:40 UTC, sharp-cori session, stopped for account change): most advanced branch is
   `claude/sharp-cori-11buu9`.** Training was stopped by the user at ~16/22 jobs (caches not in git -> retrain).
   In the NEW container: `pip install -r requirements.txt`; restore parts snapshot (step 1b below); then run
