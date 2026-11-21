@@ -109,6 +109,6 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - DONE: 02_intro related work + gaps 2-3 + contributions 1-3 reframed (evaluation/frontier first; layer = adaptation).
   Contribution 4 (operational) + results/discussion/abstract/highlights: after results.
 - DONE refs: 14 added (literature/citation_audit_c2.md).
-- TODO later: Supplementary S5 = SSC-CQR stage-wise coverage (cited in 04_method); GHCP labelled "HCP-style" and
-  delete "most likely favours GHCP-CQR" in supplement (#17); Table 3 caption Eq. ref; rho overload (penalty -> rho_p);
+- DONE: GHCP HCP-style label (supp_methods.md), Table 3 Eq. 7, rho_p in table.
+- TODO later: Supplementary S5 = SSC-CQR stage-wise coverage (cited in 04_method);
   figure file renaming; "buildings and clients" in highlights; REPRODUCIBILITY_STATUS update; per-part commit hash.
