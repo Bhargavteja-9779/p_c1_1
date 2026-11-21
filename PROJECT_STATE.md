@@ -34,16 +34,23 @@ in order (step 1 code changes → step 2 full rerun → step 3 re-analysis → s
 in the checklist below; tick items as they are committed.
 
 ### Cycle-1 fix checklist
-- [ ] 1a cleaning fix (only gaps <=6 h interpolated, imputed-hour flag excluded from metrics) + unit test
-- [ ] 1b target selection without target-year filter; per-site attrition table
-- [ ] 1c UCI DST masking; duplicate-meter check
-- [ ] 1d ACI/ACI-CQR clipped level; cap-hit counts
-- [ ] 1e Self-CQR-fallback baseline (72/168/336 h by LOBO); Mondrian-CQR
-- [ ] 1f reliability-aware LOBO objective; primary = HSC-CQR simple; fixed-κ reported; cold-start variant
-- [ ] 1g TQA-B λ from calibration only, LOBO decay; GHCP weight tuned; QShrink fixed λ=168 + matched grid
-- [ ] 1h weak forecaster (no lag/profile); new stress scenarios (block outage, early shift, history-only noise)
+- [x] 1a cleaning fix (only gaps <=6 h interpolated, imputed-hour flag excluded from metrics) + unit test
+- [x] 1b target selection without target-year filter; per-site attrition table
+- [x] 1c UCI DST masking (duplicate-meter check moved to step 3 analysis)
+- [x] 1d ACI/ACI-CQR clipped level; cap-hit counts
+- [x] 1e Self-CQR-fallback baseline (72/168/336 h by LOBO); Mondrian-CQR
+- [x] 1f reliability-aware LOBO objective; primary = HSC-CQR simple; fixed-κ reported; cold-start variant
+- [x] 1g TQA-B λ from calibration only, LOBO decay; GHCP weight tuned; QShrink fixed λ=168 + matched grid
+- [x] 1h weak forecaster (no lag/profile); new stress scenarios (block outage, early shift, history-only noise)
 - [ ] 1i isolated timing benchmark
-- [ ] 2  full rerun (sequential; data auto-download; retrain)
+- [ ] 2  full rerun: (a) `ex.train_only('full')` STARTED 2026-11-21 08:19 UTC (log results/experiment_logs/train_r1.log;
+       models cached in results/cache, NOT in git -> lost if container restarts: just restart it, it resumes per job);
+       (b) then calibration pass `bash scripts/calibration_pass.sh` (4 single-threaded workers) or `ex.execute('full')`;
+       (c) `ex.sensitivity('full')`; (d) `python run_all.py --mode full --skip-experiments`.
+       Network: environment "p_c1_1" (allows archive.ics.uci.edu for UCI; setup script installs requirements).
+       Decisions taken: cold-start variant skipped (week-1 reported honestly); CQR-family alpha-sensitivity NOT run
+       (claims limited to 90 %); all LOBO-tuned competitors use the MACD objective (IS tie-break); pre-registered
+       HSC/HSC-CQR keep the IS objective.
 - [ ] 3  re-analysis (per-window, site-cluster tests, per-site, HL, CIs, deviations table, DR case study)
 - [ ] 4  manuscript rewrite + rebuild + packet cycle 2; ask user before cycle 2
 

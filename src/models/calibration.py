@@ -225,16 +225,54 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
     q = np.empty((nt, NH), dtype=np.float32)
     for hi, h in enumerate(stages):
         k = int(stage_bin(h))
-        lev = 1 - a
-        idx = _first_ge(F[:, k, :], np.clip(lev, 0, 1))
+        # revision 1 (R10): the level is clipped to [0, 1 - alpha/10] (a_t clipped to [alpha/10, 1] for the
+        # quantile only; the recursion keeps the unclipped a_t), so a_t <= 0 no longer yields the grid
+        # maximum (500 s) and moderate step sizes stay competitive in tuning
+        lev = 1 - np.clip(a, alpha / 10, 1.0)
+        idx = _first_ge(F[:, k, :], lev)
         idx_min = _first_ge(F[:, k, :], np.full(nt, 1e-5))  # smallest observed score (empty-set convention)
-        idx = np.where(lev >= 1, len(GRID) - 1, np.where(lev <= 0, idx_min, idx))
+        idx = np.where(lev <= 0, idx_min, idx)
         q[:, hi] = GRID[idx]
         e = target_scores[:, hi, :]
         valid = ~np.isnan(e)
         err = (e > q[:, hi:hi + 1]) & valid
         a = a + gamma * (alpha * valid.sum(1) - err.sum(1))
     return q
+
+
+def lobo_coverage(q, scores):
+    """Per-building coverage of radius q (..., nt, NH) on scores (nt, NH, 24): (..., nt)."""
+    e = scores[None] if q.ndim == 3 else scores
+    valid = ~np.isnan(e)
+    hit = (np.where(valid, e, np.inf) <= q[..., None]) & valid
+    return hit.sum(axis=(-1, -2)) / np.maximum(valid.sum(axis=(-1, -2)), 1)
+
+
+def macd_objective(q, scores, base_w, alpha):
+    """Revision-1 tuning objective (pre-stated reliability target, R1/R3/R10): mean absolute per-building
+    coverage deviation of the leave-one-building-out pseudo-targets, ties (within 1e-4) broken by the
+    normalised interval score. Returns (macd, IS) arrays over the leading axis of q."""
+    cov = lobo_coverage(q, scores)
+    return np.abs(cov - (1 - alpha)).mean(axis=-1), normalized_IS(q, scores, base_w, alpha)
+
+
+def pick(objs, tol=1e-4):
+    """Index minimising MACD with IS tie-break: among candidates within `tol` of the best MACD, lowest IS."""
+    macd, IS = np.asarray(objs[0], float), np.asarray(objs[1], float)
+    cand = np.where(macd <= np.nanmin(macd) + tol)[0]
+    return int(cand[np.argmin(IS[cand])])
+
+
+def selffb_quantiles(self_cc, q_pool, alpha, min_hours, stages):
+    """Self-only conformal with a minimum-history fallback (revision 1, R10 'switching rule'): the pooled
+    radius q_pool until the building has >= min_hours own scores, then the split-conformal quantile of its
+    own past scores only. q_pool: (nt, NH) or (NH,)."""
+    nt, NH, NG = self_cc.shape
+    q_own = hsc_quantiles(self_cc, np.zeros((1, len(STAGE_EDGES) - 1, NG), dtype=np.float32), None, alpha, [0],
+                          stages)[0]
+    n_own = own_counts_before(self_cc)
+    use = (n_own >= min_hours) & own_defined(n_own, alpha)
+    return np.where(use, q_own, np.broadcast_to(q_pool, (nt, NH))).astype(np.float32)
 
 
 def normalized_IS(q, scores, base_w, alpha):
@@ -250,7 +288,7 @@ def normalized_IS(q, scores, base_w, alpha):
 # ----------------------------------------------------------------------------------------------
 # Baselines from the closest prior art (added after the prior-art audit; see CHANGELOG.md)
 # ----------------------------------------------------------------------------------------------
-def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
+def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate, excl=None):
     """GHCP-style calibration (Mallick, Tchetgen Tchetgen, Dobriban & Lee, arXiv:2608.15500, Eq. 5), adapted:
     each calibration building ("reference group") receives total weight 1/(K+1) spread over its scores;
     the new building receives the same group share 1/(K+1), spread over its observed own scores and a point
@@ -260,14 +298,18 @@ def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
     """
     nt, NH, NG = self_cc.shape
     tot = np.maximum(cal_counts_allstages[:, -1:], 1).astype(np.float64)
-    Ssum = (cal_counts_allstages / tot).sum(axis=0)  # sum of reference CDFs
+    cdfs = cal_counts_allstages / tot
+    Ssum = cdfs.sum(axis=0)[None, :]  # sum of reference CDFs
     K = cal_counts_allstages.shape[0]
+    if excl is not None:  # leave-one-building-out (tuning of n_surrogate on calibration buildings)
+        Ssum = Ssum - cdfs[excl]
+        K = K - 1
     q = np.empty((nt, NH), dtype=np.float32)
     own = np.zeros((nt, NG), dtype=np.float64)
     for hi, h in enumerate(stages):
         n_own = own[:, -1]
         denom = np.maximum(n_surrogate, n_own)  # own share never exceeds one group share
-        F = (Ssum[None, :] + own / denom[:, None]) / (K + 1.0)
+        F = (Ssum + own / denom[:, None]) / (K + 1.0)
         q[:, hi] = GRID[_first_ge(F, np.full(nt, 1 - alpha))]
         own += self_cc[:, hi, :]
     return q
@@ -322,9 +364,14 @@ def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, b
             r = (ec[None, :, hi] < et[:, hi, None]).sum(axis=1) / (N + 1.0)
             g = np.where(r < 1 - alpha, C * (r - (1 - alpha)), r - (1 - alpha))
             g = np.where(np.isnan(et[:, hi]), 0.0, g)
-            gmax = g.max() if g.size else 0.0
+            # revision 1 (R2): the budget scaling uses calibration buildings only (ranked among the others),
+            # never the set of target buildings
+            ok_c = ~np.isnan(ec[:, hi])
+            rc = (ec[None, ok_c, hi] < ec[ok_c, hi, None]).sum(axis=1) / (N + 1.0)
+            gc = np.where(rc < 1 - alpha, C * (rc - (1 - alpha)), rc - (1 - alpha))
+            gmax = gc.max() if gc.size else 0.0
             lam = min(1.0, (alpha - 0.01) / gmax) if gmax > alpha - 0.01 else 1.0  # original: scale g so a>=0.01
-            a = alpha - lam * g
+            a = np.clip(alpha - lam * g, 0.01, 1.0)
         # quantile of pooled scores together with a point at +inf (original TQA): level (1-a)(N+1)/N
         lev = np.minimum((1 - a) * (Npool[k] + 1) / max(Npool[k], 1), 1.0)
         idx = _first_ge(np.broadcast_to(F[k], (nt, F.shape[1])), lev)

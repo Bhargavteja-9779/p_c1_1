@@ -50,3 +50,17 @@
   (abs 'fixed-kappa' identical to tuned in 6/10 runs; '-kNN -stage' not re-tuned) and replaced by
   'HSC-CQR fixed-κ' (simple variant, κ = 168 h, = donor-local mixture with fixed pseudo-count);
   (9) all tuning tables stored in run_info. Four new unit tests. All result parts recomputed.
+
+## 2026-11-21 — Revision 1 (review cycle 1, see REVIEW/review_01.md)
+- Data (R5): no imputation (pandas `interpolate(limit=6)` filled the first 6 h of long gaps from future readings);
+  eligibility uses the training/calibration period only (target-year look-ahead removed); targets need only an
+  onboarding window with >= 80 % valid hours (buildings without one are dropped and counted); UCI DST hours masked.
+  BDG2 eligible buildings 842 -> ~1,040. Cache files renamed (*_r1) so old caches are never reused.
+- Stress tests (R6): "weak forecaster" renamed "reduced training pool"; new genuinely weak forecaster (no lag /
+  profile / extreme / variability features); new scenarios: 3-day outage block, +40 % shift at day 7, 15 % noise on
+  inputs only (truth clean), 2 % spikes/zeros on inputs only.
+- Calibration (R1/R3/R10/R2): primary = HSC-CQR simple with kappa by LOBO on a pre-stated reliability objective
+  (MACD, IS tie-break); IS-tuned version kept; ACI level clipped to [0, 1-alpha/10] (no 500 s radius);
+  Self-CQR-fb (pooled until 72/168/336 h own scores, by LOBO); Mondrian-CQR; QShrink-CQR fixed-lambda = 168; TQA-B
+  budget scaled on calibration buildings only and decay by LOBO; GHCP surrogate size by LOBO; inverted intervals
+  collapsed to their midpoint and counted. All LOBO-tuned competitors share the MACD objective.
