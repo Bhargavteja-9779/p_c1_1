@@ -373,38 +373,52 @@ def _set_primary():
 
 def fig_frontier(tag):
     """Reliability-sharpness frontier: every member of each strategy family over its parameter grid
-    (results/frontier.csv; mean over seeds); lower-left is better."""
+    (results/frontier.csv; mean over seeds). x: change of the median relative interval score versus pooled CQR (%);
+    y: under-covered buildings (%). Lower-left is better. kappa = lambda = 0 (own scores only, no fallback) are
+    omitted (radius undefined in the first days); ACI members beyond the x-range are annotated."""
     f = os.path.join(RES, f"frontier{tag}.csv")
     if not os.path.exists(f):
         return
     d = pd.read_csv(f)
     g = d.groupby(["dataset", "family", "param"])[["under", "rel_IS", "under_wk1"]].mean().reset_index()
-    fams = [("HSC (decay 1.0)", "#9ec5f4", "o", "shrinkage, no recency"),
-            ("HSC (decay 0.95)", "#2a78d6", "o", "shrinkage, recency 0.95/day"),
-            ("HSC (decay 0.9)", "#1d5aa3", "o", "shrinkage, recency 0.90/day"),
-            ("HSC (decay 0.8)", "#123b6b", "o", "shrinkage, recency 0.80/day"),
+    fams = [("HSC (decay 1.0)", "#9ec5f4", "o", "score shrinkage, no recency (κ grid)"),
+            ("HSC (decay 0.95)", "#2a78d6", "o", "score shrinkage, recency 0.95/day (κ grid)"),
+            ("HSC (decay 0.9)", "#1d5aa3", "o", "score shrinkage, recency 0.90/day (κ grid)"),
+            ("HSC (decay 0.8)", "#123b6b", "o", "score shrinkage, recency 0.80/day (κ grid)"),
             ("QShrink", "#008300", "P", "quantile shrinkage (λ grid)"),
             ("ACI", "#eb6834", "^", "ACI on CQR scores (γ grid)")]
-    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 78 * MM))
+    XMAX = 3.0
+    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 130 * MM))
     for j, ds in enumerate(["BDG2", "UCI"]):
-        ax = axs[j]
-        for fam, col, mk, lab in fams:
-            x = g[(g.dataset == ds) & (g.family == fam)].sort_values("param")
-            if not len(x):
-                continue
-            ax.plot(x.rel_IS, 100 * x.under, color=col, marker=mk, ms=3.2, lw=1.1, label=lab)
-        c = g[(g.dataset == ds) & (g.family == "HSC (decay 1.0)") & np.isinf(g.param)]
-        if len(c):
-            ax.scatter(c.rel_IS, 100 * c.under, s=46, facecolors="none", edgecolors=INK, lw=0.9, zorder=5)
-            ax.annotate("pooled CQR (κ = ∞)", (c.rel_IS.iloc[0], 100 * c.under.iloc[0]), xytext=(6, 2),
-                        textcoords="offset points", fontsize=6.2, color=INK2)
-        ax.set_xscale("log")
-        ax.set_xlabel("Median relative interval score (log scale; lower = sharper)")
-        ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
-    axs[0].set_ylabel("Under-covered buildings (%)")
-    h, l = axs[0].get_legend_handles_labels()
-    fig.legend(h, l, ncol=3, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.08))
-    fig.subplots_adjust(bottom=0.25, wspace=0.2)
+        ref = g[(g.dataset == ds) & (g.family == "HSC (decay 1.0)") & np.isinf(g.param)]
+        r0 = float(ref.rel_IS.iloc[0])
+        for i, (yc, ylab) in enumerate([("under", "Under-covered buildings,\n56-day window (%)"),
+                                         ("under_wk1", "Under-covered buildings,\nfirst week (%)")]):
+            ax = axs[i, j]
+            off = []
+            for fam, col, mk, lab in fams:
+                x = g[(g.dataset == ds) & (g.family == fam) & (g.param > 0)].sort_values("param")
+                if not len(x):
+                    continue
+                dx = 100 * (x.rel_IS.values / r0 - 1)
+                keep = dx <= XMAX
+                ax.plot(dx[keep], 100 * x[yc].values[keep], color=col, marker=mk, ms=3.2, lw=1.1, label=lab)
+                off += [(p, v) for p, v, k in zip(x.param.values, dx, keep) if not k]
+            ax.scatter([0], [100 * ref[yc].iloc[0]], s=50, facecolors="none", edgecolors=INK, lw=0.9, zorder=5)
+            ax.annotate("pooled CQR", (0, 100 * ref[yc].iloc[0]), xytext=(6, 2), textcoords="offset points",
+                        fontsize=6.2, color=INK2)
+            if off and i == 0:
+                txt = "ACI beyond axis:\n" + "\n".join(f"γ = {p:g}: +{v:.0f} %" for p, v in off)
+                ax.text(0.98, 0.97, txt, transform=ax.transAxes, ha="right", va="top", fontsize=5.8, color=INK2)
+            ax.set_xlim(-1.0, XMAX)
+            if i == 1:
+                ax.set_xlabel("Change of median relative interval score vs pooled CQR (%)")
+            if j == 0:
+                ax.set_ylabel(ylab)
+            ax.set_title(f"{'abcd'[2 * i + j]}  {ds}", loc="left")
+    h, l = axs[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=2, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.06))
+    fig.subplots_adjust(bottom=0.17, wspace=0.18, hspace=0.3)
     _save(fig, "Fig_frontier")
 
 
@@ -425,14 +439,15 @@ def fig_weekly(s):
         fl = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none") &
                (s.method == KEY[0])]
         if "under_floor_week" in fl and len(fl):
-            ax.axhline(100 * fl.under_floor_week.mean(), color=INK2, lw=0.8, ls=":")
-            ax.annotate("sampling-noise level for perfectly\ncalibrated intervals (approx.)", (8, 100 * fl.under_floor_week.mean()),
-                        xytext=(-4, -16), textcoords="offset points", ha="right", fontsize=6, color=INK2)
+            ax.axhline(100 * fl.under_floor_week.mean(), color=INK2, lw=0.9, ls=":",
+                       label="noise level, perfectly calibrated (approx.)")
         ax.set_xlabel("Week after metering started")
         ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
         ax.set_xticks(range(1, 9))
     axs[0].set_ylabel("Buildings with weekly coverage < 0.85 (%)")
-    axs[1].legend(frameon=False, loc="upper right", fontsize=6)
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=5, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.1), fontsize=6)
+    fig.subplots_adjust(bottom=0.27)
     _save(fig, "Fig_weekly")
 
 
