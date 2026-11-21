@@ -1,0 +1,13 @@
+[2026-11-20 23:45:20] reuse models MODELS_BDG2_random_s1_w1_f0.4_m1_tb1.0 for BDG2_BDG2_random_s1_w1_f0.4_m1_tb1.0
+[2026-11-20 23:45:53] train BDG2_BDG2_random_s2_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-20 23:45:55]   training rows 1,320,185  validation rows 185,756
+[2026-11-20 23:48:58] train BDG2_BDG2_random_s3_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-20 23:49:00]   training rows 1,318,589  validation rows 183,599
+[2026-11-20 23:55:58] train BDG2_BDG2_random_s4_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-20 23:56:00]   training rows 1,317,922  validation rows 184,495
+[2026-11-20 23:59:54] train UCI_UCI_random_s0_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-20 23:59:55]   training rows 992,746  validation rows 132,144
+[2026-11-21 00:01:04] train UCI_UCI_random_s1_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 00:01:05]   training rows 998,092  validation rows 130,608
+[2026-11-21 00:02:11] train UCI_UCI_random_s2_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 00:02:12]   training rows 994,452  validation rows 130,560

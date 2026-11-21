@@ -1,0 +1,5 @@
+**Selected tuning parameters per run**
+
+| part              |   pcs_kappa |   pcs_is_kappa |   hsc_cqr_K |   hsc_cqr_kappa |   qshrink_is |   qshrink_macd |   aci_gamma_is |   aci_gamma_macdc |   aci_gamma_cov |   grouped_kappa |
+|:------------------|------------:|---------------:|------------:|----------------:|-------------:|---------------:|---------------:|------------------:|----------------:|----------------:|
+| main_BDG2_s0_a0.1 |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |

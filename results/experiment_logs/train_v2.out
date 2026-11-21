@@ -1,0 +1,29 @@
+[2026-11-20 23:36:07] train BDG2_BDG2_random_s0_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-20 23:36:09]   training rows 1,318,757  validation rows 183,509
+[2026-11-20 23:38:40] FAILED training {'kind': 'main', 'ds': 'BDG2', 'seed': 0}: operands could not be broadcast together with shapes (9408,24) (225792,) () 
+Traceback (most recent call last):
+  File "/home/user/p_c1_1/src/experiments.py", line 232, in train_only
+    prepared(j["ds"], j["ds"], j["seed"], "random", None, ds["temp"] is not None, frac, mlp, tag=tag)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/p_c1_1/src/experiments.py", line 92, in prepared
+    PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
+  File "/home/user/p_c1_1/src/training/pipeline.py", line 165, in window_predictions
+    y = np.where(ds["obs"][B, T, :], y, np.nan)
+ValueError: operands could not be broadcast together with shapes (9408,24) (225792,) () 
+
+[2026-11-20 23:38:40] train BDG2_BDG2_random_s1_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-20 23:38:42]   training rows 1,322,913  validation rows 186,241
+[2026-11-20 23:44:21] FAILED training {'kind': 'main', 'ds': 'BDG2', 'seed': 1}: operands could not be broadcast together with shapes (9408,24) (225792,) () 
+Traceback (most recent call last):
+  File "/home/user/p_c1_1/src/experiments.py", line 232, in train_only
+    if k in ("main", "robust"):
+        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/p_c1_1/src/experiments.py", line 92, in prepared
+    PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
+  File "/home/user/p_c1_1/src/training/pipeline.py", line 165, in window_predictions
+    y = np.where(ds["obs"][B, T, :].ravel(), y, np.nan)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: operands could not be broadcast together with shapes (9408,24) (225792,) () 
+
+[2026-11-20 23:44:21] train BDG2_BDG2_random_s2_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-20 23:44:23]   training rows 1,320,185  validation rows 185,756

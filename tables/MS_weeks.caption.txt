@@ -1,0 +1,1 @@
+Per-building reliability by onboarding week (random-building protocol, 90 %, mean over 5 seeds): share of buildings whose coverage within the week is below 0.85, and the 10th percentile of per-building weekly coverage. With 168 hourly forecasts per week, sampling noise alone puts roughly 5–10 % of perfectly calibrated buildings below 0.85 in a single week.
