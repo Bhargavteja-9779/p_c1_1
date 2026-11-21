@@ -1,0 +1,52 @@
+**Attrition of the BDG2 quality filter by site and rule** (a building can fail several rules; 'fail_stuck_mask' = passes the 5 % missing rule on the raw data but fails after stuck-run masking; 'fail_2017_only' = fails only because of the target year)
+
+| site_id   |   n_raw |   kept |   fail_missing_raw |   fail_stuck_mask |   fail_low_load |   fail_2017_only |
+|:----------|--------:|-------:|-------------------:|------------------:|----------------:|-----------------:|
+| Bear      |      92 |     72 |                 15 |                 2 |               5 |                3 |
+| Bobcat    |      35 |      0 |                 35 |                 0 |               3 |               21 |
+| Bull      |     123 |    109 |                 16 |                 0 |               0 |                7 |
+| Cockatoo  |     117 |      0 |                117 |                 0 |               1 |                0 |
+| Crow      |       5 |      0 |                  5 |                 0 |               0 |                5 |
+| Eagle     |     106 |     60 |                 43 |                 3 |               5 |                3 |
+| Fox       |     137 |    119 |                 12 |                 8 |               1 |                7 |
+| Gator     |      74 |      0 |                 56 |                18 |              18 |                0 |
+| Hog       |     152 |    134 |                 17 |                 1 |               9 |                4 |
+| Lamb      |     146 |      0 |                 67 |                79 |               5 |              132 |
+| Moose     |      13 |      6 |                  4 |                 3 |               0 |                1 |
+| Mouse     |       7 |      0 |                  7 |                 0 |               0 |                0 |
+| Panther   |     105 |      0 |                105 |                 0 |               1 |                0 |
+| Peacock   |      45 |     36 |                  9 |                 0 |               9 |                0 |
+| Rat       |     305 |    248 |                 57 |                 1 |               5 |               19 |
+| Robin     |      52 |     22 |                  1 |                29 |               0 |                0 |
+| Shrew     |       9 |      0 |                  9 |                 0 |               0 |                9 |
+| Swan      |      19 |      0 |                 19 |                 0 |              19 |                0 |
+| Wolf      |      36 |     36 |                  1 |                 0 |               0 |                0 |
+| All       |    1578 |    842 |                595 |               144 |              81 |              211 |
+
+**Retained vs excluded buildings**
+
+| kept   |   n |   median_sqm |   median_mean_load_2016 |
+|:-------|----:|-------------:|------------------------:|
+| False  | 736 |       4084.4 |                    47.8 |
+| True   | 842 |       6175   |                    79.9 |
+
+**Primary-use mix (column shares), excluded (False) vs retained (True)**
+
+| usage                         |   False |   True |
+|:------------------------------|--------:|-------:|
+| Education                     |   0.391 |  0.385 |
+| Entertainment/public assembly |   0.146 |  0.116 |
+| Food sales and service        |   0.003 |  0.005 |
+| Healthcare                    |   0.015 |  0.019 |
+| Lodging/residential           |   0.103 |  0.089 |
+| Manufacturing/industrial      |   0.008 |  0.006 |
+| Office                        |   0.177 |  0.201 |
+| Other                         |   0.026 |  0.008 |
+| Parking                       |   0.014 |  0.015 |
+| Public services               |   0.088 |  0.122 |
+| Religious worship             |   0.001 |  0.002 |
+| Retail                        |   0.008 |  0.006 |
+| Services                      |   0     |  0.011 |
+| Technology/science            |   0.006 |  0.004 |
+| Utility                       |   0.003 |  0.002 |
+| Warehouse/storage             |   0.01  |  0.008 |
