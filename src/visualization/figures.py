@@ -54,11 +54,11 @@ def fig_schematic():
     fs = 6.2
     boxes = [
         (0.5, 23, 21, 13, "Training buildings\n(source period)\nglobal LightGBM / QR\non normalised load $y/s$"),
-        (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nscores $e=|y-\\hat{y}|/s$\n(or CQR) per stage $h$"),
-        (26, 3, 22, 15, "Population prior $F^{prior}$\nstage-bin matched;\n$K$ nearest buildings\nby load descriptor $z$"),
-        (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures and $z$ from its\nown $h$ days only"),
-        (53, 11, 24, 17, "Hierarchical shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{prior}(e)+\\#\\{i: e_i\\leq e\\}$\n(normalised by $\\kappa+n_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
-        (81, 11, 18.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
+        (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nCQR scores $e$ in\nunits of the scale $s$"),
+        (26, 3, 22, 15, "Population score\ndistribution $F^{pop}$\n(each calibration\nbuilding weighted equally)"),
+        (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures from its\nown $h$ days only"),
+        (52.5, 10, 27, 19, "Recency-weighted shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{pop}(e)+\\Sigma_i\\, \\rho^{d_i-1} 1\\{e_i\\leq e\\}$\n(normalised by $\\kappa+n^{\\rho}_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
+        (82, 11, 17.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
     ]
     for x, y, w, h, t in boxes:
         ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.3,rounding_size=1.0", fc="#f0f5fc",
@@ -69,12 +69,12 @@ def fig_schematic():
     ax.annotate("", xy=(25.6, 29.5), xytext=(21.9, 29.5), arrowprops=arr)
     ax.annotate("", xy=(52.6, 16), xytext=(48.4, 10.5), arrowprops=arr)
     ax.annotate("", xy=(52.6, 23), xytext=(48.4, 29.5), arrowprops=arr)
-    ax.annotate("", xy=(80.6, 19.5), xytext=(77.4, 19.5), arrowprops=arr)
+    ax.annotate("", xy=(81.6, 19.5), xytext=(80.0, 19.5), arrowprops=arr)
     ax.annotate("", xy=(66, 28.6), xytext=(90, 28.6), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.9,
                                                                         connectionstyle="arc3,rad=0.45"))
-    ax.text(78, 37.2, "realised scores of day $h+1$ are added to $b$'s own scores ($n_b=24(h-1)$)", ha="center",
+    ax.text(78, 37.2, "realised scores of day $h+1$ join $b$'s own scores; older days decay by $\\rho$ per day", ha="center",
             fontsize=fs, color=INK2)
-    ax.text(24.5, 0.3, "$\\kappa$ and $K$ are chosen by leave-one-building-out on calibration buildings only",
+    ax.text(24.5, 0.3, "$\\kappa$ is chosen by leave-one-building-out on per-building coverage of calibration buildings",
             ha="center", fontsize=fs, color=INK2)
     _save(fig, "Fig1_method")
 
@@ -191,14 +191,15 @@ def fig_tradeoff(s):
 
 
 def fig_ablation(s):
-    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR -shrink",
-             "Self-CQR", "CQR"]
-    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 58 * MM))
+    meths = ["HSC-CQR recency", "HSC-SSC-CQR", "HSC-CQR simple (cov)", "HSC-CQR fixed-κ", "HSC-CQR simple",
+             "HSC-CQR", "HSC-CQR -shrink", "Self-CQR", "CQR"]
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM))
     w = 0.38
-    for j, metric, lab in [(0, "macd", "MACD"), (1, "rel_IS", "Median rel. interval score")]:
+    for j, metric, lab in [(0, "under_rate", "Under-covered buildings (%)"),
+                           (1, "under_wk1", "Under-covered buildings, first week (%)")]:
         for k, ds in enumerate(["BDG2", "UCI"]):
             d = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
-            g = d.groupby("method")[metric].agg(["mean", "std"]).reindex(meths)
+            g = 100 * d.groupby("method")[metric].agg(["mean", "std"]).reindex(meths)
             x = np.arange(len(meths)) + (k - 0.5) * w
             axs[j].bar(x, g["mean"], w * 0.92, yerr=g["std"], color=["#2a78d6", "#eb6834"][k], label=ds,
                        error_kw=dict(lw=0.6, capsize=1.5))
@@ -296,7 +297,7 @@ def fig_sensitivity(tag):
 def fig_errors(df):
     d = df[(df.exp == "main") & (df.alpha == 0.1) & (df.dataset == "BDG2")]
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM))
-    for m in ["CQR", "HSC-CQR"]:
+    for m in ["CQR", KEY[0]]:
         dm = d[d.method == m]
         axs[0].scatter(dm.cvrmse_lgb, dm.coverage, s=3, alpha=0.45, color=_c(m), label=m, linewidths=0)
     axs[0].set_xscale("log")
@@ -305,12 +306,12 @@ def fig_errors(df):
     axs[0].set_ylabel("Per-building coverage")
     axs[0].legend(frameon=False, markerscale=3)
     axs[0].set_title("a  Coverage vs. forecast difficulty (BDG2)", loc="left")
-    dm = d[d.method == "HSC-CQR"]
+    dm = d[d.method == KEY[0]]
     u = dm.groupby("usage").coverage.agg(["mean", "size"]).query("size >= 30").sort_values("mean")
     dc = d[d.method == "CQR"].groupby("usage").coverage.mean().reindex(u.index)
     y = np.arange(len(u))
     axs[1].scatter(dc.values, y, color=_c("CQR"), marker="s", s=14, label="CQR", zorder=3)
-    axs[1].scatter(u["mean"].values, y, color=_c("HSC-CQR"), marker="o", s=14, label="HSC-CQR", zorder=3)
+    axs[1].scatter(u["mean"].values, y, color=_c(KEY[0]), marker="o", s=14, label=KEY[0], zorder=3)
     for yi, a, b in zip(y, dc.values, u["mean"].values):
         axs[1].plot([a, b], [yi, yi], color=GREY, lw=0.6, zorder=1)
     axs[1].set_yticks(y)
@@ -335,13 +336,13 @@ def fig_examples(tag):
         em0 = e[e.method == "CQR"].sort_values(["stage", "hour"])
         t = (em0.stage.values) * 24 + em0.hour.values
         axs[i].plot(t, em0.y, color=INK, lw=0.8, label="observed", zorder=3)
-        for m, ls in [("CQR", (0, (3, 1.5))), ("HSC-CQR", "-")]:
+        for m, ls in [("CQR", (0, (3, 1.5))), (KEY[0], "-")]:
             em = e[e.method == m].sort_values(["stage", "hour"])
             axs[i].plot(t, em.lo, color=_c(m), lw=0.9, ls=ls, label=f"{m} 90 % bounds")
             axs[i].plot(t, em.hi, color=_c(m), lw=0.9, ls=ls)
             miss = (em.y.values < em.lo.values) | (em.y.values > em.hi.values)
             axs[i].scatter(t[miss], em.y.values[miss], s=9, marker="x" if m == "CQR" else "o", color=_c(m),
-                           zorder=4, linewidths=0.8, facecolors="none" if m == "HSC-CQR" else None,
+                           zorder=4, linewidths=0.8, facecolors="none" if m == KEY[0] else None,
                            label=f"missed by {m}")
         axs[i].set_title(f"{'ab'[i]}  {b}: {'10th' if pick == 'p10' else '50th'} percentile of CQR coverage "
                          f"(seed 0, first 10 forecast days)", loc="left")
@@ -349,6 +350,106 @@ def fig_examples(tag):
     axs[1].set_xlabel("Hours since metering started")
     axs[0].legend(ncol=5, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.32))
     _save(fig, "Fig11_examples")
+
+
+def _set_primary():
+    """Colour slots follow the method identity; the pre-registered rule (results/recommended.json) decides which
+    method is the recommended one, which takes slot 1 (blue)."""
+    import json
+    global KEY
+    f = os.path.join(RES, "recommended.json")
+    p = json.load(open(f))["recommended"] if os.path.exists(f) else "HSC-CQR"
+    slots = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
+    marks = ["o", "s", "^", "v", "D", "P", "X", "*"]
+    ident = [p, "CQR", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR (cov)", "HSC-CQR", "SCP-stage"]
+    if p == "HSC-CQR":
+        ident[6] = "QShrink-CQR"
+    COL.clear()
+    MARK.clear()
+    for m, c, k in zip(ident, slots, marks):
+        COL[m], MARK[m] = c, k
+    KEY = ident
+    return p
+
+
+def fig_frontier(tag):
+    """Reliability-sharpness frontier: every member of each strategy family over its parameter grid
+    (results/frontier.csv; mean over seeds). x: change of the median relative interval score versus pooled CQR (%);
+    y: under-covered buildings (%). Lower-left is better. kappa = lambda = 0 (own scores only, no fallback) are
+    omitted (radius undefined in the first days); ACI members beyond the x-range are annotated."""
+    f = os.path.join(RES, f"frontier{tag}.csv")
+    if not os.path.exists(f):
+        return
+    d = pd.read_csv(f)
+    g = d.groupby(["dataset", "family", "param"])[["under", "rel_IS", "under_wk1"]].mean().reset_index()
+    fams = [("HSC (decay 1.0)", "#9ec5f4", "o", "score shrinkage, no recency (κ grid)"),
+            ("HSC (decay 0.95)", "#2a78d6", "o", "score shrinkage, recency 0.95/day (κ grid)"),
+            ("HSC (decay 0.9)", "#1d5aa3", "o", "score shrinkage, recency 0.90/day (κ grid)"),
+            ("HSC (decay 0.8)", "#123b6b", "o", "score shrinkage, recency 0.80/day (κ grid)"),
+            ("QShrink", "#008300", "P", "quantile shrinkage (λ grid)"),
+            ("ACI", "#eb6834", "^", "ACI on CQR scores (γ grid)")]
+    XMAX = 3.0
+    fig, axs = plt.subplots(2, 2, figsize=(190 * MM, 130 * MM))
+    for j, ds in enumerate(["BDG2", "UCI"]):
+        ref = g[(g.dataset == ds) & (g.family == "HSC (decay 1.0)") & np.isinf(g.param)]
+        r0 = float(ref.rel_IS.iloc[0])
+        for i, (yc, ylab) in enumerate([("under", "Under-covered buildings,\n56-day window (%)"),
+                                         ("under_wk1", "Under-covered buildings,\nfirst week (%)")]):
+            ax = axs[i, j]
+            off = []
+            for fam, col, mk, lab in fams:
+                x = g[(g.dataset == ds) & (g.family == fam) & (g.param > 0)].sort_values("param")
+                if not len(x):
+                    continue
+                dx = 100 * (x.rel_IS.values / r0 - 1)
+                keep = dx <= XMAX
+                ax.plot(dx[keep], 100 * x[yc].values[keep], color=col, marker=mk, ms=3.2, lw=1.1, label=lab)
+                off += [(p, v) for p, v, k in zip(x.param.values, dx, keep) if not k]
+            ax.scatter([0], [100 * ref[yc].iloc[0]], s=50, facecolors="none", edgecolors=INK, lw=0.9, zorder=5)
+            ax.annotate("pooled CQR", (0, 100 * ref[yc].iloc[0]), xytext=(6, 2), textcoords="offset points",
+                        fontsize=6.2, color=INK2)
+            if off and i == 0:
+                txt = "ACI beyond axis:\n" + "\n".join(f"γ = {p:g}: +{v:.0f} %" for p, v in off)
+                ax.text(0.98, 0.97, txt, transform=ax.transAxes, ha="right", va="top", fontsize=5.8, color=INK2)
+            ax.set_xlim(-1.0, XMAX)
+            if i == 1:
+                ax.set_xlabel("Change of median relative interval score vs pooled CQR (%)")
+            if j == 0:
+                ax.set_ylabel(ylab)
+            ax.set_title(f"{'abcd'[2 * i + j]}  {ds}", loc="left")
+    h, l = axs[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=2, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.06))
+    fig.subplots_adjust(bottom=0.17, wspace=0.18, hspace=0.3)
+    _save(fig, "Fig_frontier")
+
+
+def fig_weekly(s):
+    f = os.path.join(RES, "weekly_coverage.csv")
+    if not os.path.exists(f):
+        return
+    w = pd.read_csv(f)
+    meths = [m for m in KEY if m in set(w.method)]
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM), sharey=True)
+    for j, ds in enumerate(["BDG2", "UCI"]):
+        ax = axs[j]
+        x = w[w.dataset == ds].groupby(["method", "week"]).under.mean().reset_index()
+        for m in meths:
+            xm = x[x.method == m]
+            ax.plot(xm.week, 100 * xm.under, color=_c(m), marker=MARK.get(m, "o"), ms=3,
+                    lw=1.8 if m == KEY[0] else 1.0, ls="-" if m == KEY[0] else (0, (3, 1)), label=m)
+        fl = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none") &
+               (s.method == KEY[0])]
+        if "under_floor_week" in fl and len(fl):
+            ax.axhline(100 * fl.under_floor_week.mean(), color=INK2, lw=0.9, ls=":",
+                       label="noise level, perfectly calibrated (approx.)")
+        ax.set_xlabel("Week after metering started")
+        ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
+        ax.set_xticks(range(1, 9))
+    axs[0].set_ylabel("Buildings with weekly coverage < 0.85 (%)")
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=5, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.1), fontsize=6)
+    fig.subplots_adjust(bottom=0.27)
+    _save(fig, "Fig_weekly")
 
 
 def run(mode="full"):
@@ -361,6 +462,9 @@ def run(mode="full"):
     df = df[df.part.str.contains("_quick") == (mode == "quick")]
     s = seed_level(df)
     cv = pd.read_csv(os.path.join(RES, "stage_curves.csv"))
+    _set_primary()
+    fig_frontier(tag)
+    fig_weekly(s)
     fig_schematic()
     b, u = get_ds("BDG2"), get_ds("UCI")
     fig_data(b["meta"], u["meta"], b["load"], u["load"])

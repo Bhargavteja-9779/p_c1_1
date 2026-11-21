@@ -89,9 +89,14 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
     _, teT = pl.periods(dsT)
     t0c = pl.onboard_dates(dsS, sp["cal"], trS, rng)
     t0t = pl.onboard_dates(dsT, tgt_idx, teT, rng)
+    sp = dict(sp, cal=sp["cal"][t0c >= 0], n_cal_dropped=int((t0c < 0).sum()))
+    t0c = t0c[t0c >= 0]
+    n_tgt_dropped = int((t0t < 0).sum())
+    tgt_idx, t0t = tgt_idx[t0t >= 0], t0t[t0t >= 0]
+    _log(f"  onboarding: dropped cal={sp['n_cal_dropped']} tgt={n_tgt_dropped} (no window with >=80% valid hours)")
     PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
     PT = pl.window_predictions(dsT, tgt_idx, t0t, models)
-    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, t0c=t0c, t0t=t0t, models=models,
+    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, n_tgt_dropped=n_tgt_dropped, t0c=t0c, t0t=t0t, models=models,
                timing=dict(train_total=models.get("time_train_total", time.time() - t0), lgb=models["time_lgb"],
                            mlp=models.get("time_mlp"),
                            n_train_rows=models["n_train_rows"], pred_lgb_per_target_day=PT["t_pred_lgb"]))
@@ -119,10 +124,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     t0 = time.time()
     out, info = pl.run_calibration(PC, PT, alpha, mc if dsS is dsT else None, mtg if dsS is dsT else None,
                                    methods=methods)
-    if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
-        for k in ["QR-LGBM", "CQR", "MLP-QR", "HSC-CQR", "Self-CQR", "ACI-CQR", "HSC-CQR -stage", "HSC-CQR -kNN",
-                  "HSC-CQR -shrink", "GHCP-CQR", "QShrink-CQR", "TQA-B-CQR", "HSC-CQR simple", "CQR (MLP)",
-                  "HSC-CQR (MLP)", "HSC-CQR fixed-κ"]:
+    if alpha != model_alpha:  # quantile models were trained for alpha=0.1: uncalibrated QR intervals are not
+        for k in ["QR-LGBM", "MLP-QR"]:  # meaningful at other levels; conformalised (CQR-based) ones are kept
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     ok = pl.common_mask(out, PT)
@@ -130,10 +133,16 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     nb = len(mtg)
     df["building_id"] = np.tile(mtg.building_id.values, len(out))
     df["site_id"] = np.tile(mtg.site_id.values, len(out))
+    # method-independent oracle noise reference per building (cycle 2, #3); identical for every method row
+    ref = mt.oracle_reference(pl.scores_cqr(PT), ok, alpha, seed=int(extra.get("cols", {}).get("seed", 0))
+                              if extra else 0)
+    for k, v in ref.items():
+        df[k] = np.tile(v, len(out))
     df["usage"] = np.tile(mtg.usage.values, len(out))
     pm = mt.point_metrics(PT["y"], PT["yhat"])
     df["cvrmse_lgb"] = np.tile(pm["cvrmse"], len(out))
     info["t_calibration_total"] = time.time() - t0
+    info["n_tgt_dropped"], info["n_targets"] = obj.get("n_tgt_dropped", 0), int(len(mtg))
     info.update(obj["timing"])
     info["point"] = {k: float(np.nanmedian(v)) for k, v in pm.items()}
     for key, nm in (("naive", "naive"), ("mu", "mlp")):
@@ -166,6 +175,53 @@ def perturb_missing(rate, seed):
             seg = load[b, t:t + pl.NH + 1]
             seg[rng.random(seg.shape) < rate] = np.nan
             load[b, t:t + pl.NH + 1] = seg
+        return load
+    return f
+
+
+def perturb_outage(seed, n_blocks=2, max_days=3):
+    """Cycle 2 (R6): block outages -- n_blocks gaps of 1..max_days whole days at random positions."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(6000 + seed)
+        for b, t in zip(bidx, t0):
+            for _ in range(n_blocks):
+                L = int(rng.integers(1, max_days + 1))
+                d0 = int(rng.integers(0, pl.NH + 1 - L))
+                load[b, t + d0:t + d0 + L] = np.nan
+        return load
+    return f
+
+
+def perturb_spikes(seed, rate=0.02, factor=3.0):
+    """Cycle 2 (R6): heavy-tailed noise -- a share `rate` of hours multiplied by `factor`."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(7000 + seed)
+        for b, t in zip(bidx, t0):
+            seg = load[b, t:t + pl.NH + 1]
+            m = rng.random(seg.shape) < rate
+            seg[m] = seg[m] * factor
+            load[b, t:t + pl.NH + 1] = seg
+        return load
+    return f
+
+
+def perturb_shift_random(factor, seed, lo=3, hi=14):
+    """Cycle 2 (R6): level shift at a random onboarding day in [lo, hi] (commissioning-type change)."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(8000 + seed)
+        for b, t in zip(bidx, t0):
+            d = int(rng.integers(lo, hi + 1))
+            load[b, t + d:t + pl.NH + 1] *= factor
+        return load
+    return f
+
+
+def perturb_ramp(total):
+    """Cycle 2 (R6): gradual drift, multiplicative ramp from 1 to 1 + total over the window."""
+    def f(load, bidx, t0):
+        r = 1 + total * np.linspace(0, 1, pl.NH + 1)[:, None]
+        for b, t in zip(bidx, t0):
+            load[b, t:t + pl.NH + 1] *= r
         return load
     return f
 
@@ -290,7 +346,9 @@ def _execute_job(j, frac, mlp, tag, quick):
         s = j["seed"]
         perts = {"noise5": perturb_noise(0.05, s), "noise15": perturb_noise(0.15, s),
                  "missing20": perturb_missing(0.2, s), "missing40": perturb_missing(0.4, s),
-                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6)}
+                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6),
+                 "outage1-3d": perturb_outage(s), "spikes2": perturb_spikes(s),
+                 "shift+40@d3-14": perturb_shift_random(1.4, s), "ramp+40": perturb_ramp(0.4)}
         for name, f in perts.items():
             pid = f"robust{tag}_BDG2_s{s}_{name}"
             if _done(pid):
@@ -372,6 +430,53 @@ def sensitivity(mode="full"):
     pd.DataFrame(out).to_csv(os.path.join(RES, f"sensitivity{tag}.csv"), index=False)
 
 
+def frontier(mode="full"):
+    """Reliability-sharpness frontier (Addendum A; transparency only, never used for any selection):
+    every member of each CQR-score strategy family over its full parameter grid, evaluated on target
+    buildings: HSC simple over kappa x own-score decay, QShrink over lambda, ACI-CQR over gamma."""
+    from src.models import calibration as cb
+    quick = mode == "quick"
+    tag = "_quick" if quick else ""
+    frac = 0.1 if quick else 0.4
+    seeds = [0] if quick else [0, 1, 2, 3, 4]
+    stages = np.arange(1, pl.NH + 1)
+    sb = cb.stage_bin(stages)
+    rows = []
+
+    def rec(dsn, s, fam, par, lo, hi, PT, a):
+        m, _, _ = mt.interval_metrics(PT["y"], lo, hi, a)
+        cov, ce = m["coverage"], m["coverage_early"]
+        thr = 1 - a - 0.05
+        rows.append(dict(dataset=dsn, seed=s, alpha=a, family=fam, param=par, macd=float(np.mean(np.abs(cov - (1 - a)))),
+                         under=float(np.mean(cov < thr)), under_wk1=float(np.mean(ce < thr)),
+                         p10=float(np.quantile(cov, 0.1)), rel_IS=float(np.median(m["rel_IS"])),
+                         rel_IS_mean=float(np.mean(m["rel_IS"])), rel_width=float(np.median(m["rel_width"]))))
+    for dsn in ["BDG2", "UCI"]:
+        ds = get_ds(dsn)
+        for s in seeds:
+            obj = prepared(dsn, dsn, s, "random", None, ds["temp"] is not None, frac, True, tag=tag)
+            PC, PT = obj["PC"], obj["PT"]
+            Sc, St = pl.scores_cqr(PC), pl.scores_cqr(PT)
+            binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
+            cct = cb.cum_counts(St)
+            sc = PT["s"][:, :, None]
+            band = lambda q: (PT["qlo"] - q[:, :, None] * sc, PT["qhi"] + q[:, :, None] * sc)
+            for a in ([0.1] if quick else [0.1, 0.05, 0.2]):  # cycle 2: frontier at three nominal levels
+                for dec in [1.0, 0.95, 0.9, 0.8]:
+                    q = cb.hsc_quantiles(cct, binc, None, a, pl.KAPPAS, stages, stage_matched=False, decay=dec)
+                    for ki, kap in enumerate(pl.KAPPAS):
+                        rec(dsn, s, f"HSC (decay {dec})", kap, *band(q[ki]), PT, a)
+                qp = cb.pooled_quantile(binc, a, True)[sb]
+                for dec in [1.0, 0.95]:
+                    fam = "QShrink" if dec == 1.0 else "QShrink (decay 0.95)"
+                    for lam in pl.KAPPAS:
+                        rec(dsn, s, fam, lam, *band(cb.qshrink_quantiles(cct, qp, a, lam, stages, decay=dec)), PT, a)
+                for g in pl.GAMMAS:
+                    rec(dsn, s, "ACI", g, *band(cb.aci_quantiles(St, binc.sum(axis=0), a, g, stages)), PT, a)
+            _log(f"frontier {dsn} s{s} done")
+    pd.DataFrame(rows).to_csv(os.path.join(RES, f"frontier{tag}.csv"), index=False)
+
+
 def _examples(dsn, ds, obj, tag):
     """Pre-specified rule: the target buildings at the 10th and 50th percentile of per-building CQR
     coverage in seed 0 (a poorly covered and a typical building)."""
@@ -383,7 +488,9 @@ def _examples(dsn, ds, obj, tag):
     picks = {"p10": order[int(0.1 * (len(cov) - 1))], "p50": order[int(0.5 * (len(cov) - 1))]}
     rows = []
     for lab, i in picks.items():
-        for meth in ["CQR", "HSC-CQR" if "HSC-CQR" in out else "HSC", "HSC"]:
+        for meth in ["CQR", "HSC-CQR recency", "HSC-CQR", "HSC"]:
+            if meth not in out:
+                continue
             lo, hi = out[meth]
             for h in range(pl.NH):
                 for j in range(24):

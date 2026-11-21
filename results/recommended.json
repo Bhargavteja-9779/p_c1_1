@@ -1,0 +1,111 @@
+{
+ "rule": "min mean under-covered share s.t. median rel. IS <= 1.02 x CQR on BDG2 and UCI (Addendum A.1)",
+ "recommended": "HSC-CQR recency",
+ "table": [
+  {
+   "method": "ACI-CQR (cov)",
+   "under_mean": 0.0,
+   "is_ratio_BDG2": 1.9664870649665407,
+   "is_ratio_UCI": 1.1722872160226816,
+   "eligible": false
+  },
+  {
+   "method": "HSC-CQR recency",
+   "under_mean": 0.001976284584980237,
+   "is_ratio_BDG2": 1.0094529472521394,
+   "is_ratio_UCI": 1.0030086055423246,
+   "eligible": true
+  },
+  {
+   "method": "HSC-SSC-CQR",
+   "under_mean": 0.004743083003952569,
+   "is_ratio_BDG2": 1.0113679611346345,
+   "is_ratio_UCI": 1.0007376520760627,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR (cov)",
+   "under_mean": 0.00856251300187227,
+   "is_ratio_BDG2": 1.0041174885185722,
+   "is_ratio_UCI": 1.000467898496702,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple (cov)",
+   "under_mean": 0.010538797586852507,
+   "is_ratio_BDG2": 1.0041039879782607,
+   "is_ratio_UCI": 0.9987966177899776,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR fixed-\u03ba",
+   "under_mean": 0.011591429165799874,
+   "is_ratio_BDG2": 1.0026548460772973,
+   "is_ratio_UCI": 0.997166453952667,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple",
+   "under_mean": 0.019887663823590595,
+   "is_ratio_BDG2": 0.9975179117139873,
+   "is_ratio_UCI": 0.9968844619708036,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR",
+   "under_mean": 0.020153942167672145,
+   "is_ratio_BDG2": 0.9995477205557944,
+   "is_ratio_UCI": 1.0009743283002028,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR",
+   "under_mean": 0.028974412315373413,
+   "is_ratio_BDG2": 0.9953178278010573,
+   "is_ratio_UCI": 0.9974082759682336,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR",
+   "under_mean": 0.03675057208237986,
+   "is_ratio_BDG2": 1.0184994927096336,
+   "is_ratio_UCI": 1.0114517827139489,
+   "eligible": true
+  },
+  {
+   "method": "ACI-CQR",
+   "under_mean": 0.05781568545870606,
+   "is_ratio_BDG2": 0.9968569272598791,
+   "is_ratio_UCI": 0.9959031055581286,
+   "eligible": true
+  },
+  {
+   "method": "SSC-CQR",
+   "under_mean": 0.061248179737882255,
+   "is_ratio_BDG2": 1.000199785058637,
+   "is_ratio_UCI": 1.003967893867714,
+   "eligible": true
+  },
+  {
+   "method": "GHCP-CQR",
+   "under_mean": 0.12274183482421469,
+   "is_ratio_BDG2": 1.0007993175742607,
+   "is_ratio_UCI": 1.0029174435981134,
+   "eligible": true
+  },
+  {
+   "method": "TQA-B-CQR",
+   "under_mean": 0.13024339504888705,
+   "is_ratio_BDG2": 1.005073313352621,
+   "is_ratio_UCI": 1.00057915805173,
+   "eligible": true
+  },
+  {
+   "method": "CQR",
+   "under_mean": 0.14064905346369877,
+   "is_ratio_BDG2": 1.0,
+   "is_ratio_UCI": 1.0,
+   "eligible": true
+  }
+ ]
+}
