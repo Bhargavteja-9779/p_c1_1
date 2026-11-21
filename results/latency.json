@@ -1,0 +1,10 @@
+{
+ "reps": 2000,
+ "single_ms_median": 0.023214500288304407,
+ "single_ms_q25": 0.02300600135640707,
+ "single_ms_q75": 0.02369799994994537,
+ "batch_10k_buildings_s": 0.3033220960005565,
+ "state_kB": 16.0,
+ "prior_kB": 32.0,
+ "grid_points": 4000
+}

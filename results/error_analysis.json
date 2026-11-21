@@ -1,45 +1,77 @@
 {
  "BDG2": {
-  "rho_cov_cvrmse_CQR": -0.6012166082320801,
-  "p_cov_cvrmse_CQR": 2.9555967600060455e-26,
-  "rho_cov_cvrmse_PCS-CQR": -0.07102413414937771,
-  "p_cov_cvrmse_PCS-CQR": 0.2603620979115544,
-  "rho_cov_cvrmse_SCP-stage": -0.922251422750426,
-  "p_cov_cvrmse_SCP-stage": 1.3696250807210801e-105,
-  "rho_cov_cvrmse_HSC": -0.6235839667147837,
-  "p_cov_cvrmse_HSC": 1.1615771170774645e-28,
-  "shift_n_under": 4,
-  "shift_median_under": 0.2987578511238098,
-  "shift_median_other": 0.05457392334938049,
-  "vol_n_under": 4,
-  "vol_median_under": 0.10892435908317566,
-  "vol_median_other": 0.10822558403015137,
-  "n_under": 4,
-  "n_units": 253,
-  "rho_absdev_shift": 0.1835710882391925,
-  "p_absdev_shift": 0.003385693087008899,
+  "rho_cov_cvrmse_CQR": -0.6735128932075765,
+  "p_cov_cvrmse_CQR": 5.630517879218799e-168,
+  "rho_cov_cvrmse_PCS-CQR": -0.19712493255070027,
+  "p_cov_cvrmse_PCS-CQR": 1.50859053810215e-12,
+  "rho_cov_cvrmse_SCP-stage": -0.9575515243162428,
+  "p_cov_cvrmse_SCP-stage": 0.0,
+  "rho_cov_cvrmse_HSC": -0.5991251461530462,
+  "p_cov_cvrmse_HSC": 4.215597326720197e-124,
+  "shift_n_under": 6,
+  "shift_median_under": 0.28873664140701294,
+  "shift_median_other": 0.057748448103666306,
+  "vol_n_under": 6,
+  "vol_median_under": 0.08483049273490906,
+  "vol_median_other": 0.11733260750770569,
+  "n_under": 6,
+  "n_units": 713,
+  "rho_absdev_shift": 0.16117100680573923,
+  "p_absdev_shift": 1.5298335717892855e-05,
   "usage_table": [
    {
     "usage": "Education",
-    "CQR": 0.0327,
-    "PCS-CQR": 0.0169,
-    "reduction": 0.0157
+    "CQR": 0.0399,
+    "PCS-CQR": 0.0155,
+    "reduction": 0.0244
+   },
+   {
+    "usage": "Entertainment/public assembly",
+    "CQR": 0.0371,
+    "PCS-CQR": 0.0137,
+    "reduction": 0.0234
+   },
+   {
+    "usage": "Lodging/residential",
+    "CQR": 0.0306,
+    "PCS-CQR": 0.0143,
+    "reduction": 0.0163
    },
    {
     "usage": "Office",
-    "CQR": 0.0344,
-    "PCS-CQR": 0.0133,
-    "reduction": 0.0211
+    "CQR": 0.0381,
+    "PCS-CQR": 0.0161,
+    "reduction": 0.022
    },
    {
     "usage": "Public services",
-    "CQR": 0.0479,
-    "PCS-CQR": 0.0133,
-    "reduction": 0.0346
+    "CQR": 0.04,
+    "PCS-CQR": 0.0138,
+    "reduction": 0.0262
    }
   ],
   "usage_largest_reduction": "Public services",
-  "usage_largest_reduction_tie": false,
-  "usage_smallest_reduction": "Education"
+  "usage_largest_reduction_tie": true,
+  "usage_smallest_reduction": "Lodging/residential"
+ },
+ "UCI": {
+  "rho_cov_cvrmse_CQR": -0.5443298247410053,
+  "p_cov_cvrmse_CQR": 5.42206128124895e-38,
+  "rho_cov_cvrmse_PCS-CQR": -0.03727154625423353,
+  "p_cov_cvrmse_PCS-CQR": 0.4176782106496904,
+  "rho_cov_cvrmse_SCP-stage": -0.9591138533175284,
+  "p_cov_cvrmse_SCP-stage": 1.9597949004300693e-261,
+  "rho_cov_cvrmse_HSC": -0.440919151501166,
+  "p_cov_cvrmse_HSC": 5.1549736323884706e-24,
+  "shift_n_under": 1,
+  "shift_median_under": 0.11056720465421677,
+  "shift_median_other": 0.05352518707513809,
+  "vol_n_under": 1,
+  "vol_median_under": 0.04400429502129555,
+  "vol_median_other": 0.07692873477935791,
+  "n_under": 1,
+  "n_units": 270,
+  "rho_absdev_shift": -0.002424380987321024,
+  "p_absdev_shift": 0.9683706658819068
  }
 }

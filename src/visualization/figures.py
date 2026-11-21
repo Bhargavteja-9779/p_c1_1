@@ -192,7 +192,7 @@ def fig_tradeoff(s):
     for t in axs[0].get_yticklabels():
         if t.get_text().startswith("PCS-CQR"):
             t.set_fontweight("bold")
-    axs[1].legend(frameon=False, loc="lower right")
+    axs[1].legend(frameon=False, loc="lower center", ncol=2, bbox_to_anchor=(0.5, 1.04))
     _save(fig, "Fig5_tradeoff")
 
 
@@ -226,22 +226,23 @@ def fig_robust(s):
     meths = KEY
     fig, axs = plt.subplots(2, 1, figsize=(190 * MM, 95 * MM), sharex=True)
     w = 0.8 / len(meths)
-    for j, metric, lab in [(0, "macd", "MACD"), (1, "under_rate", "Share of buildings under-covered (<0.85)")]:
+    for j, metric, lab in [(0, "macd", "MACD"), (1, "under_rate", "Under-covered share")]:
         for k, m in enumerate(meths):
             g = rb[rb.method == m].groupby("perturb")[metric].mean().reindex(perts)
             axs[j].bar(np.arange(len(perts)) + (k - len(meths) / 2 + 0.5) * w, g.values, w * 0.9, color=_c(m),
                        label=_l(m))
         axs[j].set_ylabel(lab)
     axs[1].set_xticks(np.arange(len(perts)))
-    nice = {"noise5": "noise 5%", "noise15": "noise 15%", "missing20": "missing 20%", "missing40": "missing 40%",
-            "shift+40": "level +40%\n(day 28)", "shift-40": "level −40%\n(day 28)", "calpool10": "10% cal.\npool",
-            "calpool25": "25% cal.\npool", "calpool50": "50% cal.\npool", "weak-forecaster": "weak\nforecaster",
-            "noise15-history": "noise 15%\nhistory only", "outage3d": "3-day\noutage", "outage7d": "7-day\noutage",
-            "shift+40@d7": "level +40%\n(day 7)", "volatility25": "volatility\n(day 28)",
+    nice = {"noise5": "noise\n5 %", "noise15": "noise\n15 %", "missing20": "missing\n20 %", "missing40": "missing\n40 %",
+            "shift+40": "+40 %\nday 28", "shift-40": "−40 %\nday 28", "calpool10": "10 % of\ncal. pool",
+            "calpool25": "25 % of\ncal. pool", "calpool50": "50 % of\ncal. pool", "weak-forecaster": "weak\nforecaster",
+            "noise15-history": "noise 15 %\nhist. only", "outage3d": "3-day\noutage", "outage7d": "7-day\noutage",
+            "shift+40@d7": "+40 %\nday 7", "volatility25": "volatility\nday 28",
             "disjoint-cal-period": "disjoint\ncal. period"}
     axs[1].set_xticklabels([nice.get(p, p) for p in perts], rotation=0, fontsize=5.6)
-    axs[0].legend(ncol=8, frameon=False, loc="upper left", bbox_to_anchor=(0, 1.2), fontsize=5.8)
-    axs[0].set_title("a  Per-building miscalibration under stress (BDG2, 3 seeds)", loc="left", pad=14)
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=8, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.06), fontsize=5.8)
+    axs[0].set_title("a  Per-building miscalibration under stress (BDG2, 3 seeds)", loc="left")
     axs[1].set_title("b  Under-coverage", loc="left")
     _save(fig, "Fig7_robustness")
 
@@ -324,11 +325,14 @@ def fig_errors(df):
     for yi, a, b in zip(y, dc.values, u["mean"].values):
         axs[1].plot([a, b], [yi, yi], color=GREY, lw=0.6, zorder=1)
     axs[1].set_yticks(y)
-    axs[1].set_yticklabels([f"{i} (n={n})" for i, n in zip(u.index, u["size"])])
+    axs[1].set_yticklabels([f"{i.replace('/', '/' + chr(10))} (n={n})" for i, n in zip(u.index, u["size"])],
+                           fontsize=6)
     axs[1].axvline(0.9, color=INK, lw=0.8, ls="--")
     axs[1].set_xlabel("Mean per-building coverage")
     axs[1].legend(frameon=False)
     axs[1].set_title("b  By primary usage (BDG2, building×seed units)", loc="left")
+    axs[1].set_ylim(-0.6, len(u) - 0.4)
+    fig.subplots_adjust(left=0.07, right=0.98, bottom=0.2, top=0.9, wspace=0.62)
     _save(fig, "Fig10_error_analysis")
 
 

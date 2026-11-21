@@ -1,1 +1,0 @@
-Stress tests on BDG2 (3 seeds): MACD / share of under-covered buildings (%). Noise, missing data and level shifts are applied to the target buildings' onboarding windows (history and truth); calibration-pool conditions keep a random fraction of calibration buildings; the weak forecaster is trained on 10 % of the training buildings (no MLP baselines, '–').

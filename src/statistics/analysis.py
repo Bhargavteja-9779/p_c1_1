@@ -50,9 +50,19 @@ ORDER = ["PCS-CQR", "PCS-CQR κ=168", "PCS-CQR (IS-tuned)", "PCS-CQR site-groupe
 WEEKS = [("w1", "week 1"), ("w2", "week 2"), ("w34", "weeks 3-4"), ("w58", "weeks 5-8")]
 
 
-def load():
+def read_raw():
+    """Per building x seed x method results: local working copy if present, else the archived per-experiment files
+    (results/raw/raw_results_<exp>.csv.gz, split to stay below repository file-size limits)."""
+    import glob
     f = os.path.join(RES, "raw_results.csv")
-    df = pd.read_csv(f if os.path.exists(f) else f + ".gz")
+    if os.path.exists(f):
+        return pd.read_csv(f, low_memory=False)
+    fs = sorted(glob.glob(os.path.join(RES, "raw", "raw_results_*.csv.gz")))
+    return pd.concat([pd.read_csv(x, low_memory=False) for x in fs], ignore_index=True)
+
+
+def load():
+    df = read_raw()
     df["nominal"] = df["alpha"].map(NOM)
     df["abs_dev"] = (df["coverage"] - df["nominal"]).abs()
     df["under"] = (df["coverage"] < df["nominal"] - 0.05).astype(float)

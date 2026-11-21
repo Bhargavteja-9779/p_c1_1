@@ -1,1 +1,0 @@
-Generalisation to unseen sites (BDG2 leave-site-out, 5 folds) and across datasets/countries (models and calibration scores from the source dataset, no weather features; 3 seeds). The BDG2→BDG2 (no wx) rows are the within-dataset reference without weather features.

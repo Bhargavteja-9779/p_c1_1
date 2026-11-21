@@ -53,7 +53,7 @@ CODE_MAP = """
 - src/statistics/manuscript_tables.py, error_analysis.py, latency.py; manuscript/values.py (every number in the
   text); manuscript/build_docx.py; tests/test_core.py (15 tests); experiments/PREREGISTRATION.md,
   experiments/DEVIATIONS.md; CHANGELOG.md.
-- results/raw_results.csv.gz (per building x seed x method), results/statistics.csv, results/run_info.json
+- results/raw/raw_results_<exp>.csv.gz (per building x seed x method), results/statistics.csv, results/run_info.json
   (tuned parameters + tuning tables + timings), results/seed_level_metrics.csv, results/stage_curves.csv.
 """
 

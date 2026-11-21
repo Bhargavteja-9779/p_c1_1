@@ -1,2 +1,18 @@
 Condition,Runs,PCS-CQR,PCS-CQR κ=168,HSC-CQR (pre-reg.),QShrink-CQR (MACD),Self-CQR,ACI-CQR,TQA-B-CQR,GHCP-CQR,CQR
-"BDG2, random buildings",1,1.6,2.0,4.3,2.0,5.9,5.1,16.2,15.8,16.2
+"BDG2, random buildings",5,1.4,1.5,3.4,1.3,7.6,8.7,17.3,17.2,18.2
+"BDG2, leave-one-site-out",3,2.4,2.3,4.6,2.0,7.1,7.7,23.6,23.8,24.8
+"BDG2, no weather",3,1.3,1.6,2.8,1.2,7.5,4.2,17.8,15.5,17.8
+UCI → BDG2,3,4.2,4.5,8.7,3.4,8.0,16.5,37.7,37.0,41.9
+"UCI, random clients",5,0.4,0.8,1.3,0.2,1.9,2.7,9.3,7.6,9.1
+BDG2 → UCI,3,0.4,0.4,0.4,0.0,2.1,1.1,6.3,5.3,5.6
+Calibration period disjoint from training,3,1.8,2.0,4.0,1.6,7.9,7.4,18.1,17.3,18.4
+Weak forecaster,3,2.8,3.6,5.1,2.8,7.5,13.8,22.5,23.8,25.2
+Meter noise 15 % (history and truth),3,0.4,0.7,1.8,0.5,0.1,10.3,39.3,30.7,32.9
+Meter noise 15 % (history only),3,0.3,0.3,0.4,0.5,1.6,0.8,0.9,0.9,1.1
+Missing hours 40 %,3,2.6,2.9,6.1,2.2,4.9,10.9,17.4,16.7,17.7
+7-day outage in weeks 1-3,3,3.6,3.6,5.4,3.0,8.8,8.0,17.9,17.9,18.8
+Level +40 % from day 7,3,0.5,0.7,2.2,0.5,0.7,9.2,26.6,26.7,28.3
+Level +40 % from day 28,3,2.8,2.8,6.5,2.6,8.3,11.7,29.1,29.4,30.4
+Day-to-day volatility from day 28,3,84.8,85.8,94.2,83.1,75.8,94.6,90.1,98.9,99.1
+10 calibration buildings,3,3.0,1.9,–,2.5,7.9,4.5,21.2,3.2,19.3
+20 calibration buildings,3,2.6,1.8,–,2.2,7.9,6.1,18.6,9.1,17.3

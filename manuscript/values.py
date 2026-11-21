@@ -188,6 +188,14 @@ def compute(mode="full"):
             w1 = rng.binomial(168, 0.9, size=100000) / 168
             v["floor_w1_under"] = f"{100 * (w1 < 0.85).mean():.1f}%"
             v[f"nvalid_{d}_median"] = int(np.median(nv))
+    # width ratios (coverage-only ACI and PCS vs pooled CQR) and week-1 summaries
+    for d in ["BDG2", "UCI"]:
+        w = lambda m: float(v.get(f"main_{d}_{m}_rel_width", "nan"))  # noqa: E731
+        v[f"ratio_{d}_acicov_vs_pcs_width"] = f"{w('ACICQR_coverage_only') / w('PCSCQR'):.1f}"
+        v[f"ratio_{d}_pcs_vs_cqr_width"] = f"{100 * (w('PCSCQR') / w('CQR') - 1):+.0f}%"
+    sys.path.insert(0, os.path.join(ROOT, "manuscript"))
+    import build_supplementary
+    v.update(build_supplementary.numbers())
     v["ERROR_ANALYSIS_TEXT"] = _error_text()
     v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"
     v["ABSTRACT"] = _abstract(v)
@@ -218,8 +226,9 @@ def _error_text():
                  "class" if all(r["reduction"] > 0 for r in b["usage_table"]) else
                  "Across usage classes with at least 30 building × seed units, the coverage deviation does not fall in "
                  "every class")
-        t[-1] += ("" if tie else f"; the reduction is largest for '{b['usage_largest_reduction']}'") + \
-            f" and smallest for '{b['usage_smallest_reduction']}'."
+        t[-1] += ("; the reduction is smallest" if tie else
+                  f"; the reduction is largest for '{b['usage_largest_reduction']}' and smallest") + \
+            f" for '{b['usage_smallest_reduction']}'."
     if "shift_median_under" in b:
         txt = (f"Of {b['n_units']} BDG2 target buildings (seed-averaged), {b['n_under']} remain under-covered by "
                f"PCS-CQR. Their median within-window level change |log(mean load weeks 5–8 / weeks 1–4)| is "
@@ -237,7 +246,8 @@ def _error_text():
         t.append(txt)
     u = e.get("UCI", {})
     if "n_under" in u:
-        t.append(f"On UCI, {u['n_under']} of {u['n_units']} clients remain under-covered (descriptive only).")
+        t.append(f"On UCI, {u['n_under']} of {u['n_units']} clients "
+                 + ("remains" if u['n_under'] == 1 else "remain") + " under-covered (descriptive only).")
     return " ".join(t)
 
 
@@ -257,9 +267,11 @@ def _abstract(v):
         f"{g('main_BDG2_CQR_under_rate')} (BDG2) and {g('main_UCI_CQR_under_rate')} (UCI) of new buildings more than "
         "five points below the 90 % target. PCS, with its pseudo-count chosen by leave-one-building-out for "
         f"reliability, reduced these shares to {g('main_BDG2_PCSCQR_under_rate')} and "
-        f"{g('main_UCI_PCSCQR_under_rate')} without loss of sharpness; quantile shrinkage tuned the same way performed "
-        "similarly, whereas ACI reached comparable reliability only with intervals about twice as wide. No strategy "
-        "repaired first-week under-coverage. Similarity-weighted priors and onboarding-stage matching added nothing, "
+        f"{g('main_UCI_PCSCQR_under_rate')} without a loss in interval score. A fixed one-week pseudo-count did equally "
+        "well, as did quantile shrinkage tuned the same way, whereas ACI tuned purely for coverage was more reliable only with intervals "
+        f"{g('ratio_BDG2_acicov_vs_pcs_width')} (BDG2) and {g('ratio_UCI_acicov_vs_pcs_width')} (UCI) times as wide. "
+        "No strategy of comparable width repaired first-week under-coverage "
+        f"(PCS: {g('main_BDG2_PCSCQR_under_w1')} of BDG2 buildings). Similarity-weighted priors and onboarding-stage matching added nothing, "
         "leaving a one-parameter layer that costs well under a millisecond per building-day."
     )
     n = len(a.split())
