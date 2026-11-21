@@ -1,6 +1,6 @@
 # PROJECT_STATE
 
-Last updated: 2026-11-15 ~13:15 UTC (session 1)
+Last updated: 2026-11-21 (session 2)
 
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
@@ -28,8 +28,15 @@ Last updated: 2026-11-15 ~13:15 UTC (session 1)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
-Review cycle 1 (10 reviewer agents, REVIEW/review_workflow.js with packet REVIEW/packet_cycle01.md) ->
-consolidate into REVIEW/review_01.md -> fix -> rebuild -> cycle 2 ... up to cycle 10.
+(Updated 2026-11-21, session 2.) Review cycle 1 reviewers launched (workflow REVIEW/review_workflow.js,
+args {cycle:1, packet:REVIEW/packet_cycle01.md}).
+- If `REVIEW/review_01_raw.json` does NOT exist: rerun the cycle-1 workflow (results of an interrupted run are lost
+  with the container).
+- If it exists but `REVIEW/review_01.md` does not: consolidate (dedupe, rank by severity, decide action per issue)
+  into REVIEW/review_01.md and add a cycle-1 table to REVIEW_HISTORY.md.
+- Then implement fixes (text first; experiments only if required), rebuild (`python run_all.py --mode full
+  --skip-experiments`, `python manuscript/build_docx.py`, supplementary/extras), regenerate packet for cycle 2
+  (`python REVIEW/build_packet.py`), commit+push, and ask the user before running cycle 2.
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
