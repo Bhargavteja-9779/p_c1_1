@@ -39,7 +39,7 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
   line must be retrained before any recompute (see "How to resume" step 2).
 
 ## Cycle-2 fix checklist (review_02.md execution plan)
-- [ ] 1a data: port SSC-line rules (train-period eligibility, no interpolation, DST mask, no onboarding fallback), UCI timestamp, weather cap
+- [x] 1a data (BDG2 1,042 bldgs / 14 sites; UCI 316; tests/test_data_rules.py): port SSC-line rules (train-period eligibility, no interpolation, DST mask, no onboarding fallback), UCI timestamp, weather cap
 - [ ] 1b sigma0 from training buildings (Prop. 1 premise); docstring/prereg attribution aligned
 - [ ] 1c constrained LOBO for all families + extended grids (gamma<=0.05, kappa 6/12) + edge reporting
 - [ ] 1d new variants: QShrink-CQR recency, Self-CQR recency (fallback), delayed own scores, radius safeguard, recommended layer on MLP, GHCP local step

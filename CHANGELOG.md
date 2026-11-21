@@ -50,3 +50,9 @@
   (abs 'fixed-kappa' identical to tuned in 6/10 runs; '-kNN -stage' not re-tuned) and replaced by
   'HSC-CQR fixed-κ' (simple variant, κ = 168 h, = donor-local mixture with fixed pseudo-count);
   (9) all tuning tables stored in run_info. Four new unit tests. All result parts recomputed.
+
+## Cycle-2 fixes (2026-11-21, jolly-meitner session)
+- Data (review_02 #5, #16): eligibility on training period only (BDG2 2016; UCI 2012–2013; long-gap share ≤5 %,
+  mean ≥1 kWh/h); no imputation; UCI DST hours masked; UCI labels treated as interval starts (no −15 min shift);
+  weather gaps >6 h left missing; targets without a ≥80 %-valid window are dropped (no fallback) and counted.
+  BDG2: 842 → 1,042 buildings, 10 → 14 sites. UCI: 315 → 316. Caches renamed *_r2. Tests: tests/test_data_rules.py.

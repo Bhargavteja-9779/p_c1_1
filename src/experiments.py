@@ -89,9 +89,14 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
     _, teT = pl.periods(dsT)
     t0c = pl.onboard_dates(dsS, sp["cal"], trS, rng)
     t0t = pl.onboard_dates(dsT, tgt_idx, teT, rng)
+    sp = dict(sp, cal=sp["cal"][t0c >= 0], n_cal_dropped=int((t0c < 0).sum()))
+    t0c = t0c[t0c >= 0]
+    n_tgt_dropped = int((t0t < 0).sum())
+    tgt_idx, t0t = tgt_idx[t0t >= 0], t0t[t0t >= 0]
+    _log(f"  onboarding: dropped cal={sp['n_cal_dropped']} tgt={n_tgt_dropped} (no window with >=80% valid hours)")
     PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
     PT = pl.window_predictions(dsT, tgt_idx, t0t, models)
-    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, t0c=t0c, t0t=t0t, models=models,
+    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, n_tgt_dropped=n_tgt_dropped, t0c=t0c, t0t=t0t, models=models,
                timing=dict(train_total=models.get("time_train_total", time.time() - t0), lgb=models["time_lgb"],
                            mlp=models.get("time_mlp"),
                            n_train_rows=models["n_train_rows"], pred_lgb_per_target_day=PT["t_pred_lgb"]))
@@ -132,6 +137,7 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     pm = mt.point_metrics(PT["y"], PT["yhat"])
     df["cvrmse_lgb"] = np.tile(pm["cvrmse"], len(out))
     info["t_calibration_total"] = time.time() - t0
+    info["n_tgt_dropped"], info["n_targets"] = obj.get("n_tgt_dropped", 0), int(len(mtg))
     info.update(obj["timing"])
     info["point"] = {k: float(np.nanmedian(v)) for k, v in pm.items()}
     for key, nm in (("naive", "naive"), ("mu", "mlp")):

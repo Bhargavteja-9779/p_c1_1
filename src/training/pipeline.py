@@ -121,7 +121,9 @@ def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, 
 
 
 def onboard_dates(ds, bidx, period, rng, min_valid=0.8):
-    """Random onboarding day per building such that >= 80 % of the window's hours are valid."""
+    """Random onboarding day per building such that >= 80 % of the window's hours are valid.
+
+    Returns -1 for a building without any such window (no fallback; the caller drops it and logs the count)."""
     p0, p1 = period
     starts = np.arange(p0, p1 - NH + 1)
     out = np.empty(len(bidx), dtype=int)
@@ -130,7 +132,7 @@ def onboard_dates(ds, bidx, period, rng, min_valid=0.8):
         cs = np.concatenate([[0], np.cumsum(v)])
         frac = (cs[starts - p0 + NH + 1] - cs[starts - p0]) / (NH + 1)
         ok = starts[frac >= min_valid]
-        out[i] = rng.choice(ok) if len(ok) else rng.choice(starts)
+        out[i] = rng.choice(ok) if len(ok) else -1
     return out
 
 
