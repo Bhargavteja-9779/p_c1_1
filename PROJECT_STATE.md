@@ -17,6 +17,8 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - 2026-11-21 18:15 UTC (sharp-cori session): jolly-meitner tree merged into branch `claude/sharp-cori-11buu9`;
   WORK CONTINUES THERE. New container: deps installed, 17 tests pass, parts snapshot 17:56 restored (222 parts),
   stale old-code caches deleted, `train_only('full')` (log train_c2.log) and `scripts/chain_c2.sh` started 18:05 UTC.
+  20:05 UTC: container was suspended while idle (processes killed at 18:29; files kept). Detached setsid jobs do NOT
+  survive idle periods -> run `bash scripts/run_c2_stage.sh` as a harness-tracked background task (resumable).
   USER (18:20 UTC): finish everything -> final submission-ready package; authors: P N Bhargav Teja (1st, corresponding,
   all CRediT roles incl. Software) + [Second Author] placeholder (Supervision); no funding; no competing interests;
   accurate AI-use statement only (no other AI/process traces in submitted files: strip 'review cycle'/R# comments in
