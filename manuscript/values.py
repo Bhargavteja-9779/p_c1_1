@@ -48,10 +48,13 @@ def compute(mode="full"):
             suf = "" if a == 0.1 else f"_a{int(a * 100)}"
             for m in g.index:
                 for met in ["mean_cov", "cov_early", "macd", "under_rate", "p10_cov", "rel_width", "rel_IS",
-                            "rel_IS_early", "rel_IS_mean"]:
+                            "rel_IS_early", "rel_IS_mean", "under_wk1", "underprot", "under_floor", "under_floor_week",
+                            "up_exc", "floor", "cost10", "cost20", "cost40", "cost20_worst10"]:
+                    if met not in g.columns:
+                        continue
                     val = g.loc[m, met]
                     k = f"{name}{suf}_{_san(m)}_{met}"
-                    if met in ("under_rate",):
+                    if met in ("under_rate", "under_wk1", "underprot", "under_floor", "under_floor_week", "up_exc"):
                         v[k] = f"{100 * val:.1f}%"
                         v[k + "_sd"] = f"{100 * sd.loc[m, met]:.1f}"
                     else:
@@ -136,6 +139,58 @@ def compute(mode="full"):
             sim = np.abs(rng.binomial(nv[None, :].repeat(200, 0), 0.9) / nv[None, :] - 0.9).mean()
             v[f"floor_{d}_macd"] = f"{sim:.4f}"
             v[f"nvalid_{d}_median"] = int(np.median(nv))
+    # ---- revision (cycle 1) tokens: recommended method (rule A.1), cost changes, weekly curves, frontier
+    rec = json.load(open(os.path.join(RES, "recommended.json"))) if os.path.exists(os.path.join(RES, "recommended.json")) else None
+    if rec:
+        v["PRIMARY"] = rec["recommended"]
+        v["primary_san"] = _san(rec["recommended"])
+        for r in rec["table"]:
+            v[f"rec_{_san(r['method'])}_is_ratio_BDG2"] = f"{100 * (r['is_ratio_BDG2'] - 1):+.1f}%"
+            v[f"rec_{_san(r['method'])}_is_ratio_UCI"] = f"{100 * (r['is_ratio_UCI'] - 1):+.1f}%"
+    for name, d in [("main_BDG2", "BDG2"), ("main_UCI", "UCI")]:
+        t = s[(s.exp == "main") & (s.dataset == d) & (s.alpha == 0.1) & (s.perturb == "none")]
+        if "cost20" not in t:
+            continue
+        base = t[t.method == "CQR"].set_index("seed")
+        for m in t.method.unique():
+            x = t[t.method == m].set_index("seed")
+            for c in ["cost10", "cost20", "cost40", "cost20_worst10"]:
+                dlt = 100 * (x[c] / base.loc[x.index, c] - 1)
+                v[f"{name}_{_san(m)}_{c}_delta"] = f"{dlt.mean():+.1f}%"
+    wf = os.path.join(RES, "weekly_coverage.csv")
+    if os.path.exists(wf):
+        w = pd.read_csv(wf)
+        g = w.groupby(["dataset", "method", "week"]).under.mean()
+        for (d, m, wk), val in g.items():
+            v[f"wk_{d}_{_san(m)}_w{wk}"] = f"{100 * val:.1f}%"
+    ff = os.path.join(RES, f"frontier{tag}.csv")
+    if os.path.exists(ff):
+        fr = pd.read_csv(ff)
+        g = fr.groupby(["dataset", "family", "param"])[["under", "rel_IS", "under_wk1"]].mean().reset_index()
+        for _, r in g.iterrows():
+            par = "inf" if np.isinf(r.param) else (f"{r.param:g}")
+            k = f"fr_{r.dataset}_{_san(r.family)}_{par}"
+            v[k + "_under"] = f"{100 * r.under:.1f}%"
+            v[k + "_IS"] = f"{r.rel_IS:.3f}"
+            v[k + "_wk1"] = f"{100 * r.under_wk1:.1f}%"
+    for d in ["BDG2", "UCI"]:
+        parts = [k for k in info if k.startswith(f"main{tag}_{d}_s") and k.endswith("a0.1")]
+        def _set(key, sub="kappa"):
+            vals = [info[k][key][sub] if isinstance(info[k].get(key), dict) else info[k].get(key) for k in parts
+                    if info[k].get(key) is not None]
+            return ", ".join(sorted({("∞" if np.isinf(float(x)) else f"{float(x):g}") for x in vals}))
+        for key in ["hsc_cqr_simple_cov", "hsc_cqr_recency", "hsc_ssc_cqr"]:
+            if parts and key in info[parts[0]]:
+                v[f"tuned_{d}_{key}"] = _set(key)
+        for key in ["qshrink_lambda_cov", "aci_cqr_gamma_cov"]:
+            if parts and key in info[parts[0]]:
+                v[f"tuned_{d}_{key}"] = _set(key, None)
+        if parts and "aci_cqr_capped_frac" in info[parts[0]]:
+            v[f"aci_{d}_capped"] = f"{100 * np.mean([info[k]['aci_cqr_capped_frac'] for k in parts]):.2f}%"
+            v[f"aci_{d}_capped_abs"] = f"{100 * np.mean([info[k]['aci_capped_frac'] for k in parts]):.2f}%"
+        if parts and "t_ssc_apply_per_target_day" in info[parts[0]]:
+            v[f"cost_{d}_ssc_apply_ms"] = f"{1e3 * np.mean([info[k]['t_ssc_apply_per_target_day'] for k in parts]):.3f}"
+            v[f"cost_{d}_tune_cov_s"] = f"{np.mean([info[k]['t_tune_hsc_cov'] for k in parts]):.1f}"
     v["ERROR_ANALYSIS_TEXT"] = _error_text()
     v["ABSTRACT"] = _abstract(v)
     v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"
