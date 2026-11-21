@@ -287,6 +287,9 @@ def run(mode="full"):
         recommend(s)
         weekly_under(df)
     if mode != "quick":
+        from src.statistics import cycle2
+        cycle2.run(df)  # review-cycle-2 analyses (tables/T2_*, results/selection.json, results/cycle2.json)
+    if mode != "quick":
         from src.statistics import manuscript_tables, error_analysis
         manuscript_tables.run()
         error_analysis.run()

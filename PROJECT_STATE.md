@@ -43,7 +43,7 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - [x] 1b sigma0 from training buildings (Prop. 1 premise); docstring/prereg attribution aligned
 - [x] 1c constrained LOBO for all families + extended grids (gamma<=0.05, kappa 6/12) + edge reporting
 - [x] 1d new variants (GHCP: label as HCP-style in text, no code change; + 4 new stress tests outage/spikes/random-day shift/ramp; frontier at alpha 0.05/0.1/0.2): QShrink-CQR recency, Self-CQR recency (fallback), delayed own scores, radius safeguard, recommended layer on MLP, GHCP local step
-- [ ] 1e analysis: block-bootstrap reference, weekly/worst-week, share CIs + McNemar, one confirmatory family, per-building unit, tails/TOST, nested selection
+- [x] 1e analysis (src/statistics/cycle2.py + oracle_reference in metrics.py; tested on old results): block-bootstrap reference, weekly/worst-week, share CIs + McNemar, one confirmatory family, per-building unit, tails/TOST, nested selection
 - [ ] 1f timing: whole online step, reps, threads; regenerate cost tables
 - [ ] 2  full rerun: TRAINING STARTED 15:48 UTC (log results/experiment_logs/train_c2.log; caches results/cache not in git;
        if container restarted: rerun train_only, it resumes per job). After '=== all trainings cached ===': `bash scripts/calibration_pass.sh`

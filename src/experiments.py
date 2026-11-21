@@ -133,6 +133,11 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     nb = len(mtg)
     df["building_id"] = np.tile(mtg.building_id.values, len(out))
     df["site_id"] = np.tile(mtg.site_id.values, len(out))
+    # method-independent oracle noise reference per building (cycle 2, #3); identical for every method row
+    ref = mt.oracle_reference(pl.scores_cqr(PT), ok, alpha, seed=int(extra.get("cols", {}).get("seed", 0))
+                              if extra else 0)
+    for k, v in ref.items():
+        df[k] = np.tile(v, len(out))
     df["usage"] = np.tile(mtg.usage.values, len(out))
     pm = mt.point_metrics(PT["y"], PT["yhat"])
     df["cvrmse_lgb"] = np.tile(pm["cvrmse"], len(out))

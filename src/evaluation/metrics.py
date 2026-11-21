@@ -86,3 +86,41 @@ def summarize(cov, nominal):
         under_rate=float(np.mean(cov < nominal - 0.05)),     # share of buildings under-covered by >5 pp
         p10_cov=float(np.quantile(cov, 0.10)),
     )
+
+
+def oracle_reference(scores, valid, alpha, n_boot=400, block=7, seed=0, margin=0.05):
+    """Method-independent sampling-noise reference (review cycle 2, #3).
+
+    For each building an *oracle* radius is set to its own in-window (1-alpha) score quantile, so its window
+    coverage is nominal by construction while its daily misses keep the building's real autocorrelation.
+    A circular moving-block bootstrap with `block`-day blocks of the oracle's daily (hits, valid) counts gives the
+    probability that a perfectly calibrated building with these error dynamics shows window coverage, a single
+    week's coverage, or the worst of its 8 weeks below (1 - alpha - margin).
+    scores: (nt, NH, 24) CQR scores (NaN = missing); valid: (nt, NH, 24) evaluation mask.
+    Returns dict of (nt,) arrays: ref_under_win, ref_under_week, ref_anyweek.
+    """
+    rng = np.random.default_rng(seed)
+    nt, NH, _ = scores.shape
+    e = np.where(valid, scores, np.nan)
+    thr = 1 - alpha - margin
+    out = {k: np.full(nt, np.nan) for k in ("ref_under_win", "ref_under_week", "ref_anyweek")}
+    nb = int(np.ceil(NH / block))
+    starts = rng.integers(0, NH, size=(n_boot, nb))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]).reshape(n_boot, -1)[:, :NH] % NH  # (n_boot, NH)
+    for i in range(nt):
+        v = e[i][~np.isnan(e[i])]
+        if len(v) < 24:
+            continue
+        k = int(np.ceil((1 - alpha) * len(v))) - 1
+        q = np.sort(v)[min(k, len(v) - 1)]
+        hits = np.nansum(e[i] <= q, axis=1).astype(float)          # (NH,) covered hours per day
+        nval = (~np.isnan(e[i])).sum(axis=1).astype(float)         # (NH,) valid hours per day
+        H, V = hits[idx], nval[idx]                                # (n_boot, NH)
+        win = H.sum(1) / np.maximum(V.sum(1), 1)
+        out["ref_under_win"][i] = np.mean(win < thr)
+        wk_h = H[:, :NH - NH % 7].reshape(n_boot, -1, 7).sum(2)
+        wk_v = V[:, :NH - NH % 7].reshape(n_boot, -1, 7).sum(2)
+        wk = np.where(wk_v > 0, wk_h / np.maximum(wk_v, 1), np.nan)
+        out["ref_under_week"][i] = np.nanmean(wk < thr)
+        out["ref_anyweek"][i] = np.mean(np.nanmin(wk, axis=1) < thr)
+    return out
