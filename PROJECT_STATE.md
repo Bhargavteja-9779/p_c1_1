@@ -16,7 +16,11 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
 - 2026-11-21 18:15 UTC (sharp-cori session): jolly-meitner tree merged into branch `claude/sharp-cori-11buu9`;
   WORK CONTINUES THERE. New container: deps installed, 17 tests pass, parts snapshot 17:56 restored (222 parts),
-  stale old-code caches deleted, `train_only('full')` (log train_c2.log) and `scripts/chain_c2.sh` started 18:14 UTC.
+  stale old-code caches deleted, `train_only('full')` (log train_c2.log) and `scripts/chain_c2.sh` started 18:05 UTC.
+  USER (18:20 UTC): finish everything -> final submission-ready package; authors: P N Bhargav Teja (1st, corresponding,
+  all CRediT roles incl. Software) + [Second Author] placeholder (Supervision); no funding; no competing interests;
+  accurate AI-use statement only (no other AI/process traces in submitted files: strip 'review cycle'/R# comments in
+  code copy); give journal + title + acceptance rationale in chat. Front/back matter + title page + cover letter updated.
 - **HANDOVER 2026-11-21 16:45 UTC (account change).** Cycle-2 code fixes 1a-1f DONE and committed; manuscript
   method/intro/refs partly revised (see 'Cycle-2 manuscript progress'). The full rerun was RUNNING in the old container
   (training 15/~22 done). Model caches/results parts are NOT in git, so in a NEW container do exactly:

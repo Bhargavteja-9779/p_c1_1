@@ -40,9 +40,9 @@ def build(values=None):
     r = p.add_run(title_from_front())
     r.bold = True
     r.font.size = Pt(14)
-    t.add_paragraph("[Author 1]^a,*, [Author 2]^b")
+    t.add_paragraph("P N Bhargav Teja^a,*, [Second Author]^b")
     t.add_paragraph("^a [Department, Institution, City, Country]; ^b [Department, Institution, City, Country]")
-    t.add_paragraph("* Corresponding author: [Name], [postal address], e-mail: [corresponding.author@institution] "
+    t.add_paragraph("* Corresponding author: P N Bhargav Teja, [postal address], e-mail: [corresponding author e-mail] "
                     "(the e-mail address will be published).")
     t.add_paragraph("Declarations: see the manuscript (competing interests, CRediT, funding, generative-AI use, data "
                     "and code availability).")

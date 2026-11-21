@@ -20,7 +20,7 @@ def build(mode="full"):
     for s in d.sections:
         s.left_margin = s.right_margin = Cm(2.5)
     P = d.add_paragraph
-    P("[Corresponding author name]\n[Department, Institution]\n[Address]\n[E-mail]")
+    P("P N Bhargav Teja\n[Department, Institution]\n[Address]\n[E-mail]")
     P("[Date]")
     P("The Editors-in-Chief\nAdvances in Applied Energy\nElsevier")
     P("Dear Editors,")
@@ -48,11 +48,10 @@ def build(mode="full"):
     P("We confirm that this manuscript is original, has not been published previously, and is not under "
       "consideration for publication elsewhere. All authors have approved the manuscript and agree with its "
       "submission. The study uses only publicly available, anonymised meter data and raised no ethical issues "
-      "requiring approval. The authors declare no competing interests. The use of AI-assisted tools is declared "
+      "requiring approval. The authors declare no competing interests and received no specific funding. The use of AI-assisted tools is declared "
       "in the manuscript.")
-    P("Possible reviewers (optional; to be completed by the authors): [Name, affiliation, e-mail] ×3.")
-    P("Thank you for considering our submission.")
-    P("Yours sincerely,\n[Corresponding author name], on behalf of all authors")
+        P("Thank you for considering our submission.")
+    P("Yours sincerely,\nP N Bhargav Teja, on behalf of all authors")
     out = os.path.join(HERE, "cover_letter.docx")
     d.save(out)
     print("built", out)

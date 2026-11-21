@@ -2,11 +2,11 @@
 title: "Trustworthy day-ahead load intervals for newly metered buildings via recency-weighted shrinkage conformal calibration"
 ---
 
-**Authors:** [Author 1]^a,\*^, [Author 2]^b^
+**Authors:** P N Bhargav Teja^a,\*^, [Second Author]^b^
 
 ^a^ [Department, Institution, City, Country] · ^b^ [Department, Institution, City, Country]
 
-\* Corresponding author. E-mail: [corresponding.author@institution]
+\* Corresponding author: P N Bhargav Teja. E-mail: [corresponding author e-mail]
 
 # Highlights
 
