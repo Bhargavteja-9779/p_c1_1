@@ -1,6 +1,6 @@
 # PROJECT_STATE
 
-Last updated: 2026-11-21 (session 2: review cycle 1 running)
+Last updated: 2026-11-21 (session 2: revision-1 recompute running; see RESUME.md)
 
 ## Decisions (final unless reviewers force a change)
 - Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
@@ -31,8 +31,8 @@ Last updated: 2026-11-21 (session 2: review cycle 1 running)
 Review cycle 1 done (REVIEW/review_01.md: action plan A1-A22). Revision-1 recompute launched 2026-11-21
 ~11:25 UTC via `scripts/full_pass.sh` (training -> 4 calibration workers -> sensitivity -> analysis; marker
 FULL_PASS_DONE in results/experiment_logs/train.log). New main protocol = out-of-time calibration.
-If the container restarts: rerun `setsid nohup bash scripts/full_pass.sh &` (resumes from cached
-models/parts). Then: analysis items A4, A11-A18, A20; manuscript rewrite A16, A19, A21, A22; rebuild
+If interrupted (usage limit, restart, new account): follow RESUME.md (`bash scripts/resume.sh`);
+progress is checkpointed to the branch every 10 min (results/checkpoint/STATUS.txt). Then: analysis items A4, A11-A18, A20; manuscript rewrite A16, A19, A21, A22; rebuild
 packet (REVIEW/build_packet.py) -> cycle 2.
 
 ## Automatic resume
