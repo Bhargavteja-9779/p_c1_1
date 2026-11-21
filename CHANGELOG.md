@@ -64,3 +64,9 @@
   HSC-CQR recency on the MLP quantiles. SSC σ0 from validation buildings (same for calibration and targets).
 - Stress tests: 1–3-day block outages, 2 % spikes ×3, +40 % shift at a random day 3–14, +40 % ramp.
   Frontier at α ∈ {0.05, 0.1, 0.2}, QShrink recency added to it.
+
+## 2026-11-21 (dazzling-ramanujan session)
+- Operational: the UCI download was cut off (connection reset) and later workers overwrote the same file concurrently.
+  `download()` now writes to a temporary file with retries and renames atomically; an invalid UCI zip is re-fetched.
+  Processed caches were rebuilt; no results affected (no part was computed from the bad file). Training restarted 21:08 UTC.
+- Renamed src/statistics/cycle2.py -> extended_analysis.py (output results/extended_analysis.json).

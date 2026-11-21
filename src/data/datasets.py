@@ -38,6 +38,23 @@ BDG2_FILES = {
 UCI_URL = "https://archive.ics.uci.edu/static/public/321/electricityloaddiagrams20112014.zip"
 
 
+def _fetch(url: str, path: str, tries: int = 5) -> None:
+    """Download to a temporary file and rename on success (no truncated files are left behind)."""
+    import time
+    tmp = path + ".part"
+    for k in range(tries):
+        try:
+            urllib.request.urlretrieve(url, tmp)
+            os.replace(tmp, path)
+            return
+        except OSError:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+            if k == tries - 1:
+                raise
+            time.sleep(10 * (k + 1))
+
+
 def download(raw_dir: str) -> None:
     """Download raw files if absent (BDG2: CC-BY-4.0; UCI: CC-BY-4.0)."""
     b = os.path.join(raw_dir, "bdg2")
@@ -48,11 +65,15 @@ def download(raw_dir: str) -> None:
         p = os.path.join(b, fname)
         if not os.path.exists(p):
             print("downloading", rel)
-            urllib.request.urlretrieve(BDG2_BASE + rel, p)
+            _fetch(BDG2_BASE + rel, p)
     p = os.path.join(u, "eld.zip")
+    if os.path.exists(p):
+        import zipfile
+        if not zipfile.is_zipfile(p):
+            os.remove(p)
     if not os.path.exists(p):
         print("downloading UCI ElectricityLoadDiagrams20112014")
-        urllib.request.urlretrieve(UCI_URL, p)
+        _fetch(UCI_URL, p)
 
 
 def long_gap_share(v: np.ndarray, max_short: int = 6) -> float:
