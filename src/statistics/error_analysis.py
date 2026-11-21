@@ -21,6 +21,7 @@ from scipy.stats import mannwhitneyu, spearmanr
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RES = os.path.join(ROOT, "results")
+PM = "HSC-CQR simple"  # primary method (revision 1), displayed as SSC-CQR
 
 
 def _indicators(ds_name, seed, frac=0.4):
@@ -48,10 +49,16 @@ def run():
         if not len(d):
             continue
         r = {}
-        for m in ["CQR", "HSC-CQR", "SCP-stage", "HSC"]:
-            x = d[d.method == m]
+        # revision 1 (R4/R9): one unit per building (seed-averaged), bootstrap CI for Spearman rho
+        rng = np.random.default_rng(0)
+        for m in ["CQR", PM, "SCP-stage", "HSC"]:
+            x = d[d.method == m].groupby("building_id")[["cvrmse_lgb", "coverage"]].mean()
+            if len(x) < 5:
+                continue
             rho, p = spearmanr(x.cvrmse_lgb, x.coverage)
+            bs = [spearmanr(*x.iloc[rng.integers(0, len(x), len(x))].values.T)[0] for _ in range(500)]
             r[f"rho_cov_cvrmse_{m}"] = float(rho)
+            r[f"rho_cov_cvrmse_{m}_ci"] = [float(np.quantile(bs, 0.025)), float(np.quantile(bs, 0.975))]
             r[f"p_cov_cvrmse_{m}"] = float(p)
         # indicators per (seed, building)
         rows = []
@@ -59,11 +66,11 @@ def run():
             ind = _indicators(ds, int(seed))
             if ind is None:
                 continue
-            x = d[(d.method == "HSC-CQR") & (d.seed == seed)].reset_index(drop=True)
+            x = d[(d.method == PM) & (d.seed == seed)].reset_index(drop=True)
             ind = ind.iloc[:len(x)]
             rows.append(pd.concat([x[["building_id", "coverage", "usage"]], ind[["shift", "vol"]]], axis=1))
         if rows:
-            z = pd.concat(rows)
+            z = pd.concat(rows).groupby("building_id")[["coverage", "shift", "vol"]].mean()  # one unit per building
             under = z.coverage < 0.85
             for k in ["shift", "vol"]:
                 a, b = z.loc[under, k], z.loc[~under, k]
@@ -78,11 +85,11 @@ def run():
             r["rho_absdev_shift"] = float(rho)
             r["p_absdev_shift"] = float(p)
         if ds == "BDG2":
-            u = d[d.method.isin(["CQR", "HSC-CQR"])].assign(absdev=lambda x: (x.coverage - 0.9).abs())
+            u = d[d.method.isin(["CQR", PM])].assign(absdev=lambda x: (x.coverage - 0.9).abs())
             g = u.groupby(["usage", "method"]).absdev.mean().unstack()
             n = u[u.method == "CQR"].groupby("usage").size()
             g = g[n >= 30]
-            g["reduction"] = g["CQR"] - g["HSC-CQR"]
+            g["reduction"] = g["CQR"] - g[PM]
             r["usage_table"] = g.round(4).reset_index().to_dict(orient="records")
             r["usage_largest_reduction"] = str(g.reduction.idxmax())
             r["usage_smallest_reduction"] = str(g.reduction.idxmin())

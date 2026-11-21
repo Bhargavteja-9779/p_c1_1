@@ -142,7 +142,7 @@ def compute(mode="full"):
     # E|Binomial(n, 0.9)/n - 0.9| evaluated by Monte Carlo at each building's number of valid hours
     rng = np.random.default_rng(0)
     for d in ["BDG2", "UCI"]:
-        nv = df[(df.exp == "main") & (df.dataset == d) & (df.alpha == 0.1) & (df.method == "HSC-CQR")].n_valid.values
+        nv = df[(df.exp == "main") & (df.dataset == d) & (df.alpha == 0.1) & (df.method == "HSC-CQR simple")].n_valid.values
         if len(nv):
             sim = np.abs(rng.binomial(nv[None, :].repeat(200, 0), 0.9) / nv[None, :] - 0.9).mean()
             v[f"floor_{d}_macd"] = f"{sim:.4f}"
@@ -194,10 +194,11 @@ def _error_text():
     b = e.get("BDG2", {})
     t = []
     if "rho_cov_cvrmse_CQR" in b:
-        t.append(f"On BDG2 the Spearman correlation between per-building coverage and CV(RMSE) is "
-                 f"{b['rho_cov_cvrmse_CQR']:.2f} for CQR and {b['rho_cov_cvrmse_HSC-CQR']:.2f} for HSC-CQR "
-                 f"({b['rho_cov_cvrmse_SCP-stage']:.2f} for SCP-stage), i.e. HSC "
-                 + ("weakens" if abs(b['rho_cov_cvrmse_HSC-CQR']) < abs(b['rho_cov_cvrmse_CQR']) else "does not weaken")
+        pm, c1, c2 = b['rho_cov_cvrmse_HSC-CQR simple'], b['rho_cov_cvrmse_CQR_ci'], b['rho_cov_cvrmse_HSC-CQR simple_ci']
+        t.append(f"On BDG2 (one unit per building, seed-averaged) the Spearman correlation between per-building "
+                 f"coverage and CV(RMSE) is {b['rho_cov_cvrmse_CQR']:.2f} [{c1[0]:.2f}, {c1[1]:.2f}] for CQR and "
+                 f"{pm:.2f} [{c2[0]:.2f}, {c2[1]:.2f}] for SSC-CQR, i.e. the shrinkage layer "
+                 + ("weakens" if c2[0] > c1[1] or c2[1] < c1[0] else "does not clearly change")
                  + " the dependence of reliability on forecast difficulty.")
     if "usage_largest_reduction" in b:
         t.append(f"Across usage classes with at least 30 building × seed units, the largest reduction of the "
@@ -205,7 +206,7 @@ def _error_text():
                  f"'{b['usage_smallest_reduction']}' (Fig. [-@fig:errors]b).")
     if "shift_p" in b:
         sig = b["shift_p"] < 0.05
-        t.append(f"Of the {b['n_units']} building × seed units, {b['n_under']} remain under-covered by HSC-CQR. "
+        t.append(f"Of the {b['n_units']} buildings, {b['n_under']} remain under-covered by SSC-CQR. "
                  f"Their median within-window level change |log(mean load weeks 5–8 / weeks 1–4)| is "
                  f"{b['shift_median_under']:.3f} versus {b['shift_median_other']:.3f} for the others "
                  f"(Mann–Whitney {_p(b['shift_p'])}); "
@@ -216,7 +217,7 @@ def _error_text():
                  f"({_p(b['vol_p'])}).")
     u = e.get("UCI", {})
     if "shift_p" in u:
-        t.append(f"On UCI, {u['n_under']} of {u['n_units']} units remain under-covered; the corresponding level-change "
+        t.append(f"On UCI (reported descriptively), {u['n_under']} of {u['n_units']} clients remain under-covered; the corresponding level-change "
                  f"medians are {u['shift_median_under']:.3f} versus {u['shift_median_other']:.3f} ({_p(u['shift_p'])}).")
     return " ".join(t)
 

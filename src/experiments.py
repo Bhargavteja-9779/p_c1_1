@@ -410,6 +410,23 @@ def sensitivity(mode="full"):
                                         under=float(np.mean(cov < 0.85)), mean_cov=float(cov.mean()),
                                         rel_IS=float(np.median(m["rel_IS"])),
                                         rel_width=float(np.median(m["rel_width"]))))
+            # revision 1 (R10): the primary one-parameter layer (no stage matching, K = all) and quantile-level
+            # shrinkage (QShrink-CQR) evaluated on the same pseudo-count grid -> matched comparison
+            Sc, St = pl.scores_cqr(PC), pl.scores_cqr(PT)
+            binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
+            cct = cb.cum_counts(St)
+            q_s = cb.hsc_quantiles(cct, binc, None, 0.1, pl.KAPPAS, stages, stage_matched=False)
+            qpool = cb.pooled_quantile(binc, 0.1, True)[cb.stage_bin(stages)]
+            for ki, kap in enumerate(pl.KAPPAS):
+                for nm, q in (("ssc", q_s[ki]), ("qshrink", cb.qshrink_quantiles(cct, qpool, 0.1, kap, stages))):
+                    lo = PT["qlo"] - q[:, :, None] * PT["s"][:, :, None]
+                    hi = PT["qhi"] + q[:, :, None] * PT["s"][:, :, None]
+                    m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
+                    cov = m["coverage"]
+                    out.append(dict(dataset=dsn, seed=s, score=nm, K="all", kappa=kap,
+                                    macd=float(np.mean(np.abs(cov - 0.9))), under=float(np.mean(cov < 0.85)),
+                                    mean_cov=float(cov.mean()), rel_IS=float(np.median(m["rel_IS"])),
+                                    rel_width=float(np.median(m["rel_width"]))))
             if s == 0:
                 _examples(dsn, ds, obj, tag)
     pd.DataFrame(out).to_csv(os.path.join(RES, f"sensitivity{tag}.csv"), index=False)
@@ -426,7 +443,7 @@ def _examples(dsn, ds, obj, tag):
     picks = {"p10": order[int(0.1 * (len(cov) - 1))], "p50": order[int(0.5 * (len(cov) - 1))]}
     rows = []
     for lab, i in picks.items():
-        for meth in ["CQR", "HSC-CQR" if "HSC-CQR" in out else "HSC", "HSC"]:
+        for meth in ["CQR", "HSC-CQR simple", "HSC-CQR"]:
             lo, hi = out[meth]
             for h in range(pl.NH):
                 for j in range(24):
