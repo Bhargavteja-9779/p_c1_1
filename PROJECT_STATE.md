@@ -28,15 +28,24 @@ Last updated: 2026-11-21 (session 2)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
-(Updated 2026-11-21, session 2.) Review cycle 1 reviewers launched (workflow REVIEW/review_workflow.js,
-args {cycle:1, packet:REVIEW/packet_cycle01.md}).
-- If `REVIEW/review_01_raw.json` does NOT exist: rerun the cycle-1 workflow (results of an interrupted run are lost
-  with the container).
-- If it exists but `REVIEW/review_01.md` does not: consolidate (dedupe, rank by severity, decide action per issue)
-  into REVIEW/review_01.md and add a cycle-1 table to REVIEW_HISTORY.md.
-- Then implement fixes (text first; experiments only if required), rebuild (`python run_all.py --mode full
-  --skip-experiments`, `python manuscript/build_docx.py`, supplementary/extras), regenerate packet for cycle 2
-  (`python REVIEW/build_packet.py`), commit+push, and ask the user before running cycle 2.
+(Updated 2026-11-21, session 2.) Review cycle 1 DONE: raw `REVIEW/review_01_raw.json`, consolidated
+`REVIEW/review_01.md` (20 themes, decisions, tiers A/B/C, execution plan). NOW: implement the cycle-1 execution plan
+in order (step 1 code changes → step 2 full rerun → step 3 re-analysis → step 4 manuscript). Track sub-step progress
+in the checklist below; tick items as they are committed.
+
+### Cycle-1 fix checklist
+- [ ] 1a cleaning fix (only gaps <=6 h interpolated, imputed-hour flag excluded from metrics) + unit test
+- [ ] 1b target selection without target-year filter; per-site attrition table
+- [ ] 1c UCI DST masking; duplicate-meter check
+- [ ] 1d ACI/ACI-CQR clipped level; cap-hit counts
+- [ ] 1e Self-CQR-fallback baseline (72/168/336 h by LOBO); Mondrian-CQR
+- [ ] 1f reliability-aware LOBO objective; primary = HSC-CQR simple; fixed-κ reported; cold-start variant
+- [ ] 1g TQA-B λ from calibration only, LOBO decay; GHCP weight tuned; QShrink fixed λ=168 + matched grid
+- [ ] 1h weak forecaster (no lag/profile); new stress scenarios (block outage, early shift, history-only noise)
+- [ ] 1i isolated timing benchmark
+- [ ] 2  full rerun (sequential; data auto-download; retrain)
+- [ ] 3  re-analysis (per-window, site-cluster tests, per-site, HL, CIs, deviations table, DR case study)
+- [ ] 4  manuscript rewrite + rebuild + packet cycle 2; ask user before cycle 2
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
