@@ -56,7 +56,7 @@ def _save(pid, df, curves, info):
     df.to_csv(os.path.join(PARTS, pid + ".csv"), index=False)
 
 
-def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_frac_buildings=1.0, tag=""):
+def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_frac_buildings=1.0, tag="", drop=None):
     """Train (or load cached) models and window predictions for calibration and target buildings."""
     key = f"{src}_{tgt}_{protocol}{'' if fold is None else fold}_s{seed}_w{int(use_weather)}_f{frac}_m{int(with_mlp)}_tb{train_frac_buildings}{tag}"
     path = os.path.join(CACHE, key + ".pkl")
@@ -79,7 +79,7 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
         _log(f"reuse models {mkey} for {key}")
     else:
         _log(f"train {key}: train={len(sp['train'])} cal={len(sp['cal'])} tgt={len(tgt_idx)}")
-        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log)
+        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log, drop=drop)
         models["time_train_total"] = time.time() - t0
         os.makedirs(CACHE, exist_ok=True)
         with open(mpath, "wb") as f:
@@ -89,9 +89,16 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
     _, teT = pl.periods(dsT)
     t0c = pl.onboard_dates(dsS, sp["cal"], trS, rng)
     t0t = pl.onboard_dates(dsT, tgt_idx, teT, rng)
+    # buildings without any window with >= 80 % valid hours cannot be onboarded (revision 1: targets are no
+    # longer pre-filtered on target-period quality, so a few are dropped here instead)
+    sp = dict(sp, cal=sp["cal"][t0c >= 0], n_cal_dropped=int((t0c < 0).sum()))
+    t0c = t0c[t0c >= 0]
+    n_tgt_dropped = int((t0t < 0).sum())
+    tgt_idx, t0t = tgt_idx[t0t >= 0], t0t[t0t >= 0]
+    _log(f"  onboarding: dropped cal={sp['n_cal_dropped']} tgt={n_tgt_dropped} (no window with >=80% valid hours)")
     PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
     PT = pl.window_predictions(dsT, tgt_idx, t0t, models)
-    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, t0c=t0c, t0t=t0t, models=models,
+    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, n_tgt_dropped=n_tgt_dropped, t0c=t0c, t0t=t0t, models=models,
                timing=dict(train_total=models.get("time_train_total", time.time() - t0), lgb=models["time_lgb"],
                            mlp=models.get("time_mlp"),
                            n_train_rows=models["n_train_rows"], pred_lgb_per_target_day=PT["t_pred_lgb"]))
@@ -178,6 +185,30 @@ def perturb_shift(factor, day=28):
     return f
 
 
+def perturb_outage(days, seed):
+    """Contiguous outage block of `days` days at a random position in the window (revision 1, R6)."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(6000 + seed)
+        for b, t in zip(bidx, t0):
+            d0 = int(rng.integers(1, pl.NH - days))
+            load[b, t + d0:t + d0 + days] = np.nan
+        return load
+    return f
+
+
+def perturb_spikes(rate, seed):
+    """Meter errors: a share `rate` of hours replaced by 5x spikes or zero readings (revision 1, R6)."""
+    def f(load, bidx, t0):
+        rng = np.random.default_rng(7000 + seed)
+        for b, t in zip(bidx, t0):
+            seg = load[b, t:t + pl.NH + 1]
+            u = rng.random(seg.shape)
+            seg = np.where(u < rate / 2, seg * 5, np.where(u < rate, 0.0, seg))
+            load[b, t:t + pl.NH + 1] = seg
+        return load
+    return f
+
+
 def subsample_cal(PC, frac, seed):
     n = PC["y"].shape[0]
     rng = np.random.default_rng(5000 + seed)
@@ -237,6 +268,8 @@ def train_only(mode="full"):
             elif k == "weak":
                 prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, train_frac_buildings=0.1,
                          tag=tag)
+                prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, tag=tag + "_weakfeat",
+                         drop=pl.WEAK_DROP)
         except Exception as e:
             import traceback
             _log(f"FAILED training {j}: {e}\n{traceback.format_exc()}")
@@ -290,12 +323,17 @@ def _execute_job(j, frac, mlp, tag, quick):
         s = j["seed"]
         perts = {"noise5": perturb_noise(0.05, s), "noise15": perturb_noise(0.15, s),
                  "missing20": perturb_missing(0.2, s), "missing40": perturb_missing(0.4, s),
-                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6)}
+                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6),
+                 # revision 1 (R6): realistic disruptions; '-hist' = meter error in the inputs, truth kept clean
+                 "outage3d": perturb_outage(3, s), "shift+40@d7": perturb_shift(1.4, day=7),
+                 "noise15-hist": perturb_noise(0.15, s), "spikes2-hist": perturb_spikes(0.02, s)}
         for name, f in perts.items():
             pid = f"robust{tag}_BDG2_s{s}_{name}"
             if _done(pid):
                 continue
             PT = pl.window_predictions(ds, obj["tgt_idx"], obj["t0t"], obj["models"], perturb=f)
+            if name.endswith("-hist"):
+                PT = dict(PT, y=obj["PT"]["y"])  # evaluate against the clean readings
             run_part(pid, obj, ds, ds, 0.1, methods="core", PT=PT,
                      extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=s, perturb=name)))
         for fr in [0.1, 0.25, 0.5]:
@@ -311,6 +349,11 @@ def _execute_job(j, frac, mlp, tag, quick):
         ds = get_ds("BDG2")
         obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, train_frac_buildings=0.1, tag=tag)
         run_part(f"robust{tag}_BDG2_s{j['seed']}_weakmodel", obj, ds, ds, 0.1, methods="core",
+                 extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=j["seed"],
+                                      perturb="reduced-training-pool")))
+        obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, tag=tag + "_weakfeat",
+                       drop=pl.WEAK_DROP)
+        run_part(f"robust{tag}_BDG2_s{j['seed']}_weakfeat", obj, ds, ds, 0.1, methods="core",
                  extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=j["seed"],
                                       perturb="weak-forecaster")))
 

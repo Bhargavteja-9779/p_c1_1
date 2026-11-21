@@ -87,8 +87,22 @@ def sample_training(ds, bidx, period, rng, frac):
     return B, T, H
 
 
-def build_xy(ds, B, T, H, use_weather):
+# revision 1 (R6): a genuinely weak forecaster sees calendar, history length, the previous-day mean level and
+# weather only (no lags, no daily extremes, no load profiles, no variability)
+WEAK_DROP = ["lag1d", "lag2d", "lag7d", "lag14d", "prev_max", "prev_min", "hour_prof", "daytype_prof",
+             "dowhour_prof", "daily_var"]
+
+
+def drop_cols(X, use_weather, drop):
+    if drop:
+        names = fe.feature_names(use_weather)
+        X[:, [names.index(c) for c in drop]] = np.nan
+    return X
+
+
+def build_xy(ds, B, T, H, use_weather, drop=None):
     X, y, s = fe.build(ds["load"], ds["temp"], ds["dates"], B, T, H, use_weather)
+    X = drop_cols(X, use_weather, drop)
     yn = y / np.repeat(s, 24)
     # training-only artefact filter: normalised targets > 20 arise from meter restarts after
     # near-zero/flat-lined history (data errors), not from consumption behaviour
@@ -96,11 +110,11 @@ def build_xy(ds, B, T, H, use_weather):
     return X[ok], yn[ok]
 
 
-def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, log=print):
+def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, log=print, drop=None):
     rng = np.random.default_rng(seed)
     per, _ = periods(ds)
-    Xtr, ytr = build_xy(ds, *sample_training(ds, sp["train"], per, rng, frac), use_weather)
-    Xv, yv = build_xy(ds, *sample_training(ds, sp["val"], per, rng, 0.5), use_weather)
+    Xtr, ytr = build_xy(ds, *sample_training(ds, sp["train"], per, rng, frac), use_weather, drop)
+    Xv, yv = build_xy(ds, *sample_training(ds, sp["val"], per, rng, 0.5), use_weather, drop)
     log(f"  training rows {len(ytr):,}  validation rows {len(yv):,}")
     m = {}
     t0 = time.time()
@@ -114,12 +128,16 @@ def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, 
         m["mlp_q"] = fc.fit_mlp(Xtr, ytr, Xv, yv, seed, kind="quantile", quantiles=(alpha / 2, 1 - alpha / 2))
         m["time_mlp"] = time.time() - t0
     m["use_weather"] = use_weather
+    m["drop"] = drop
     m["n_train_rows"] = len(ytr)
     return m
 
 
 def onboard_dates(ds, bidx, period, rng, min_valid=0.8):
-    """Random onboarding day per building such that >= 80 % of the window's hours are valid."""
+    """Random onboarding day per building such that >= 80 % of the window's hours are valid.
+
+    Returns -1 for a building without any such window (it cannot be onboarded; operational rule, no
+    look-ahead beyond the window itself). Callers drop these buildings."""
     p0, p1 = period
     starts = np.arange(p0, p1 - NH + 1)
     out = np.empty(len(bidx), dtype=int)
@@ -128,7 +146,7 @@ def onboard_dates(ds, bidx, period, rng, min_valid=0.8):
         cs = np.concatenate([[0], np.cumsum(v)])
         frac = (cs[starts - p0 + NH + 1] - cs[starts - p0]) / (NH + 1)
         ok = starts[frac >= min_valid]
-        out[i] = rng.choice(ok) if len(ok) else rng.choice(starts)
+        out[i] = rng.choice(ok) if len(ok) else -1
     return out
 
 
@@ -155,6 +173,7 @@ def window_predictions(ds, bidx, t0, models, perturb=None):
     H = np.tile(np.arange(1, NH + 1), n)
     T = np.repeat(t0, NH) + H
     X, y, s = fe.build(dsx["load"], dsx["temp"], dsx["dates"], B, T, H, models["use_weather"])
+    X = drop_cols(X, models["use_weather"], models.get("drop"))
     srep = np.repeat(s, 24)
     out = dict(y=y.reshape(n, NH, 24), s=s.reshape(n, NH))
     t1 = time.time()

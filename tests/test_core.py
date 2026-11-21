@@ -142,3 +142,44 @@ def test_aci_level_below_zero_gives_noninverted_interval():
     tgt = np.zeros((2, 56, 24), dtype=np.float32)  # always covered -> alpha_h drifts above 1 with large gamma
     q = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, np.arange(1, 57))
     assert (q >= 0).all()
+
+
+# ---- revision-1 data tests (review cycle 1, R5)
+from src.data import datasets as dd
+from src.training import pipeline as pl
+
+
+def test_cleaning_never_imputes_and_masks_stuck_runs():
+    idx = pd.date_range("2016-01-01", periods=60, freq="h")
+    v = np.arange(60, dtype=float) + 1
+    v[5:15] = np.nan          # 10-h gap: must stay missing (pandas limit=6 used to fill its first 6 h)
+    v[20:23] = np.nan         # short gap: also stays missing (no imputation at all)
+    v[30:56] = 7.0            # 26 identical readings: stuck meter -> missing
+    out = dd._clean_hourly(pd.DataFrame({"a": v}, index=idx))["a"].values
+    assert np.isnan(out[5:15]).all() and np.isnan(out[20:23]).all()
+    assert np.isnan(out[30:56]).all() and not np.isnan(out[29]) and not np.isnan(out[56])
+
+
+def test_eligibility_ignores_short_gaps_only():
+    v = np.ones(1000) * 5
+    v[np.arange(0, 1000, 10)] = np.nan               # 10 % missing, all single-hour gaps
+    assert dd.long_gap_share(v) == 0.0
+    v2 = np.ones(1000) * 5
+    v2[100:160] = np.nan                               # one 60-h gap = 6 %
+    assert abs(dd.long_gap_share(v2) - 0.06) < 1e-12
+    assert not dd.eligible(pd.Series(v2))
+
+
+def test_uci_dst_hours():
+    idx = pd.date_range("2014-01-01", "2014-12-31 23:00", freq="h")
+    m = dd.dst_hours(idx)
+    assert set(idx[m].strftime("%Y-%m-%d %H")) == {"2014-03-30 01", "2014-10-26 01"}
+
+
+def test_onboarding_drops_buildings_without_valid_window():
+    nd = 200
+    load = np.ones((2, nd, 24), dtype=np.float32)
+    load[1, 100:, :] = np.nan  # dead meter in the whole later period
+    ds = dict(load=load)
+    t0 = pl.onboard_dates(ds, np.array([0, 1]), (100, nd - 1), np.random.default_rng(0))
+    assert t0[0] >= 100 and t0[1] == -1

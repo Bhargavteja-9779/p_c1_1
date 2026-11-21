@@ -6,11 +6,16 @@ Both datasets are converted to a common representation:
     dates   : DatetimeIndex of the n_days days
     meta    : DataFrame with one row per building (building_id, site_id, usage, ...)
 
-Cleaning rules (pre-specified, identical for all methods):
-  * gaps of <= 6 consecutive hours are linearly interpolated;
+Cleaning rules (identical for all methods):
   * runs of >= 24 consecutive identical readings (zero or constant: outage / stuck meter) are missing;
-  * a building is kept if, in every period used (train/calibration/test year), the fraction
-    of missing hours is <= 5 % and its mean load is >= 1 kWh/h.
+  * no value is imputed in the stored series (revision 1): missing hours stay NaN, the features are
+    NaN-tolerant and missing hours are excluded from every metric, so no reading from the future can
+    enter a feature or a ground truth;
+  * eligibility (revision 1, no look-ahead): a building is kept if, in the *training/calibration*
+    period only, the fraction of missing hours -- not counting gaps of <= 6 h, which are short enough
+    to be bridged -- is <= 5 % and its mean load is >= 1 kWh/h. The target (evaluation) period is not
+    used for selection; target windows only need >= 80 % valid hours (operational rule, pipeline.py).
+  * UCI: the two daylight-saving transition hours per year (zero / doubled readings) are missing.
 """
 from __future__ import annotations
 
@@ -47,11 +52,27 @@ def download(raw_dir: str) -> None:
         urllib.request.urlretrieve(UCI_URL, p)
 
 
+def long_gap_share(v: np.ndarray, max_short: int = 6) -> float:
+    """Share of hours that are missing and belong to a gap longer than `max_short` hours."""
+    m = np.isnan(np.asarray(v, dtype=float))
+    if not m.any():
+        return 0.0
+    d = np.diff(np.concatenate([[0], m.astype(int), [0]]))
+    starts, ends = np.where(d == 1)[0], np.where(d == -1)[0]
+    n_long = sum(e - s for s, e in zip(starts, ends) if e - s > max_short)
+    return n_long / len(m)
+
+
+def eligible(s: pd.Series) -> bool:
+    """Quality rule applied to the training/calibration period of a building."""
+    return long_gap_share(s.values) <= 0.05 and np.nanmean(s.values) >= 1.0
+
+
 def _clean_hourly(df: pd.DataFrame) -> pd.DataFrame:
-    """Stuck-meter masking and short-gap interpolation, column-wise.
+    """Stuck-meter masking, column-wise (no imputation).
 
     Runs of >= 24 consecutive *identical* readings (zeros or any constant value, i.e. a flat-lined /
-    stuck meter) are set to missing; then gaps of <= 6 h are linearly interpolated.
+    stuck meter) are set to missing.
     """
     df = df.astype("float64")
     out = df.copy()
@@ -65,7 +86,6 @@ def _clean_hourly(df: pd.DataFrame) -> pd.DataFrame:
                 if e_ - s_ + 1 >= 24:  # run of >= 24 identical values incl. the first one
                     v[s_ - 1:e_] = np.nan
         out[c] = v
-    out = out.interpolate(limit=6, limit_area="inside", axis=0)
     return out
 
 
@@ -80,24 +100,17 @@ def _to_cube(df: pd.DataFrame) -> tuple[np.ndarray, pd.DatetimeIndex]:
 
 
 def load_bdg2(raw_dir: str, cache_dir: str) -> dict:
-    cache = os.path.join(cache_dir, "bdg2.npz")
+    cache = os.path.join(cache_dir, "bdg2_r1.npz")
     if os.path.exists(cache):
         z = np.load(cache, allow_pickle=True)
-        meta = pd.read_csv(os.path.join(cache_dir, "bdg2_meta.csv"))
+        meta = pd.read_csv(os.path.join(cache_dir, "bdg2_r1_meta.csv"))
         return dict(load=z["load"], temp=z["temp"], dates=pd.DatetimeIndex(z["dates"]), meta=meta, name="BDG2")
     b = os.path.join(raw_dir, "bdg2")
     e = pd.read_csv(os.path.join(b, "electricity_cleaned.csv"), parse_dates=["timestamp"], index_col=0)
     meta = pd.read_csv(os.path.join(b, "metadata.csv"))
     w = pd.read_csv(os.path.join(b, "weather.csv"), parse_dates=["timestamp"])
     e = _clean_hourly(e)
-    keep = []
-    for c in e.columns:
-        ok = True
-        for yr in ("2016", "2017"):
-            s = e.loc[yr, c]
-            if s.isna().mean() > 0.05 or s.mean() < 1.0:
-                ok = False
-        keep.append(ok)
+    keep = [eligible(e.loc["2016", c]) for c in e.columns]  # training/calibration year only
     e = e.loc[:, keep]
     load, dates = _to_cube(e)
     meta = meta.set_index("building_id").loc[list(e.columns)]
@@ -119,16 +132,27 @@ def load_bdg2(raw_dir: str, cache_dir: str) -> dict:
     meta["usage"] = meta["usage"].fillna("Unknown")
     os.makedirs(cache_dir, exist_ok=True)
     np.savez_compressed(cache, load=load.astype("float32"), temp=temp.astype("float32"), dates=dates.values)
-    meta.to_csv(os.path.join(cache_dir, "bdg2_meta.csv"), index=False)
+    meta.to_csv(os.path.join(cache_dir, "bdg2_r1_meta.csv"), index=False)
     return dict(load=load.astype("float32"), temp=temp.astype("float32"), dates=dates, meta=meta, name="BDG2")
+
+
+def dst_hours(idx: pd.DatetimeIndex) -> np.ndarray:
+    """UCI: hour 01:00 on the last Sunday of March (zeros) and of October (two hours aggregated)."""
+    m = np.zeros(len(idx), dtype=bool)
+    for yr in sorted(set(idx.year)):
+        for month in (3, 10):
+            last = pd.Timestamp(yr, month, 1) + pd.offsets.MonthEnd(0)
+            sun = last - pd.Timedelta(days=(last.dayofweek - 6) % 7)
+            m |= idx == sun + pd.Timedelta(hours=1)
+    return m
 
 
 def load_uci(raw_dir: str, cache_dir: str) -> dict:
     """UCI clients; 15-min kW readings converted to hourly kWh (sum of 4 readings / 4)."""
-    cache = os.path.join(cache_dir, "uci.npz")
+    cache = os.path.join(cache_dir, "uci_r1.npz")
     if os.path.exists(cache):
         z = np.load(cache, allow_pickle=True)
-        meta = pd.read_csv(os.path.join(cache_dir, "uci_meta.csv"))
+        meta = pd.read_csv(os.path.join(cache_dir, "uci_r1_meta.csv"))
         return dict(load=z["load"], temp=None, dates=pd.DatetimeIndex(z["dates"]), meta=meta, name="UCI")
     zf = zipfile.ZipFile(os.path.join(raw_dir, "uci", "eld.zip"))
     with zf.open("LD2011_2014.txt") as f:
@@ -137,20 +161,14 @@ def load_uci(raw_dir: str, cache_dir: str) -> dict:
     d.index = d.index - pd.Timedelta(minutes=15)
     h = d.resample("h").sum() / 4.0
     h = h.loc["2012-01-01":"2014-12-31"]
+    h.loc[dst_hours(h.index)] = np.nan
     h = _clean_hourly(h)
-    keep = []
-    for c in h.columns:
-        ok = True
-        for yr in ("2012", "2013", "2014"):
-            s = h.loc[yr, c]
-            if s.isna().mean() > 0.05 or s.mean() < 1.0:
-                ok = False
-        keep.append(ok)
+    keep = [eligible(h.loc["2012":"2013", c]) for c in h.columns]  # training/calibration years only
     h = h.loc[:, keep]
     load, dates = _to_cube(h)
     meta = pd.DataFrame({"building_id": h.columns, "site_id": "UCI", "usage": "Unknown", "sqm": np.nan,
                          "timezone": "Europe/Lisbon"})
     os.makedirs(cache_dir, exist_ok=True)
     np.savez_compressed(cache, load=load.astype("float32"), dates=dates.values)
-    meta.to_csv(os.path.join(cache_dir, "uci_meta.csv"), index=False)
+    meta.to_csv(os.path.join(cache_dir, "uci_r1_meta.csv"), index=False)
     return dict(load=load.astype("float32"), temp=None, dates=dates, meta=meta, name="UCI")
