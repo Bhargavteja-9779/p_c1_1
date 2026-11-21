@@ -342,22 +342,10 @@ def weekly_under(df):
 
 
 def _efficiency(tag):
-    info = json.load(open(os.path.join(RES, "run_info.json")))
-    rows = []
-    for k, v in info.items():
-        if not k.startswith("main" + tag + "_") or not k.endswith("a0.1"):
-            continue
-        rows.append(dict(part=k, train_total_s=v.get("train_total"), lgb_train_s=v.get("lgb"),
-                         mlp_train_s=v.get("mlp"), n_train_rows=v.get("n_train_rows"),
-                         lgb_pred_ms_per_target_day=1e3 * v.get("pred_lgb_per_target_day", np.nan),
-                         hsc_tune_s=v.get("t_tune_hsc"),
-                         hsc_apply_ms_per_target_day=1e3 * v.get("t_hsc_apply_per_target_day", np.nan),
-                         scp_s=v.get("t_scp"), calibration_total_s=v.get("t_calibration_total"),
-                         hsc_store_MB=v.get("hsc_store_MB"),
-                         hsc_cov_tune_s=v.get("t_tune_hsc_cov"),
-                         ssc_apply_ms_per_target_day=1e3 * v.get("t_ssc_apply_per_target_day", np.nan)))
-    if rows:
-        e = pd.DataFrame(rows)
-        e.to_csv(os.path.join(TAB, "T_efficiency.csv"), index=False)
-        with open(os.path.join(TAB, "T_efficiency.md"), "w") as f:
-            f.write("**Computational cost (4 CPU cores)**\n\n" + e.round(4).to_markdown(index=False) + "\n")
+    """Retired in cycle 2 (R7): in-run timings were contaminated by concurrent workers. Costs are reported only
+    from the isolated benchmark (scripts/timing_benchmark.py -> results/timing.json -> tables/MS_cost)."""
+    for ext in (".csv", ".md"):
+        p = os.path.join(TAB, "T_efficiency" + ext)
+        if os.path.exists(p):
+            os.remove(p)
+

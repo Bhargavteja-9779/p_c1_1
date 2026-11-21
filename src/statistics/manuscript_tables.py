@@ -169,24 +169,30 @@ def robust_table(s):
 
 
 def cost_table():
-    info = json.load(open(os.path.join(RES, "run_info.json")))
+    """Cycle 2 (R7): isolated benchmark only (results/timing.json; scripts/timing_benchmark.py)."""
+    f = os.path.join(RES, "timing.json")
+    if not os.path.exists(f):
+        return
+    tm = json.load(open(f))
     rows = []
+    q = lambda x: f"{x['median']:.3g} [{x['q25']:.3g}, {x['q75']:.3g}]"  # noqa: E731
     for d in ["BDG2", "UCI"]:
-        parts = [k for k in info if k.startswith(f"main_{d}_s") and k.endswith("a0.1")]
-        if not parts:
+        if d not in tm or "online_step_ms_recency" not in tm[d]:
             continue
-        g = lambda key: np.mean([info[k][key] for k in parts if info[k].get(key) is not None])  # noqa: E731
-        rows.append({"Data": d, "Training rows (M)": f"{g('n_train_rows') / 1e6:.2f}",
-                     "LightGBM training, 3 models (s)": f"{g('lgb'):.0f}",
-                     "MLP training, 2 models (s)": f"{g('mlp'):.0f}",
-                     "LightGBM inference (ms / building-day)": f"{1e3 * g('pred_lgb_per_target_day'):.3f}",
-                     "HSC tuning, LOBO (s)": f"{g('t_tune_hsc'):.1f}",
-                     "HSC update (ms / building-day)": f"{1e3 * g('t_hsc_apply_per_target_day'):.3f}",
-                     "HSC store (MB)": f"{g('hsc_store_MB'):.1f}"})
-    _write("MS_cost", pd.DataFrame(rows),
-           "Computational cost on a 4-core CPU (mean over 5 seeds). HSC tuning = leave-one-building-out grid search "
-           "over (κ, K) on all calibration buildings; HSC update = computing one building's radius for one day "
-           "(including neighbour search) once its scores are stored.")
+        r = tm[d]
+        rows.append({"Data": d, "Calibration / target buildings": f"{r['n_cal']} / {r['n_targets']}",
+                     "LightGBM training, 3 models (s; seed 0, 4 threads)": f"{r['lgb_3models_train_s_seed0']:.0f}",
+                     "LightGBM inference (ms / building-day)": q(r["lgb_inference_ms_per_building_day"]),
+                     "Layer tuning, LOBO (s)": q(r["recency_tune_s"]),
+                     "Layer online step (ms / building-day)": q(r["online_step_ms_recency"]),
+                     "Tuning store (MB)": f"{r['memory_MB']['tuning_counts']:.0f}",
+                     "State per building (KB)": f"{1e3 * r['memory_MB']['per_building_state']:.0f}"})
+    if rows:
+        _write("MS_cost", pd.DataFrame(rows),
+               f"Computational cost, isolated benchmark ({tm.get('cpu', '')}, calibration single-threaded); median "
+               "[IQR] over repetitions and 5 seeds. Online step = binning one day's 24 scores into the building's "
+               "decayed count state and computing its radius; deployment needs one prior vector and one state "
+               "vector per building (16 KB each).")
 
 
 # ---------------------------------------------------------------- revision (cycle 1): compact main tables

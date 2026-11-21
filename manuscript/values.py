@@ -199,11 +199,15 @@ def compute(mode="full"):
     tf = os.path.join(RES, "timing.json")
     if os.path.exists(tf):
         tm = json.load(open(tf))
-        for d, r in tm.items():
+        for d, r in ((d, tm[d]) for d in ("BDG2", "UCI") if d in tm):
             v[f"time_{d}_recency_apply_ms"] = f"{r['recency_apply_ms_per_building_day']:.3f}"
+            if "lgb_inference_ms_per_building_day" in r:
+                v[f"time_{d}_lgb_infer_ms"] = f"{r['lgb_inference_ms_per_building_day']['median']:.2f}"
+                v[f"time_{d}_state_KB"] = f"{1e3 * r['memory_MB']['per_building_state']:.0f}"
+                v[f"time_{d}_tuning_MB"] = f"{r['memory_MB']['tuning_counts']:.0f}"
             v[f"time_{d}_cqr_apply_ms"] = f"{r['cqr_apply_ms_per_building_day']:.4f}"
             v[f"time_{d}_aci_apply_ms"] = f"{r['aci_apply_ms_per_building_day']:.3f}"
-            v[f"time_{d}_recency_tune_s"] = f"{r['recency_tune_s']:.1f}"
+            v[f"time_{d}_recency_tune_s"] = f"{r.get('recency_tune_s_median', r['recency_tune_s']):.1f}"
             v[f"time_{d}_store_MB"] = f"{r['store_MB']:.1f}"
             v[f"time_{d}_lgb_s"] = f"{r['lgb_3models_s']:.0f}"
             v[f"time_{d}_mlp_s"] = f"{r['mlp_2models_s']:.0f}"
