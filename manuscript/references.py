@@ -67,4 +67,13 @@ REFS = {
     "vejling2026": "Vejling MV, Biscio CAN, Mazoyer A, Popovski P, Pandey SR. Multi-agent conformal prediction with personalized statistical validity. arXiv:2606.00717 [Preprint]; 2026. https://doi.org/10.48550/arXiv.2606.00717.",
     "almeida2015": "Almeida V, Gama J. Prediction intervals for electric load forecast: Evaluation for different profiles. In: 2015 18th International Conference on Intelligent System Application to Power Systems (ISAP); 2015. https://doi.org/10.1109/isap.2015.7325539.",
     "shi2026": "Shi L, Shen Z, Lyu T. Local online conformal prediction for power load forecasting intervals. Electr Power Syst Res 2026;261:113412. https://doi.org/10.1016/j.epsr.2026.113412.",
+    # ---- added in revision 1 (review cycle 1, R1/R8); verified by web search 2026-11-21 (see literature/citation_audit_r1.md)
+    "guan2023": "Guan L. Localized conformal prediction: A generalized inference framework for conformal prediction. Biometrika 2023;110:33–50. https://doi.org/10.1093/biomet/asac040.",
+    "buhlmann1967": "Bühlmann H. Experience rating and credibility. ASTIN Bull 1967;4:199–207. https://doi.org/10.1017/S0515036100008989.",
+    "efron1973": "Efron B, Morris C. Stein's estimation rule and its competitors—An empirical Bayes approach. J Am Stat Assoc 1973;68:117–30. https://doi.org/10.2307/2284155.",
+    "angelopoulos2023pid": "Angelopoulos AN, Candès EJ, Tibshirani RJ. Conformal PID control for time series prediction. In: Advances in Neural Information Processing Systems 36 (NeurIPS 2023); 2023. https://arxiv.org/abs/2307.16895.",
+    "xu2023spci": "Xu C, Xie Y. Sequential predictive conformal inference for time series. In: Proceedings of the 40th International Conference on Machine Learning, PMLR 202; 2023, p. 38707–27.",
+    "jensen2022encqr": "Jensen V, Bianchi FM, Anfinsen SN. Ensemble conformalized quantile regression for probabilistic time series forecasting. IEEE Trans Neural Netw Learn Syst 2022 (online). https://doi.org/10.1109/TNNLS.2022.3217694.",
+    "bentaieb2016": "Ben Taieb S, Huser R, Hyndman RJ, Genton MG. Forecasting uncertainty in electricity smart meter data by boosting additive quantile regression. IEEE Trans Smart Grid 2016. https://doi.org/10.1109/TSG.2016.2527820.",
+    "borrotti2024": "Borrotti M. Quantifying uncertainty with conformal prediction for heating and cooling load forecasting in building performance simulation. Energies 2024;17:4348. https://doi.org/10.3390/en17174348.",
 }
