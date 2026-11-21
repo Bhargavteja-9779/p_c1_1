@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cycle-2 unattended chain: wait for training -> calibration pass (4 workers) -> sensitivity + frontier.
+# Unattended chain: wait for training -> calibration pass (4 workers) -> sensitivity + frontier.
 # Marker lines go to results/experiment_logs/chain_c2.log. Safe to rerun (finished parts are skipped).
 cd "$(dirname "$0")/.."
 L=results/experiment_logs/chain_c2.log

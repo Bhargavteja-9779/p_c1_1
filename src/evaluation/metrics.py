@@ -89,7 +89,7 @@ def summarize(cov, nominal):
 
 
 def oracle_reference(scores, valid, alpha, n_boot=400, block=7, seed=0, margin=0.05):
-    """Method-independent sampling-noise reference (review cycle 2, #3).
+    """Method-independent sampling-noise reference.
 
     For each building an *oracle* radius is set to its own in-window (1-alpha) score quantile, so its window
     coverage is nominal by construction while its daily misses keep the building's real autocorrelation.

@@ -288,7 +288,7 @@ def run(mode="full"):
         weekly_under(df)
     if mode != "quick":
         from src.statistics import cycle2
-        cycle2.run(df)  # review-cycle-2 analyses (tables/T2_*, results/selection.json, results/cycle2.json)
+        cycle2.run(df)  # extended analyses (tables/T2_*, results/selection.json, results/cycle2.json)
     if mode != "quick":
         from src.statistics import manuscript_tables, error_analysis
         manuscript_tables.run()
@@ -342,7 +342,7 @@ def weekly_under(df):
 
 
 def _efficiency(tag):
-    """Retired in cycle 2 (R7): in-run timings were contaminated by concurrent workers. Costs are reported only
+    """Retired: in-run timings were contaminated by concurrent workers. Costs are reported only
     from the isolated benchmark (scripts/timing_benchmark.py -> results/timing.json -> tables/MS_cost)."""
     for ext in (".csv", ".md"):
         p = os.path.join(TAB, "T_efficiency" + ext)

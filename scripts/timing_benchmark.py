@@ -1,4 +1,4 @@
-"""Clean computational-cost benchmark (review cycle 2, R7). Run ALONE, after all models are cached:
+"""Clean computational-cost benchmark. Run ALONE, after all models are cached:
 
     OMP_NUM_THREADS=1 python scripts/timing_benchmark.py
 

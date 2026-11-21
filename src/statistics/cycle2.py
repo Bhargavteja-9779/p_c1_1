@@ -1,8 +1,8 @@
-"""Review-cycle-2 analyses (REVIEW/review_02.md): weekly/worst-week reliability with a method-independent oracle
+"""Extended analyses: weekly/worst-week reliability with a method-independent oracle
 noise reference (#1, #3), paired under-coverage tests with cluster CIs and one confirmatory family (#14), tails and
 equivalence (#6), nested selection and bootstrap selection frequencies (#9), matched-kappa attribution (#7),
 robustness with week-1/one-sided/post-shift metrics (#13), offset/heterogeneity decomposition (#15), threshold and
-nominal-level sensitivity of the recommendation rule (#13, R6).
+nominal-level sensitivity of the recommendation rule.
 
 Unit of analysis: one building (metrics averaged over the seeds in which it was a target), unless stated.
 Outputs: tables/T2_*.{csv,md}, results/selection.json, results/cycle2.json.
@@ -197,7 +197,7 @@ def _rule(t, cands, tol=1.02):
 
 
 def selection(df, cands=None, n_boot=300):
-    """#9 (and R6 #2): rule A.1 as originally stated (both datasets), nested (select on BDG2, confirm on UCI,
+    """rule A.1 as originally stated (both datasets), nested (select on BDG2, confirm on UCI,
     leave-site-out and cross-dataset), at 95 % and 80 % nominal, and bootstrap selection frequencies."""
     cands = [c for c in (cands or CQR_STRATEGIES) if c in set(df.method)]
     out = {}

@@ -161,7 +161,7 @@ def load_uci(raw_dir: str, cache_dir: str) -> dict:
     with zf.open("LD2011_2014.txt") as f:
         d = pd.read_csv(f, sep=";", decimal=",", index_col=0, parse_dates=True)
     # timestamps mark the START of each 15-min interval (the documented 1-2 am DST block is labelled
-    # 01:00-01:45; reviewer R5, cycle 2), so hour h = labels h:00..h:45 covers [h, h+1) without a shift
+    # 01:00-01:45), so hour h = labels h:00..h:45 covers [h, h+1) without a shift
     h = d.resample("h").sum() / 4.0
     h = h.loc["2012-01-01":"2014-12-31"]
     h.loc[dst_hours(h.index)] = np.nan

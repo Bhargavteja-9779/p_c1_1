@@ -245,7 +245,7 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages, return_
         idx = _first_ge(F[:, k, :], np.clip(lev, 0, 1))
         idx_min = _first_ge(F[:, k, :], np.full(nt, 1e-5))  # smallest observed score (empty-set convention)
         idx_max = _first_ge(F[:, k, :], np.full(nt, 1.0 - 1e-6))  # largest observed score (finite surrogate of
-        # the infinite interval of the original method when alpha_h <= 0; revised after review cycle 1)
+        # the infinite interval of the original method when alpha_h <= 0)
         idx = np.where(lev >= 1, idx_max, np.where(lev <= 0, idx_min, idx))
         capped += (lev >= 1).sum()
         q[:, hi] = GRID[idx]
@@ -301,7 +301,7 @@ def qshrink_quantiles(self_cc, q_pool, alpha, lam, stages, decay=1.0):
     q = w q_own + (1-w) q_pool, w = n/(n+lam); q_own = split-conformal quantile of the building's own past
     scores; w = 0 while q_own does not exist (decided from the number of own scores). lam = 0 -> own only
     (with pooled fallback), lam = inf -> pooled. q_pool: (nt, NH) or (NH,) pooled radius.
-    decay < 1: recency variant (own counts decayed per day; n is then the effective count; cycle 2)."""
+    decay < 1: recency variant (own counts decayed per day; n is then the effective count)."""
     nt, NH, NG = self_cc.shape
     q_own = hsc_quantiles(self_cc, np.zeros((1, len(STAGE_EDGES) - 1, NG), dtype=np.float32), None, alpha, [0],
                           stages, decay=decay)[0]
@@ -347,7 +347,7 @@ def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, b
             g = np.where(r < 1 - alpha, C * (r - (1 - alpha)), r - (1 - alpha))
             g = np.where(np.isnan(et[:, hi]), 0.0, g)
             # budget scale lambda from the CALIBRATION buildings (each ranked among the others), never from
-            # the target batch (fixed after review cycle 1)
+            # the target batch
             rc = (ec[None, :, hi] < ec[:, hi, None]).sum(axis=1) / float(N)
             gc = np.where(rc < 1 - alpha, C * (rc - (1 - alpha)), rc - (1 - alpha))
             gc = np.where(np.isnan(ec[:, hi]), 0.0, gc)
@@ -362,7 +362,7 @@ def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, b
 
 
 # ----------------------------------------------------------------------------------------------
-# Review-cycle-1 additions (pre-registered in experiments/PREREGISTRATION.md, Addendum A)
+# Additional variants (pre-registered in experiments/PREREGISTRATION.md, Addendum A)
 # ----------------------------------------------------------------------------------------------
 def coverage_deviation(q, scores, alpha):
     """Mean over buildings of |coverage_b - (1-alpha)| for radius q (..., n, NH) and scores (n, NH, 24)

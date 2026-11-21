@@ -144,7 +144,7 @@ def test_aci_level_below_zero_gives_noninverted_interval():
     assert (q >= 0).all()
 
 
-# ---------------------------------------------------------------- review-cycle-1 additions
+# ---------------------------------------------------------------- additional checks
 def test_ssc_stagewise_marginal_coverage_exchangeable_buildings():
     """With exchangeable buildings (heterogeneous error scales), SSC-CQR attains >= 1-alpha coverage averaged
     over new buildings at every stage (Dunn et al. pooled-CDF argument), up to Monte-Carlo error."""

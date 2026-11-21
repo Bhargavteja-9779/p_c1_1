@@ -133,7 +133,7 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     nb = len(mtg)
     df["building_id"] = np.tile(mtg.building_id.values, len(out))
     df["site_id"] = np.tile(mtg.site_id.values, len(out))
-    # method-independent oracle noise reference per building (cycle 2, #3); identical for every method row
+    # method-independent oracle noise reference per building; identical for every method row
     ref = mt.oracle_reference(pl.scores_cqr(PT), ok, alpha, seed=int(extra.get("cols", {}).get("seed", 0))
                               if extra else 0)
     for k, v in ref.items():
@@ -180,7 +180,7 @@ def perturb_missing(rate, seed):
 
 
 def perturb_outage(seed, n_blocks=2, max_days=3):
-    """Cycle 2 (R6): block outages -- n_blocks gaps of 1..max_days whole days at random positions."""
+    """block outages -- n_blocks gaps of 1..max_days whole days at random positions."""
     def f(load, bidx, t0):
         rng = np.random.default_rng(6000 + seed)
         for b, t in zip(bidx, t0):
@@ -193,7 +193,7 @@ def perturb_outage(seed, n_blocks=2, max_days=3):
 
 
 def perturb_spikes(seed, rate=0.02, factor=3.0):
-    """Cycle 2 (R6): heavy-tailed noise -- a share `rate` of hours multiplied by `factor`."""
+    """heavy-tailed noise -- a share `rate` of hours multiplied by `factor`."""
     def f(load, bidx, t0):
         rng = np.random.default_rng(7000 + seed)
         for b, t in zip(bidx, t0):
@@ -206,7 +206,7 @@ def perturb_spikes(seed, rate=0.02, factor=3.0):
 
 
 def perturb_shift_random(factor, seed, lo=3, hi=14):
-    """Cycle 2 (R6): level shift at a random onboarding day in [lo, hi] (commissioning-type change)."""
+    """level shift at a random onboarding day in [lo, hi] (commissioning-type change)."""
     def f(load, bidx, t0):
         rng = np.random.default_rng(8000 + seed)
         for b, t in zip(bidx, t0):
@@ -217,7 +217,7 @@ def perturb_shift_random(factor, seed, lo=3, hi=14):
 
 
 def perturb_ramp(total):
-    """Cycle 2 (R6): gradual drift, multiplicative ramp from 1 to 1 + total over the window."""
+    """gradual drift, multiplicative ramp from 1 to 1 + total over the window."""
     def f(load, bidx, t0):
         r = 1 + total * np.linspace(0, 1, pl.NH + 1)[:, None]
         for b, t in zip(bidx, t0):
@@ -461,7 +461,7 @@ def frontier(mode="full"):
             cct = cb.cum_counts(St)
             sc = PT["s"][:, :, None]
             band = lambda q: (PT["qlo"] - q[:, :, None] * sc, PT["qhi"] + q[:, :, None] * sc)
-            for a in ([0.1] if quick else [0.1, 0.05, 0.2]):  # cycle 2: frontier at three nominal levels
+            for a in ([0.1] if quick else [0.1, 0.05, 0.2]):  # frontier at three nominal levels
                 for dec in [1.0, 0.95, 0.9, 0.8]:
                     q = cb.hsc_quantiles(cct, binc, None, a, pl.KAPPAS, stages, stage_matched=False, decay=dec)
                     for ki, kap in enumerate(pl.KAPPAS):

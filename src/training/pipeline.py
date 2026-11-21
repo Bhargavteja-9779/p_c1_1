@@ -25,12 +25,12 @@ from src.models import calibration as cb
 from src.evaluation import metrics as mt
 
 NH = 56
-KAPPAS = [0, 6, 12, 24, 48, 96, 168, 336, 672, 1344, np.inf]  # 6, 12 added in cycle 2 (grid-edge choices)
+KAPPAS = [0, 6, 12, 24, 48, 96, 168, 336, 672, 1344, np.inf]  # 6 and 12 h added to avoid grid-edge choices
 KS = [10, 25, 50, 100, None]
 RECENCY = 0.95  # per-day decay of own scores (Addendum A, fixed a priori)
 KAPPA_S = 24.0  # pseudo-count of the running scale estimate in SSC (Addendum A, fixed a priori)
-GAMMAS = [0.0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05]  # 0.02/0.05 added in cycle 2
-IS_TOL = 1.02  # sharpness constraint of the coverage objective (cycle 2): LOBO-IS <= IS_TOL x pooled LOBO-IS
+GAMMAS = [0.0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05]  # upper values avoid grid-edge choices
+IS_TOL = 1.02  # sharpness constraint of the coverage objective: LOBO-IS <= IS_TOL x pooled LOBO-IS
 
 
 def periods(ds):
@@ -111,7 +111,7 @@ def train_models(ds, sp, seed, use_weather, alpha=0.1, frac=0.5, with_mlp=True, 
     m["lgb_lo"] = fc.fit_lgb(Xtr, ytr, Xv, yv, seed, "quantile", alpha / 2)
     m["lgb_hi"] = fc.fit_lgb(Xtr, ytr, Xv, yv, seed, "quantile", 1 - alpha / 2)
     m["time_lgb"] = time.time() - t0
-    # SSC reference scale sigma0 (cycle 2): mean |normalised residual| on validation buildings, which are
+    # SSC reference scale sigma0: mean |normalised residual| on validation buildings, which are
     # disjoint from calibration and target buildings, so the studentised score is the same function for all
     m["s0_val"] = float(np.mean(np.abs(yv - m["lgb"].predict(Xv))))
     if with_mlp:
@@ -193,7 +193,7 @@ def scores_cqr(P):
 
 
 def select(df, objective, ref_mask, tol=IS_TOL):
-    """Pick the tuning row. objective 'is': smallest LOBO interval score. 'cov' (cycle 2, applied identically to
+    """Pick the tuning row. objective 'is': smallest LOBO interval score. 'cov' (applied identically to
     every family): smallest LOBO-MACD among settings whose LOBO-IS <= tol x the family's pooled limit
     (ref_mask rows: kappa = inf, lambda = inf or gamma = 0), ties by IS; if none qualifies, smallest IS."""
     if objective == "is":
@@ -213,7 +213,7 @@ def tune_hsc(cal_scores, cal_base_w, z_cal, alpha, stage_matched=True, Ks=KS, ka
              decay=1.0):
     """Leave-one-building-out selection of (kappa, K) on calibration buildings.
     objective: 'is' = mean normalised interval score (pre-registered); 'cov' = mean per-building absolute
-    coverage deviation (LOBO-MACD; Addendum A) subject to the sharpness constraint of `select` (cycle 2)."""
+    coverage deviation (LOBO-MACD; Addendum A) subject to the sharpness constraint of `select`."""
     stages = np.arange(1, NH + 1)
     cc = cb.cum_counts(cal_scores)
     binc, _ = cb.bin_cdfs(cc, stages)
@@ -396,7 +396,7 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     info["hsc_simple"] = bsa
     out["HSC simple"] = band(cb.hsc_quantiles(cc_t, binc, None, alpha, [bsa["kappa"]], stages,
                                               stage_matched=False)[0])
-    # ---- review-cycle-1 additions (PREREGISTRATION Addendum A)
+    # ---- additional variants (PREREGISTRATION Addendum A)
     t0 = time.time()
     # H-A: per-building-coverage (LOBO-MACD) tuning objective, applied alike to HSC, QShrink and ACI
     bc, bc_tab = tune_hsc(Scq, bwq_cal, zc, alpha, stage_matched=False, Ks=[None], objective="cov")
@@ -421,7 +421,7 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     q_rec = cb.hsc_quantiles(cct_q, bincq, None, alpha, [br["kappa"]], stages, stage_matched=False,
                              decay=RECENCY)[0]
     out["HSC-CQR recency"] = band(q_rec, lo=PT["qlo"], hi=PT["qhi"])
-    # ---- review-cycle-2 additions (REVIEW/review_02.md)
+    # ---- further variants and safeguards
     # kappa -> inf limit of the same (building-weighted, stage-agnostic) variant (#12)
     out["HSC-CQR recency κ=∞"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [np.inf], stages,
                                                        stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
@@ -456,7 +456,7 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     mabs_c = np.nanmean(Sc.reshape(Sc.shape[0], -1), axis=1)  # per calibration building mean |res|/s
     M = len(mabs_c)
     s0_all = float(np.nanmean(mabs_c))
-    # cycle 2: one fixed sigma0 for calibration and target buildings alike, estimated on validation buildings
+    # one fixed sigma0 for calibration and target buildings alike, estimated on validation buildings
     # (disjoint from both); falls back to the calibration mean only for caches without s0_val
     s0 = PC.get("s0_val") if PC.get("s0_val") is not None else s0_all
     info["ssc_sigma0_source"] = "validation" if PC.get("s0_val") is not None else "calibration"

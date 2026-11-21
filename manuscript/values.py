@@ -139,7 +139,7 @@ def compute(mode="full"):
             sim = np.abs(rng.binomial(nv[None, :].repeat(200, 0), 0.9) / nv[None, :] - 0.9).mean()
             v[f"floor_{d}_macd"] = f"{sim:.4f}"
             v[f"nvalid_{d}_median"] = int(np.median(nv))
-    # ---- revision (cycle 1) tokens: recommended method (rule A.1), cost changes, weekly curves, frontier
+    # ---- tokens: recommended method (rule A.1), cost changes, weekly curves, frontier
     rec = json.load(open(os.path.join(RES, "recommended.json"))) if os.path.exists(os.path.join(RES, "recommended.json")) else None
     if rec:
         v["PRIMARY"] = rec["recommended"]

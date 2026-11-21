@@ -1,4 +1,4 @@
-"""Cycle-2 data rules: no imputation, training-period eligibility, no onboarding fallback, DST mask."""
+"""Data rules: no imputation, training-period eligibility, no onboarding fallback, DST mask."""
 import numpy as np
 import pandas as pd
 

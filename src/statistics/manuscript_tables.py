@@ -169,7 +169,7 @@ def robust_table(s):
 
 
 def cost_table():
-    """Cycle 2 (R7): isolated benchmark only (results/timing.json; scripts/timing_benchmark.py)."""
+    """isolated benchmark only (results/timing.json; scripts/timing_benchmark.py)."""
     f = os.path.join(RES, "timing.json")
     if not os.path.exists(f):
         return
@@ -195,7 +195,7 @@ def cost_table():
                "vector per building (16 KB each).")
 
 
-# ---------------------------------------------------------------- revision (cycle 1): compact main tables
+# ---------------------------------------------------------------- compact main tables
 def primary():
     f = os.path.join(RES, "recommended.json")
     return json.load(open(f))["recommended"] if os.path.exists(f) else "HSC-CQR"
