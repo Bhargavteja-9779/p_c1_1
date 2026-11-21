@@ -18,6 +18,10 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
   method/intro/refs partly revised (see 'Cycle-2 manuscript progress'). The full rerun was RUNNING in the old container
   (training 15/~22 done). Model caches/results parts are NOT in git, so in a NEW container do exactly:
   1. `pip install -r requirements.txt` (data downloads automatically; UCI needs archive.ics.uci.edu allowed — env "p_c1_1").
+  1b. Calibration parts finished in the old container up to 17:56 UTC are saved: restore with
+     `mkdir -p results && cat results/parts_snapshot/parts_c2_1756.tgz.part* | tar xzf - -C results` (the
+     calibration pass then skips them; only the remaining robust parts are recomputed). Training (step 2) is still
+     needed for sensitivity/frontier/timing.
   2. `setsid nohup python3 -u -c "import sys;sys.path.insert(0,'.');import warnings;warnings.filterwarnings('ignore');from src import experiments as ex;ex.train_only('full')" > results/experiment_logs/train_c2.log 2>&1 &`  (~1.5 h)
   3. `setsid nohup bash scripts/chain_c2.sh > /dev/null 2>&1 &`  (waits for training, then calibration pass ~2 h,
      then sensitivity+frontier ~1 h; progress in results/experiment_logs/chain_c2.log; ends with "CHAIN DONE").
