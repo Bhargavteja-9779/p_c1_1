@@ -48,10 +48,13 @@ def compute(mode="full"):
             suf = "" if a == 0.1 else f"_a{int(a * 100)}"
             for m in g.index:
                 for met in ["mean_cov", "cov_early", "macd", "under_rate", "p10_cov", "rel_width", "rel_IS",
-                            "rel_IS_early", "rel_IS_mean"]:
+                            "rel_IS_early", "rel_IS_mean", "under_wk1", "underprot", "under_floor", "under_floor_week",
+                            "up_exc", "floor", "cost10", "cost20", "cost40", "cost20_worst10"]:
+                    if met not in g.columns:
+                        continue
                     val = g.loc[m, met]
                     k = f"{name}{suf}_{_san(m)}_{met}"
-                    if met in ("under_rate",):
+                    if met in ("under_rate", "under_wk1", "underprot", "under_floor", "under_floor_week", "up_exc"):
                         v[k] = f"{100 * val:.1f}%"
                         v[k + "_sd"] = f"{100 * sd.loc[m, met]:.1f}"
                     else:
@@ -79,11 +82,6 @@ def compute(mode="full"):
         v[k + "_r"] = f"{r.rank_biserial:.2f}"
         v[k + "_better"] = f"{100 * r.share_proposed_better:.0f}%"
         v[k + "_n"] = int(r.n_buildings)
-        if "p_site" in r and np.isfinite(r.p_site):
-            ps = r.p_site_holm if "p_site_holm" in r and np.isfinite(r.p_site_holm) else r.p_site
-            v[k + "_psite"] = "< 0.001" if ps < 0.001 else f"= {ps:.3f}"
-        if "median_diff" in r:
-            v[k + "_med"] = f"{r.median_diff:.4f}"
     # tuned parameters and cost
     info = json.load(open(os.path.join(RES, "run_info.json")))
     tag = "_quick" if mode == "quick" else ""
@@ -105,12 +103,6 @@ def compute(mode="full"):
                                                            str(int(info[k]["hsc_cqr_simple"]["kappa"]))) for k in parts}))
         v[f"tuned_{d}_kappa_mlp"] = ", ".join(sorted({("∞" if np.isinf(info[k]["hsc_cqr_mlp"]["kappa"]) else
                                                         str(int(info[k]["hsc_cqr_mlp"]["kappa"]))) for k in parts}))
-        for key, nm in (("selffb_min_hours", "selffb"), ("tqab_beta", "tqab_beta"), ("ghcp_n_sur", "ghcp_nsur")):
-            vals = [info[k].get(key) for k in parts if info[k].get(key) is not None]
-            if vals:
-                v[f"tuned_{d}_{nm}"] = ", ".join(sorted({f"{x:g}" for x in vals}))
-        v[f"n_tgt_dropped_{d.lower()}"] = f"{np.mean([info[k].get('n_tgt_dropped', 0) for k in parts]):.1f}"
-        v[f"inverted_{d}"] = int(np.sum([info[k].get("inverted_hours", 0) for k in parts]))
         v[f"cost_{d}_tune_s"] = f"{np.mean([info[k]['t_tune_hsc'] for k in parts]):.1f}"
         v[f"cost_{d}_apply_ms"] = f"{1e3 * np.mean([info[k]['t_hsc_apply_per_target_day'] for k in parts]):.3f}"
         v[f"cost_{d}_store_MB"] = f"{np.mean([info[k]['hsc_store_MB'] for k in parts]):.1f}"
@@ -142,38 +134,92 @@ def compute(mode="full"):
     # E|Binomial(n, 0.9)/n - 0.9| evaluated by Monte Carlo at each building's number of valid hours
     rng = np.random.default_rng(0)
     for d in ["BDG2", "UCI"]:
-        nv = df[(df.exp == "main") & (df.dataset == d) & (df.alpha == 0.1) & (df.method == "HSC-CQR simple")].n_valid.values
+        nv = df[(df.exp == "main") & (df.dataset == d) & (df.alpha == 0.1) & (df.method == "HSC-CQR")].n_valid.values
         if len(nv):
             sim = np.abs(rng.binomial(nv[None, :].repeat(200, 0), 0.9) / nv[None, :] - 0.9).mean()
             v[f"floor_{d}_macd"] = f"{sim:.4f}"
             v[f"nvalid_{d}_median"] = int(np.median(nv))
-    # revision 1: per-window, downstream and timing tokens
-    from scipy.stats import binom
-    v["iid_floor"] = f"{100 * binom.cdf(np.ceil(0.85 * 168) - 1, 168, 0.9):.1f} %"
-    TAB = os.path.join(ROOT, "tables")
+    # ---- revision (cycle 1) tokens: recommended method (rule A.1), cost changes, weekly curves, frontier
+    rec = json.load(open(os.path.join(RES, "recommended.json"))) if os.path.exists(os.path.join(RES, "recommended.json")) else None
+    if rec:
+        v["PRIMARY"] = rec["recommended"]
+        v["primary_san"] = _san(rec["recommended"])
+        for r in rec["table"]:
+            v[f"rec_{_san(r['method'])}_is_ratio_BDG2"] = f"{100 * (r['is_ratio_BDG2'] - 1):+.1f}%"
+            v[f"rec_{_san(r['method'])}_is_ratio_UCI"] = f"{100 * (r['is_ratio_UCI'] - 1):+.1f}%"
+    for name, d in [("main_BDG2", "BDG2"), ("main_UCI", "UCI")]:
+        t = s[(s.exp == "main") & (s.dataset == d) & (s.alpha == 0.1) & (s.perturb == "none")]
+        if "cost20" not in t:
+            continue
+        base = t[t.method == "CQR"].set_index("seed")
+        for m in t.method.unique():
+            x = t[t.method == m].set_index("seed")
+            for c in ["cost10", "cost20", "cost40", "cost20_worst10"]:
+                dlt = 100 * (x[c] / base.loc[x.index, c] - 1)
+                v[f"{name}_{_san(m)}_{c}_delta"] = f"{dlt.mean():+.1f}%"
+    wf = os.path.join(RES, "weekly_coverage.csv")
+    if os.path.exists(wf):
+        w = pd.read_csv(wf)
+        g = w.groupby(["dataset", "method", "week"]).under.mean()
+        for (d, m, wk), val in g.items():
+            v[f"wk_{d}_{_san(m)}_w{wk}"] = f"{100 * val:.1f}%"
+    ff = os.path.join(RES, f"frontier{tag}.csv")
+    if os.path.exists(ff):
+        fr = pd.read_csv(ff)
+        g = fr.groupby(["dataset", "family", "param"])[["under", "rel_IS", "under_wk1"]].mean().reset_index()
+        for _, r in g.iterrows():
+            par = "inf" if np.isinf(r.param) else (f"{r.param:g}")
+            k = f"fr_{r.dataset}_{_san(r.family)}_{par}"
+            v[k + "_under"] = f"{100 * r.under:.1f}%"
+            v[k + "_IS"] = f"{r.rel_IS:.3f}"
+            v[k + "_wk1"] = f"{100 * r.under_wk1:.1f}%"
     for d in ["BDG2", "UCI"]:
-        f = os.path.join(TAB, f"T_windows_{d}.csv")
-        if os.path.exists(f):
-            w = pd.read_csv(f, index_col=0)
-            for m, r in w.iterrows():
-                for c in w.columns:
-                    if c.endswith("_mean"):
-                        val = r[c]
-                        v[f"win_{d}_{_san(m)}_{c[:-5]}"] = f"{100 * val:.1f}%" if c.startswith("under") else f"{val:.3f}"
-        f = os.path.join(TAB, f"T_downstream_{d}.csv")
-        if os.path.exists(f):
-            w = pd.read_csv(f, index_col=0)
-            for m, r in w.iterrows():
-                for c in w.columns:
-                    val = r[c]
-                    v[f"ds_{d}_{_san(m)}_{c}"] = (f"{100 * val:.1f}%" if c in ("exceed_rate", "share_breach_2x")
-                                                  else f"{val:.3f}")
-    f = os.path.join(TAB, "T_timing.csv")
-    if os.path.exists(f):
-        tm = pd.read_csv(f)
-        for _, r in tm.iterrows():
-            key = f"time_{r.dataset}_{_san(r.method)}_{_san(r.operation.split(',')[0])}"
-            v[key] = f"{r.median_ms:.3g}"
+        parts = [k for k in info if k.startswith(f"main{tag}_{d}_s") and k.endswith("a0.1")]
+        def _set(key, sub="kappa"):
+            vals = [info[k][key][sub] if isinstance(info[k].get(key), dict) else info[k].get(key) for k in parts
+                    if info[k].get(key) is not None]
+            return ", ".join(sorted({("∞" if np.isinf(float(x)) else f"{float(x):g}") for x in vals}))
+        for key in ["hsc_cqr_simple_cov", "hsc_cqr_recency", "hsc_ssc_cqr"]:
+            if parts and key in info[parts[0]]:
+                v[f"tuned_{d}_{key}"] = _set(key)
+        for key in ["qshrink_lambda_cov", "aci_cqr_gamma_cov"]:
+            if parts and key in info[parts[0]]:
+                v[f"tuned_{d}_{key}"] = _set(key, None)
+        if parts and "aci_cqr_capped_frac" in info[parts[0]]:
+            v[f"aci_{d}_capped"] = f"{100 * np.mean([info[k]['aci_cqr_capped_frac'] for k in parts]):.2f}%"
+            v[f"aci_{d}_capped_abs"] = f"{100 * np.mean([info[k]['aci_capped_frac'] for k in parts]):.2f}%"
+        if parts and "t_ssc_apply_per_target_day" in info[parts[0]]:
+            v[f"cost_{d}_ssc_apply_ms"] = f"{1e3 * np.mean([info[k]['t_ssc_apply_per_target_day'] for k in parts]):.3f}"
+            v[f"cost_{d}_tune_cov_s"] = f"{np.mean([info[k]['t_tune_hsc_cov'] for k in parts]):.1f}"
+    q = st[(st.proposed == v.get("PRIMARY", "")) & (st.protocol == "random") & (st.perturb == "none") &
+           (st.alpha == 0.1) & (st.dataset == "BDG2") & st.metric.isin(["abs_dev", "abs_dev_early"]) &
+           (st.share_proposed_better > 0.5)] if "p_site" in st else st.iloc[:0]
+    if len(q):
+        v["max_psite_primary_BDG2"] = f"{q.p_site.max():.3f}"
+    tf = os.path.join(RES, "timing.json")
+    if os.path.exists(tf):
+        tm = json.load(open(tf))
+        for d, r in tm.items():
+            v[f"time_{d}_recency_apply_ms"] = f"{r['recency_apply_ms_per_building_day']:.3f}"
+            v[f"time_{d}_cqr_apply_ms"] = f"{r['cqr_apply_ms_per_building_day']:.4f}"
+            v[f"time_{d}_aci_apply_ms"] = f"{r['aci_apply_ms_per_building_day']:.3f}"
+            v[f"time_{d}_recency_tune_s"] = f"{r['recency_tune_s']:.1f}"
+            v[f"time_{d}_store_MB"] = f"{r['store_MB']:.1f}"
+            v[f"time_{d}_lgb_s"] = f"{r['lgb_3models_s']:.0f}"
+            v[f"time_{d}_mlp_s"] = f"{r['mlp_2models_s']:.0f}"
+    if os.path.exists(ff):
+        for d in ["BDG2", "UCI"]:
+            ref = g[(g.dataset == d) & (g.family == "HSC (decay 1.0)") & np.isinf(g.param)].rel_IS
+            if len(ref):
+                for _, r in g[(g.dataset == d) & (g.family == "ACI")].iterrows():
+                    v[f"fr_{d}_ACI_{r.param:g}_ISdelta"] = f"{100 * (r.rel_IS / ref.iloc[0] - 1):+.0f}%"
+    eaf = os.path.join(RES, "error_analysis.json")
+    if os.path.exists(eaf):
+        ea = json.load(open(eaf))
+        for d in ["BDG2", "UCI"]:
+            if d in ea:
+                v[f"ea_{d}_rho_CQR"] = f"{ea[d]['rho_cov_cvrmse_CQR']:.2f}"
+                v[f"ea_{d}_rho_primary"] = f"{ea[d]['rho_cov_cvrmse_' + ea[d]['primary']]:.2f}"
     v["ERROR_ANALYSIS_TEXT"] = _error_text()
     v["ABSTRACT"] = _abstract(v)
     v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"
@@ -186,62 +232,62 @@ def _p(p):
 
 
 def _error_text():
-    """Error-analysis paragraph whose wording follows the actual test outcomes."""
+    """Error-analysis paragraph whose wording follows the actual test outcomes (recommended method)."""
     f = os.path.join(RES, "error_analysis.json")
     if not os.path.exists(f):
         return "(error analysis not available)"
     e = json.load(open(f))
     b = e.get("BDG2", {})
+    P = b.get("primary", "HSC-CQR")
     t = []
     if "rho_cov_cvrmse_CQR" in b:
-        pm, c1, c2 = b['rho_cov_cvrmse_HSC-CQR simple'], b['rho_cov_cvrmse_CQR_ci'], b['rho_cov_cvrmse_HSC-CQR simple_ci']
-        t.append(f"On BDG2 (one unit per building, seed-averaged) the Spearman correlation between per-building "
-                 f"coverage and CV(RMSE) is {b['rho_cov_cvrmse_CQR']:.2f} [{c1[0]:.2f}, {c1[1]:.2f}] for CQR and "
-                 f"{pm:.2f} [{c2[0]:.2f}, {c2[1]:.2f}] for SSC-CQR, i.e. the shrinkage layer "
-                 + ("weakens" if c2[0] > c1[1] or c2[1] < c1[0] else "does not clearly change")
-                 + " the dependence of reliability on forecast difficulty.")
+        t.append(f"With pooled CQR, a building's coverage falls with its forecast difficulty (Spearman correlation "
+                 f"between per-building coverage and CV(RMSE): {b['rho_cov_cvrmse_CQR']:.2f} on BDG2, "
+                 f"{e['UCI']['rho_cov_cvrmse_CQR']:.2f} on UCI); with the proposed layer the correlation is "
+                 f"{b['rho_cov_cvrmse_' + P]:.2f} and {e['UCI']['rho_cov_cvrmse_' + P]:.2f} (Fig. [-@fig:errors]a).")
     if "usage_largest_reduction" in b:
-        t.append(f"Across usage classes with at least 30 building × seed units, the largest reduction of the "
-                 f"absolute coverage deviation is observed for '{b['usage_largest_reduction']}' and the smallest for "
+        t.append(f"Across usage classes with at least 30 building × seed units, the largest reduction of the absolute "
+                 f"coverage deviation is observed for '{b['usage_largest_reduction']}' and the smallest for "
                  f"'{b['usage_smallest_reduction']}' (Fig. [-@fig:errors]b).")
-    if "shift_p" in b:
-        sig = b["shift_p"] < 0.05
-        t.append(f"Of the {b['n_units']} buildings, {b['n_under']} remain under-covered by SSC-CQR. "
-                 f"Their median within-window level change |log(mean load weeks 5–8 / weeks 1–4)| is "
-                 f"{b['shift_median_under']:.3f} versus {b['shift_median_other']:.3f} for the others "
-                 f"(Mann–Whitney {_p(b['shift_p'])}); "
-                 + ("remaining failures are therefore associated with regime changes during onboarding"
-                    if sig and b['shift_median_under'] > b['shift_median_other'] else
-                    "the remaining failures are not explained by level changes alone")
-                 + f". Their first-week volatility is {b['vol_median_under']:.3f} versus {b['vol_median_other']:.3f} "
-                 f"({_p(b['vol_p'])}).")
+    if "n_under" in b:
+        s_ = (f"Of the {b['n_units']} BDG2 building × seed units, {b['n_under']} remain under-covered")
+        if "shift_p" in b:
+            sig = b["shift_p"] < 0.05
+            s_ += (f"; their median within-window level change |log(mean load weeks 5–8 / weeks 1–4)| is "
+                   f"{b['shift_median_under']:.3f} versus {b['shift_median_other']:.3f} for the others "
+                   f"(Mann–Whitney {_p(b['shift_p'])}), and their first-week volatility is {b['vol_median_under']:.3f} "
+                   f"versus {b['vol_median_other']:.3f} ({_p(b['vol_p'])}). With so few failures, these comparisons "
+                   + ("indicate an association with level changes" if sig else "are not conclusive") + "")
+        t.append(s_ + ".")
     u = e.get("UCI", {})
-    if "shift_p" in u:
-        t.append(f"On UCI (reported descriptively), {u['n_under']} of {u['n_units']} clients remain under-covered; the corresponding level-change "
-                 f"medians are {u['shift_median_under']:.3f} versus {u['shift_median_other']:.3f} ({_p(u['shift_p'])}).")
+    if "n_under" in u:
+        t.append(f"On UCI, {u['n_under']} of {u['n_units']} units remain under-covered.")
     return " ".join(t)
 
 
 def _abstract(v):
     a = (
-        "Demand response, flexibility bidding and measurement-and-verification need day-ahead prediction intervals "
-        "for individual buildings, often from the first days after a building is metered. Interval methods are "
-        "usually judged by coverage pooled over many buildings, which can hide buildings whose intervals are "
-        "systematically too narrow. We evaluate per-building interval reliability during onboarding under a "
-        "pre-registered, building- and period-disjoint protocol on "
+        "Demand response, flexibility offers and measurement-and-verification need day-ahead load intervals for "
+        "individual buildings, often from the first days after a building is metered. Interval methods are usually "
+        "judged by coverage pooled over many buildings, which can hide buildings whose intervals are systematically "
+        "too narrow. We propose a recency-weighted shrinkage conformal calibration layer that mixes each new "
+        "building's exponentially down-weighted nonconformity scores with the score distribution of previously "
+        "onboarded buildings, with a pseudo-count selected by leave-one-building-out for per-building coverage. "
+        "Under a building- and period-disjoint protocol on "
         f"{v['n_bdg2']} buildings at {v['n_sites']} sites (Building Data Genome 2) and {v['n_uci']} Portuguese "
-        "electricity clients, with five seeds, unseen sites, cross-country transfer and stress tests. Using one "
-        "global forecaster, we compare pooled split conformal prediction, conformalised quantile regression (CQR), "
-        "group-wise, self-only, adaptive (ACI), temporal-quantile-adjustment and hierarchical calibration, quantile "
-        "shrinkage, and a pseudo-count shrinkage of the nonconformity-score distribution towards each building's own "
-        "accumulating scores, with the pseudo-count selected by leave-one-building-out. Pooled CQR left "
-        f"{v['main_BDG2_CQR_under_rate']} (BDG2) and {v['main_UCI_CQR_under_rate']} (UCI) of new buildings with coverage "
-        "more than five points below the 90 % target. Score-distribution shrinkage was the most reliable strategy, "
-        f"reducing these shares to {v['main_BDG2_HSCCQR_under_rate']} and {v['main_UCI_HSCCQR_under_rate']} and the "
-        f"mean absolute coverage deviation from {v['main_BDG2_CQR_macd']} to {v['main_BDG2_HSCCQR_macd']} (BDG2) at an "
-        f"essentially unchanged interval score; it also improved intervals from a neural quantile model. "
-        "Similarity-weighted priors and onboarding-stage matching added nothing, leaving a one-parameter layer whose "
-        f"pseudo-count of one to two weeks of hourly scores costs {v['cost_BDG2_apply_ms']} ms per building-day."
+        "electricity clients, we compare it with pooled, self-only, adaptive, temporal, hierarchical and "
+        "quantile-shrinkage conformal calibration and with direct probabilistic forecasters. Pooled conformalised "
+        f"quantile regression left {v['main_BDG2_CQR_under_rate']} (BDG2) and {v['main_UCI_CQR_under_rate']} (UCI) of "
+        "new buildings with coverage more than five points below the 90 % target; the proposed layer reduced these "
+        f"shares to {v['main_BDG2_HSCCQR_recency_under_rate']} and {v['main_UCI_HSCCQR_recency_under_rate']}, the level "
+        "expected from sampling noise, with first-week shares falling from "
+        f"{v['wk_BDG2_CQR_w1']} to {v['wk_BDG2_HSCCQR_recency_w1']} and from {v['wk_UCI_CQR_w1']} to "
+        f"{v['wk_UCI_HSCCQR_recency_w1']}, at an interval score within {v['rec_HSCCQR_recency_is_ratio_BDG2']} of the "
+        "pooled baseline. Gains held on unseen sites, after cross-country transfer and under noise, missing data, level "
+        "shifts and small calibration pools. Online level control matched window-level reliability only in a narrow "
+        "parameter band and not in the first week. In day-ahead capacity-headroom offers, the layer left average cost "
+        "unchanged but removed systematically under-protected buildings, at "
+        f"{v['time_BDG2_recency_apply_ms']} ms per building-day."
     )
     n = len(a.split())
     assert n <= 250, f"abstract has {n} words (> 250)"

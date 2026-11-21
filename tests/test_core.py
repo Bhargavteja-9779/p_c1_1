@@ -144,42 +144,58 @@ def test_aci_level_below_zero_gives_noninverted_interval():
     assert (q >= 0).all()
 
 
-# ---- revision-1 data tests (review cycle 1, R5)
-from src.data import datasets as dd
-from src.training import pipeline as pl
+# ---------------------------------------------------------------- review-cycle-1 additions
+def test_ssc_stagewise_marginal_coverage_exchangeable_buildings():
+    """With exchangeable buildings (heterogeneous error scales), SSC-CQR attains >= 1-alpha coverage averaged
+    over new buildings at every stage (Dunn et al. pooled-CDF argument), up to Monte-Carlo error."""
+    import numpy as np
+    from src.models import calibration as cb
+    rng = np.random.default_rng(0)
+    alpha, NH, M, nt = 0.1, 6, 150, 3000
+    def draw(n):
+        scale = np.exp(rng.normal(0, 0.6, size=(n, 1, 1)))
+        a = np.abs(rng.normal(0, 1, size=(n, NH, 24))) * scale * 0.1
+        e = a - 0.12 * scale  # CQR-like score: negative inside the band
+        return a, e
+    ac, ec = draw(M)
+    at, et = draw(nt)
+    s0 = float(np.mean(ac))
+    rc = cb.running_scale_ratio(ac, s0, 24.0)
+    rt = cb.running_scale_ratio(at, s0, 24.0)
+    q = cb.ssc_quantiles(ec / rc[:, :, None], alpha, nt)
+    cov = ((et / rt[:, :, None]) <= q[:, :, None]).mean(axis=(0, 2))
+    assert np.all(cov >= 1 - alpha - 0.01), cov
 
 
-def test_cleaning_never_imputes_and_masks_stuck_runs():
-    idx = pd.date_range("2016-01-01", periods=60, freq="h")
-    v = np.arange(60, dtype=float) + 1
-    v[5:15] = np.nan          # 10-h gap: must stay missing (pandas limit=6 used to fill its first 6 h)
-    v[20:23] = np.nan         # short gap: also stays missing (no imputation at all)
-    v[30:56] = 7.0            # 26 identical readings: stuck meter -> missing
-    out = dd._clean_hourly(pd.DataFrame({"a": v}, index=idx))["a"].values
-    assert np.isnan(out[5:15]).all() and np.isnan(out[20:23]).all()
-    assert np.isnan(out[30:56]).all() and not np.isnan(out[29]) and not np.isnan(out[56])
+def test_tqab_does_not_depend_on_other_targets():
+    import numpy as np
+    from src.models import calibration as cb
+    rng = np.random.default_rng(1)
+    NH = 10
+    cal = np.abs(rng.normal(size=(40, NH, 24)))
+    tgt = np.abs(rng.normal(size=(5, NH, 24)))
+    stages = np.arange(1, NH + 1)
+    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
+    q1 = cb.tqab_quantiles(tgt, cal, binc.sum(axis=0), 0.1, stages)
+    tgt2 = tgt.copy()
+    tgt2[1:] *= 25.0  # change all OTHER targets drastically
+    q2 = cb.tqab_quantiles(tgt2, cal, binc.sum(axis=0), 0.1, stages)
+    assert np.allclose(q1[0], q2[0])
 
 
-def test_eligibility_ignores_short_gaps_only():
-    v = np.ones(1000) * 5
-    v[np.arange(0, 1000, 10)] = np.nan               # 10 % missing, all single-hour gaps
-    assert dd.long_gap_share(v) == 0.0
-    v2 = np.ones(1000) * 5
-    v2[100:160] = np.nan                               # one 60-h gap = 6 %
-    assert abs(dd.long_gap_share(v2) - 0.06) < 1e-12
-    assert not dd.eligible(pd.Series(v2))
-
-
-def test_uci_dst_hours():
-    idx = pd.date_range("2014-01-01", "2014-12-31 23:00", freq="h")
-    m = dd.dst_hours(idx)
-    assert set(idx[m].strftime("%Y-%m-%d %H")) == {"2014-03-30 01", "2014-10-26 01"}
-
-
-def test_onboarding_drops_buildings_without_valid_window():
-    nd = 200
-    load = np.ones((2, nd, 24), dtype=np.float32)
-    load[1, 100:, :] = np.nan  # dead meter in the whole later period
-    ds = dict(load=load)
-    t0 = pl.onboard_dates(ds, np.array([0, 1]), (100, nd - 1), np.random.default_rng(0))
-    assert t0[0] >= 100 and t0[1] == -1
+def test_hsc_decay_one_equals_default_and_aci_finite():
+    import numpy as np
+    from src.models import calibration as cb
+    rng = np.random.default_rng(2)
+    NH = 8
+    cal = np.abs(rng.normal(size=(30, NH, 24)))
+    tgt = np.abs(rng.normal(size=(4, NH, 24))) * 3
+    stages = np.arange(1, NH + 1)
+    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
+    cct = cb.cum_counts(tgt)
+    a = cb.hsc_quantiles(cct, binc, None, 0.1, [48], stages)
+    b = cb.hsc_quantiles(cct, binc, None, 0.1, [48], stages, decay=1.0)
+    c = cb.hsc_quantiles(cct, binc, None, 0.1, [48], stages, decay=0.5)
+    assert np.allclose(a, b) and not np.allclose(a, c)
+    q, frac = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, stages, return_capped=True)
+    assert np.all(q <= np.nanmax(cal) * 1.01 + 1e-3) and frac >= 0

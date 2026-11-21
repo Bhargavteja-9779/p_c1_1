@@ -171,7 +171,7 @@ def prior_cdf(cal_cdf_k, cal_tot_k, nbr=None, excl=None):
 
 
 def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, excl=None,
-                  stage_matched=True):
+                  stage_matched=True, decay=1.0):
     """Proposed HSC radius for each target building and stage, for several kappa values.
 
     self_cc        : (nt, NH, NG) cumulative counts of the target's own scores per stage
@@ -180,6 +180,7 @@ def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, 
     kappas         : iterable of prior pseudo-counts (np.inf -> prior only; 0 -> self only)
     excl           : (nt,) calibration index of each target (leave-one-building-out tuning) or None
     stage_matched  : if False the prior pools all onboarding stages (ablation)
+    decay          : per-day down-weighting of the building's own past scores (1 = none; recency variant)
     returns q (n_kappa, nt, NH)
     """
     kappas = list(kappas)
@@ -206,11 +207,11 @@ def hsc_quantiles(self_cc, cal_bin_counts, nbr_by_stage, alpha, kappas, stages, 
                 M = (kappa * FP + self_before) / (kappa + n_self + 1.0)[:, None]
                 idx = _first_ge(M, np.full(nt, 1 - alpha))
             q[ki, :, hi] = GRID[idx]
-        self_before += self_cc[:, hi, :]
+        self_before = decay * self_before + self_cc[:, hi, :] if decay != 1.0 else self_before + self_cc[:, hi, :]
     return q
 
 
-def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
+def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages, return_capped=False):
     """ACI (Gibbs & Candes, 2021) with daily batches of 24 hourly feedback signals.
 
     alpha_{h+1} = alpha_h + gamma * sum_j (alpha - err_{h,j}); radius = prior quantile at 1-alpha_h.
@@ -223,65 +224,24 @@ def aci_quantiles(target_scores, prior_counts_bin, alpha, gamma, stages):
     F = P / np.maximum(P[..., -1:], 1)
     a = np.full(nt, alpha, dtype=float)
     q = np.empty((nt, NH), dtype=np.float32)
+    capped = 0
     for hi, h in enumerate(stages):
         k = int(stage_bin(h))
-        # revision 1 (R10): the level is clipped to [0, 1 - alpha/10] (a_t clipped to [alpha/10, 1] for the
-        # quantile only; the recursion keeps the unclipped a_t), so a_t <= 0 no longer yields the grid
-        # maximum (500 s) and moderate step sizes stay competitive in tuning
-        lev = 1 - np.clip(a, alpha / 10, 1.0)
-        idx = _first_ge(F[:, k, :], lev)
+        lev = 1 - a
+        idx = _first_ge(F[:, k, :], np.clip(lev, 0, 1))
         idx_min = _first_ge(F[:, k, :], np.full(nt, 1e-5))  # smallest observed score (empty-set convention)
-        idx = np.where(lev <= 0, idx_min, idx)
+        idx_max = _first_ge(F[:, k, :], np.full(nt, 1.0 - 1e-6))  # largest observed score (finite surrogate of
+        # the infinite interval of the original method when alpha_h <= 0; revised after review cycle 1)
+        idx = np.where(lev >= 1, idx_max, np.where(lev <= 0, idx_min, idx))
+        capped += (lev >= 1).sum()
         q[:, hi] = GRID[idx]
         e = target_scores[:, hi, :]
         valid = ~np.isnan(e)
         err = (e > q[:, hi:hi + 1]) & valid
         a = a + gamma * (alpha * valid.sum(1) - err.sum(1))
+    if return_capped:
+        return q, capped / float(nt * len(stages))
     return q
-
-
-def lobo_coverage(q, scores):
-    """Per-building coverage of radius q (..., nt, NH) on scores (nt, NH, 24): (..., nt)."""
-    e = scores[None] if q.ndim == 3 else scores
-    valid = ~np.isnan(e)
-    hit = (np.where(valid, e, np.inf) <= q[..., None]) & valid
-    return hit.sum(axis=(-1, -2)) / np.maximum(valid.sum(axis=(-1, -2)), 1)
-
-
-UNDER_TARGET = 0.05  # at most 5 % of (pseudo-)target buildings clearly under-covered (coverage < 1 - alpha - 0.05)
-
-
-def macd_objective(q, scores, base_w, alpha):
-    """Revision-1 tuning statistics on leave-one-building-out pseudo-targets: (MACD, normalised IS, share of
-    pseudo-targets with coverage < 1 - alpha - 0.05), each over the leading axis of q."""
-    cov = lobo_coverage(q, scores)
-    return (np.abs(cov - (1 - alpha)).mean(axis=-1), normalized_IS(q, scores, base_w, alpha),
-            (cov < 1 - alpha - 0.05).mean(axis=-1))
-
-
-def pick(objs, target=UNDER_TARGET):
-    """Sharpest setting subject to per-building reliability (revision 1): among settings whose LOBO share of
-    clearly under-covered pseudo-targets is <= `target`, the one with the smallest normalised interval score;
-    if none qualifies, the smallest under-covered share (ties: smallest IS). objs = (macd, IS, under).
-    (A pure MACD objective was rejected on the first seed-0 check: it rewards coverage-forcing at any width
-    cost, e.g. ACI with gamma -> 0.05 and +55 % width.)"""
-    IS, under = np.asarray(objs[1], float), np.asarray(objs[2], float)
-    cand = np.where(under <= target + 1e-12)[0]
-    if not len(cand):
-        cand = np.where(under <= np.nanmin(under) + 1e-12)[0]
-    return int(cand[np.argmin(IS[cand])])
-
-
-def selffb_quantiles(self_cc, q_pool, alpha, min_hours, stages):
-    """Self-only conformal with a minimum-history fallback (revision 1, R10 'switching rule'): the pooled
-    radius q_pool until the building has >= min_hours own scores, then the split-conformal quantile of its
-    own past scores only. q_pool: (nt, NH) or (NH,)."""
-    nt, NH, NG = self_cc.shape
-    q_own = hsc_quantiles(self_cc, np.zeros((1, len(STAGE_EDGES) - 1, NG), dtype=np.float32), None, alpha, [0],
-                          stages)[0]
-    n_own = own_counts_before(self_cc)
-    use = (n_own >= min_hours) & own_defined(n_own, alpha)
-    return np.where(use, q_own, np.broadcast_to(q_pool, (nt, NH))).astype(np.float32)
 
 
 def normalized_IS(q, scores, base_w, alpha):
@@ -297,7 +257,7 @@ def normalized_IS(q, scores, base_w, alpha):
 # ----------------------------------------------------------------------------------------------
 # Baselines from the closest prior art (added after the prior-art audit; see CHANGELOG.md)
 # ----------------------------------------------------------------------------------------------
-def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate, excl=None):
+def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
     """GHCP-style calibration (Mallick, Tchetgen Tchetgen, Dobriban & Lee, arXiv:2608.15500, Eq. 5), adapted:
     each calibration building ("reference group") receives total weight 1/(K+1) spread over its scores;
     the new building receives the same group share 1/(K+1), spread over its observed own scores and a point
@@ -307,18 +267,14 @@ def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate, ex
     """
     nt, NH, NG = self_cc.shape
     tot = np.maximum(cal_counts_allstages[:, -1:], 1).astype(np.float64)
-    cdfs = cal_counts_allstages / tot
-    Ssum = cdfs.sum(axis=0)[None, :]  # sum of reference CDFs
+    Ssum = (cal_counts_allstages / tot).sum(axis=0)  # sum of reference CDFs
     K = cal_counts_allstages.shape[0]
-    if excl is not None:  # leave-one-building-out (tuning of n_surrogate on calibration buildings)
-        Ssum = Ssum - cdfs[excl]
-        K = K - 1
     q = np.empty((nt, NH), dtype=np.float32)
     own = np.zeros((nt, NG), dtype=np.float64)
     for hi, h in enumerate(stages):
         n_own = own[:, -1]
         denom = np.maximum(n_surrogate, n_own)  # own share never exceeds one group share
-        F = (Ssum + own / denom[:, None]) / (K + 1.0)
+        F = (Ssum[None, :] + own / denom[:, None]) / (K + 1.0)
         q[:, hi] = GRID[_first_ge(F, np.full(nt, 1 - alpha))]
         own += self_cc[:, hi, :]
     return q
@@ -373,16 +329,58 @@ def tqab_quantiles(target_scores, cal_scores, prior_counts_bin, alpha, stages, b
             r = (ec[None, :, hi] < et[:, hi, None]).sum(axis=1) / (N + 1.0)
             g = np.where(r < 1 - alpha, C * (r - (1 - alpha)), r - (1 - alpha))
             g = np.where(np.isnan(et[:, hi]), 0.0, g)
-            # revision 1 (R2): the budget scaling uses calibration buildings only (ranked among the others),
-            # never the set of target buildings
-            ok_c = ~np.isnan(ec[:, hi])
-            rc = (ec[None, ok_c, hi] < ec[ok_c, hi, None]).sum(axis=1) / (N + 1.0)
+            # budget scale lambda from the CALIBRATION buildings (each ranked among the others), never from
+            # the target batch (fixed after review cycle 1)
+            rc = (ec[None, :, hi] < ec[:, hi, None]).sum(axis=1) / float(N)
             gc = np.where(rc < 1 - alpha, C * (rc - (1 - alpha)), rc - (1 - alpha))
+            gc = np.where(np.isnan(ec[:, hi]), 0.0, gc)
             gmax = gc.max() if gc.size else 0.0
             lam = min(1.0, (alpha - 0.01) / gmax) if gmax > alpha - 0.01 else 1.0  # original: scale g so a>=0.01
-            a = np.clip(alpha - lam * g, 0.01, 1.0)
+            a = alpha - lam * g
         # quantile of pooled scores together with a point at +inf (original TQA): level (1-a)(N+1)/N
         lev = np.minimum((1 - a) * (Npool[k] + 1) / max(Npool[k], 1), 1.0)
         idx = _first_ge(np.broadcast_to(F[k], (nt, F.shape[1])), lev)
         q[:, hi] = GRID[idx]
+    return q
+
+
+# ----------------------------------------------------------------------------------------------
+# Review-cycle-1 additions (pre-registered in experiments/PREREGISTRATION.md, Addendum A)
+# ----------------------------------------------------------------------------------------------
+def coverage_deviation(q, scores, alpha):
+    """Mean over buildings of |coverage_b - (1-alpha)| for radius q (..., n, NH) and scores (n, NH, 24)
+    (LOBO-MACD tuning objective; per-building coverage over the whole onboarding window)."""
+    e = scores[None]
+    valid = ~np.isnan(e)
+    hit = (np.where(valid, e, np.inf) <= q[..., None]) & valid
+    cov = hit.sum(axis=(-1, -2)) / np.maximum(valid.sum(axis=(-1, -2)), 1)
+    return np.abs(cov - (1 - alpha)).mean(axis=-1)
+
+
+def running_scale_ratio(abs_scores, sigma0, kappa_s):
+    """r_{b,h} = sigma_hat_{b,h} / sigma0 with sigma_hat = (kappa_s*sigma0 + sum own |res|/s) / (kappa_s + n),
+    using only the building's own scores from stages < h. abs_scores: (n, NH, 24); sigma0: scalar or (n,)."""
+    a = np.where(np.isnan(abs_scores), 0.0, abs_scores).sum(axis=2)
+    c = (~np.isnan(abs_scores)).sum(axis=2).astype(float)
+    S = np.concatenate([np.zeros((a.shape[0], 1)), np.cumsum(a, axis=1)[:, :-1]], axis=1)
+    n = np.concatenate([np.zeros((c.shape[0], 1)), np.cumsum(c, axis=1)[:, :-1]], axis=1)
+    s0 = np.broadcast_to(np.asarray(sigma0, dtype=float).reshape(-1, 1) if np.ndim(sigma0) else
+                         np.asarray(sigma0, dtype=float), S.shape)
+    return (kappa_s * s0 + S) / (kappa_s + n) / s0
+
+
+def ssc_quantiles(stud_cal, alpha, nt):
+    """Stage-wise pooled-CDF conformal radius (Dunn, Wasserman & Ramdas 2023, 'pooling CDFs'):
+    at each exact stage h every calibration building with valid scores gets weight 1/(M+1), spread
+    uniformly over its scores at that stage, and the new building a point mass 1/(M+1) at +inf.
+    stud_cal: (M, NH, 24) studentised calibration scores. Returns q (nt, NH)."""
+    cc = cum_counts(stud_cal)  # (M, NH, NG)
+    tot = cc[:, :, -1]
+    NH = stud_cal.shape[1]
+    q = np.empty((nt, NH), dtype=np.float32)
+    for hi in range(NH):
+        ok = tot[:, hi] > 0
+        M = int(ok.sum())
+        F = (cc[ok, hi, :] / tot[ok, hi, None]).sum(axis=0) / (M + 1.0)
+        q[:, hi] = GRID[_first_ge(F[None, :], np.array([1 - alpha]))[0]]
     return q

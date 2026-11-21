@@ -10,7 +10,7 @@
 | JOURNAL IMPACT FACTOR | 18.3 (JIF year 2025, JCR 2026 release of 17 June 2026); 13.8 (JIF year 2024) | ScienceDirect homepage snippet + journalmetrics.org, wos-journal.info, journalsearches.com, LetPub (rank 10/191 in ENERGY & FUELS); not verified in Clarivate JCR itself (subscription) |
 | JCR SUBJECT CATEGORY | Energy & Fuels | Aggregators |
 | VERIFIED REVIEW/DECISION TIMELINE | Current ScienceDirect panel: 1 day submission→first decision; 22 days submission→decision after review; 4 days acceptance→online (older snapshot: 1/26/6 days) | publisher-reported via search snippets; mean/median not stated |
-| VERIFIED ACCEPTANCE TIMELINE | **66 days "Submission to acceptance"** on the current journal homepage panel (snapshot with JIF 18.3 and Oct-2026 APC); an older Insights snapshot showed **86 days**. Statistic type (mean/median) and reference period not stated. DOAJ: "8 weeks" submission-to-publication (publisher-supplied). Not verifiable at article level (ScienceDirect blocks automated access; Elsevier deposits no received/accepted dates in Crossref). | Publisher-reported; **not independently verified**; both values ≤ 100 days |
+| VERIFIED ACCEPTANCE TIMELINE | **66 days "Submission to acceptance"** on the current journal homepage panel (snapshot with JIF 18.3 and Oct-2026 APC); an older Insights snapshot showed **86 days**. Statistic type (mean/median) and reference period not stated. DOAJ: "8 weeks" submission-to-publication (publisher-supplied). Not verifiable at article level (ScienceDirect blocks automated access; Elsevier deposits no received/accepted dates in Crossref). | Publisher-reported; **not independently verified**. The current value (66 d) is within the user's hard ceiling of 72 days; the older 86-d snapshot is not. Re-checked 2026-11-20: ScienceDirect still blocks automated access (HTTP 403); web-search snippets confirm only the older 86-d/JIF-13.8 snapshot and the JIF 18.3 value. |
 | APC | **USD 5,290** excl. taxes (Elsevier APC price list dated 05-Oct-2026); journal in Elsevier's geographical pricing (GPOA) pilot: 0–90 % of list price depending on authors' country income level; Research4Life waivers | Elsevier price list (downloaded) |
 | SCOPE FIT | "Cutting-edge applied research on all aspects of energy innovation"; journal has published load forecasting (TgDLF, Adaptive-TgDLF), probabilistic forecasting (QTCN, SkyGPT, co-located wind/PV), transfer learning for smart buildings (review), building flexibility | OpenAlex/Crossref listing of 308 journal items (literature/aae_all_works_crossref.json) |
 | RESEARCH FIT | Reliable uncertainty for day-ahead load forecasts of newly metered buildings — supports flexibility/demand-response baselining and operations; directly extends the journal's probabilistic- and transfer-learning-forecasting line | see literature/aae_benchmark.md |
@@ -18,7 +18,13 @@
 | KEY REJECTION RISKS | (1) Very selective (308 items since 2020, many invited reviews); desk rejection if perceived as an ML-methods paper without energy-application impact. (2) Novelty relative to statistical conformal literature (hierarchical / clustered / few-shot conformal). (3) Use of observed (not forecast) weather. (4) ESCI-indexed status may matter to some institutions. |
 
 ## Fallback
-**Energy and AI** (Elsevier, gold OA): JIF 9.6–9.7 (ScienceDirect), Submission-to-acceptance 95 days (ScienceDirect Insights, via subagent snippet), APC ~USD 3,990–4,270. Scope fit excellent. Used if Advances in Applied Energy desk-rejects.
+Under the user's constraint of **≤ 72 days submission→acceptance**, no fallback with good scope fit was verified:
+*Energy and AI* (JIF 9.6–9.7; 95 d), *Energy Conversion & Management: X* (78 d) and *Results in Engineering* (74–76 d)
+all exceed 72 d on publisher-reported figures. Fast Q1 journals below 72 d (e.g. J. Energy Chemistry 37 d,
+Nano Energy 66 d) were rejected for scope mismatch. If Advances in Applied Energy desk-rejects, the
+constraint must be relaxed or a new screening run; Energy and AI is then the scientifically best fit.
 
 ## Honest timeline statement
-No individual manuscript can be guaranteed acceptance within 100 days. The 86-day figure is a publisher-reported aggregate.
+No individual manuscript can be guaranteed acceptance within 72 days. The 66-day figure is a publisher-reported
+aggregate (statistic type and period not stated) and an earlier snapshot showed 86 days; individual papers
+vary widely, especially if a major revision is requested.

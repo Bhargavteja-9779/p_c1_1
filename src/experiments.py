@@ -56,7 +56,7 @@ def _save(pid, df, curves, info):
     df.to_csv(os.path.join(PARTS, pid + ".csv"), index=False)
 
 
-def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_frac_buildings=1.0, tag="", drop=None):
+def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_frac_buildings=1.0, tag=""):
     """Train (or load cached) models and window predictions for calibration and target buildings."""
     key = f"{src}_{tgt}_{protocol}{'' if fold is None else fold}_s{seed}_w{int(use_weather)}_f{frac}_m{int(with_mlp)}_tb{train_frac_buildings}{tag}"
     path = os.path.join(CACHE, key + ".pkl")
@@ -79,7 +79,7 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
         _log(f"reuse models {mkey} for {key}")
     else:
         _log(f"train {key}: train={len(sp['train'])} cal={len(sp['cal'])} tgt={len(tgt_idx)}")
-        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log, drop=drop)
+        models = pl.train_models(dsS, sp, seed, use_weather, frac=frac, with_mlp=with_mlp, log=_log)
         models["time_train_total"] = time.time() - t0
         os.makedirs(CACHE, exist_ok=True)
         with open(mpath, "wb") as f:
@@ -89,16 +89,9 @@ def prepared(src, tgt, seed, protocol, fold, use_weather, frac, with_mlp, train_
     _, teT = pl.periods(dsT)
     t0c = pl.onboard_dates(dsS, sp["cal"], trS, rng)
     t0t = pl.onboard_dates(dsT, tgt_idx, teT, rng)
-    # buildings without any window with >= 80 % valid hours cannot be onboarded (revision 1: targets are no
-    # longer pre-filtered on target-period quality, so a few are dropped here instead)
-    sp = dict(sp, cal=sp["cal"][t0c >= 0], n_cal_dropped=int((t0c < 0).sum()))
-    t0c = t0c[t0c >= 0]
-    n_tgt_dropped = int((t0t < 0).sum())
-    tgt_idx, t0t = tgt_idx[t0t >= 0], t0t[t0t >= 0]
-    _log(f"  onboarding: dropped cal={sp['n_cal_dropped']} tgt={n_tgt_dropped} (no window with >=80% valid hours)")
     PC = pl.window_predictions(dsS, sp["cal"], t0c, models)
     PT = pl.window_predictions(dsT, tgt_idx, t0t, models)
-    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, n_tgt_dropped=n_tgt_dropped, t0c=t0c, t0t=t0t, models=models,
+    obj = dict(PC=PC, PT=PT, sp=sp, tgt_idx=tgt_idx, t0c=t0c, t0t=t0t, models=models,
                timing=dict(train_total=models.get("time_train_total", time.time() - t0), lgb=models["time_lgb"],
                            mlp=models.get("time_mlp"),
                            n_train_rows=models["n_train_rows"], pred_lgb_per_target_day=PT["t_pred_lgb"]))
@@ -126,8 +119,8 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     t0 = time.time()
     out, info = pl.run_calibration(PC, PT, alpha, mc if dsS is dsT else None, mtg if dsS is dsT else None,
                                    methods=methods)
-    if alpha != model_alpha:  # direct-quantile models were trained for alpha=0.1 only
-        for k in [k for k in out if "CQR" in k or k in ("QR-LGBM", "MLP-QR")]:
+    if alpha != model_alpha:  # quantile models were trained for alpha=0.1: uncalibrated QR intervals are not
+        for k in ["QR-LGBM", "MLP-QR"]:  # meaningful at other levels; conformalised (CQR-based) ones are kept
             out.pop(k, None)
     df, curves = pl.evaluate(out, PT, alpha)
     ok = pl.common_mask(out, PT)
@@ -140,8 +133,6 @@ def run_part(pid, obj, dsS, dsT, alpha, methods="all", PT=None, PC=None, extra=N
     df["cvrmse_lgb"] = np.tile(pm["cvrmse"], len(out))
     info["t_calibration_total"] = time.time() - t0
     info.update(obj["timing"])
-    info["n_tgt_dropped"] = obj.get("n_tgt_dropped", 0)
-    info["n_targets"] = int(len(mtg))
     info["point"] = {k: float(np.nanmedian(v)) for k, v in pm.items()}
     for key, nm in (("naive", "naive"), ("mu", "mlp")):
         if key in PT:
@@ -181,30 +172,6 @@ def perturb_shift(factor, day=28):
     def f(load, bidx, t0):
         for b, t in zip(bidx, t0):
             load[b, t + day:t + pl.NH + 1] *= factor
-        return load
-    return f
-
-
-def perturb_outage(days, seed):
-    """Contiguous outage block of `days` days at a random position in the window (revision 1, R6)."""
-    def f(load, bidx, t0):
-        rng = np.random.default_rng(6000 + seed)
-        for b, t in zip(bidx, t0):
-            d0 = int(rng.integers(1, pl.NH - days))
-            load[b, t + d0:t + d0 + days] = np.nan
-        return load
-    return f
-
-
-def perturb_spikes(rate, seed):
-    """Meter errors: a share `rate` of hours replaced by 5x spikes or zero readings (revision 1, R6)."""
-    def f(load, bidx, t0):
-        rng = np.random.default_rng(7000 + seed)
-        for b, t in zip(bidx, t0):
-            seg = load[b, t:t + pl.NH + 1]
-            u = rng.random(seg.shape)
-            seg = np.where(u < rate / 2, seg * 5, np.where(u < rate, 0.0, seg))
-            load[b, t:t + pl.NH + 1] = seg
         return load
     return f
 
@@ -268,8 +235,6 @@ def train_only(mode="full"):
             elif k == "weak":
                 prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, train_frac_buildings=0.1,
                          tag=tag)
-                prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, tag=tag + "_weakfeat",
-                         drop=pl.WEAK_DROP)
         except Exception as e:
             import traceback
             _log(f"FAILED training {j}: {e}\n{traceback.format_exc()}")
@@ -323,17 +288,12 @@ def _execute_job(j, frac, mlp, tag, quick):
         s = j["seed"]
         perts = {"noise5": perturb_noise(0.05, s), "noise15": perturb_noise(0.15, s),
                  "missing20": perturb_missing(0.2, s), "missing40": perturb_missing(0.4, s),
-                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6),
-                 # revision 1 (R6): realistic disruptions; '-hist' = meter error in the inputs, truth kept clean
-                 "outage3d": perturb_outage(3, s), "shift+40@d7": perturb_shift(1.4, day=7),
-                 "noise15-hist": perturb_noise(0.15, s), "spikes2-hist": perturb_spikes(0.02, s)}
+                 "shift+40": perturb_shift(1.4), "shift-40": perturb_shift(0.6)}
         for name, f in perts.items():
             pid = f"robust{tag}_BDG2_s{s}_{name}"
             if _done(pid):
                 continue
             PT = pl.window_predictions(ds, obj["tgt_idx"], obj["t0t"], obj["models"], perturb=f)
-            if name.endswith("-hist"):
-                PT = dict(PT, y=obj["PT"]["y"])  # evaluate against the clean readings
             run_part(pid, obj, ds, ds, 0.1, methods="core", PT=PT,
                      extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=s, perturb=name)))
         for fr in [0.1, 0.25, 0.5]:
@@ -349,11 +309,6 @@ def _execute_job(j, frac, mlp, tag, quick):
         ds = get_ds("BDG2")
         obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, train_frac_buildings=0.1, tag=tag)
         run_part(f"robust{tag}_BDG2_s{j['seed']}_weakmodel", obj, ds, ds, 0.1, methods="core",
-                 extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=j["seed"],
-                                      perturb="reduced-training-pool")))
-        obj = prepared("BDG2", "BDG2", j["seed"], "random", None, True, frac, False, tag=tag + "_weakfeat",
-                       drop=pl.WEAK_DROP)
-        run_part(f"robust{tag}_BDG2_s{j['seed']}_weakfeat", obj, ds, ds, 0.1, methods="core",
                  extra=dict(cols=dict(exp="robust", dataset="BDG2", protocol="random", seed=j["seed"],
                                       perturb="weak-forecaster")))
 
@@ -410,26 +365,52 @@ def sensitivity(mode="full"):
                                         under=float(np.mean(cov < 0.85)), mean_cov=float(cov.mean()),
                                         rel_IS=float(np.median(m["rel_IS"])),
                                         rel_width=float(np.median(m["rel_width"]))))
-            # revision 1 (R10): the primary one-parameter layer (no stage matching, K = all) and quantile-level
-            # shrinkage (QShrink-CQR) evaluated on the same pseudo-count grid -> matched comparison
-            Sc, St = pl.scores_cqr(PC), pl.scores_cqr(PT)
-            binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
-            cct = cb.cum_counts(St)
-            q_s = cb.hsc_quantiles(cct, binc, None, 0.1, pl.KAPPAS, stages, stage_matched=False)
-            qpool = cb.pooled_quantile(binc, 0.1, True)[cb.stage_bin(stages)]
-            for ki, kap in enumerate(pl.KAPPAS):
-                for nm, q in (("ssc", q_s[ki]), ("qshrink", cb.qshrink_quantiles(cct, qpool, 0.1, kap, stages))):
-                    lo = PT["qlo"] - q[:, :, None] * PT["s"][:, :, None]
-                    hi = PT["qhi"] + q[:, :, None] * PT["s"][:, :, None]
-                    m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
-                    cov = m["coverage"]
-                    out.append(dict(dataset=dsn, seed=s, score=nm, K="all", kappa=kap,
-                                    macd=float(np.mean(np.abs(cov - 0.9))), under=float(np.mean(cov < 0.85)),
-                                    mean_cov=float(cov.mean()), rel_IS=float(np.median(m["rel_IS"])),
-                                    rel_width=float(np.median(m["rel_width"]))))
             if s == 0:
                 _examples(dsn, ds, obj, tag)
     pd.DataFrame(out).to_csv(os.path.join(RES, f"sensitivity{tag}.csv"), index=False)
+
+
+def frontier(mode="full"):
+    """Reliability-sharpness frontier (Addendum A; transparency only, never used for any selection):
+    every member of each CQR-score strategy family over its full parameter grid, evaluated on target
+    buildings: HSC simple over kappa x own-score decay, QShrink over lambda, ACI-CQR over gamma."""
+    from src.models import calibration as cb
+    quick = mode == "quick"
+    tag = "_quick" if quick else ""
+    frac = 0.1 if quick else 0.4
+    seeds = [0] if quick else [0, 1, 2, 3, 4]
+    stages = np.arange(1, pl.NH + 1)
+    sb = cb.stage_bin(stages)
+    rows = []
+
+    def rec(dsn, s, fam, par, lo, hi, PT):
+        m, _, _ = mt.interval_metrics(PT["y"], lo, hi, 0.1)
+        cov, ce = m["coverage"], m["coverage_early"]
+        rows.append(dict(dataset=dsn, seed=s, family=fam, param=par, macd=float(np.mean(np.abs(cov - 0.9))),
+                         under=float(np.mean(cov < 0.85)), under_wk1=float(np.mean(ce < 0.85)),
+                         p10=float(np.quantile(cov, 0.1)), rel_IS=float(np.median(m["rel_IS"])),
+                         rel_IS_mean=float(np.mean(m["rel_IS"])), rel_width=float(np.median(m["rel_width"]))))
+    for dsn in ["BDG2", "UCI"]:
+        ds = get_ds(dsn)
+        for s in seeds:
+            obj = prepared(dsn, dsn, s, "random", None, ds["temp"] is not None, frac, True, tag=tag)
+            PC, PT = obj["PC"], obj["PT"]
+            Sc, St = pl.scores_cqr(PC), pl.scores_cqr(PT)
+            binc, _ = cb.bin_cdfs(cb.cum_counts(Sc), stages)
+            cct = cb.cum_counts(St)
+            sc = PT["s"][:, :, None]
+            band = lambda q: (PT["qlo"] - q[:, :, None] * sc, PT["qhi"] + q[:, :, None] * sc)
+            for dec in [1.0, 0.95, 0.9, 0.8]:
+                q = cb.hsc_quantiles(cct, binc, None, 0.1, pl.KAPPAS, stages, stage_matched=False, decay=dec)
+                for ki, kap in enumerate(pl.KAPPAS):
+                    rec(dsn, s, f"HSC (decay {dec})", kap, *band(q[ki]), PT)
+            qp = cb.pooled_quantile(binc, 0.1, True)[sb]
+            for lam in pl.KAPPAS:
+                rec(dsn, s, "QShrink", lam, *band(cb.qshrink_quantiles(cct, qp, 0.1, lam, stages)), PT)
+            for g in pl.GAMMAS + [0.02, 0.05]:
+                rec(dsn, s, "ACI", g, *band(cb.aci_quantiles(St, binc.sum(axis=0), 0.1, g, stages)), PT)
+            _log(f"frontier {dsn} s{s} done")
+    pd.DataFrame(rows).to_csv(os.path.join(RES, f"frontier{tag}.csv"), index=False)
 
 
 def _examples(dsn, ds, obj, tag):
@@ -443,7 +424,9 @@ def _examples(dsn, ds, obj, tag):
     picks = {"p10": order[int(0.1 * (len(cov) - 1))], "p50": order[int(0.5 * (len(cov) - 1))]}
     rows = []
     for lab, i in picks.items():
-        for meth in ["CQR", "HSC-CQR simple", "HSC-CQR"]:
+        for meth in ["CQR", "HSC-CQR recency", "HSC-CQR", "HSC"]:
+            if meth not in out:
+                continue
             lo, hi = out[meth]
             for h in range(pl.NH):
                 for j in range(24):

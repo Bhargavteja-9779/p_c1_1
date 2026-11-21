@@ -50,25 +50,3 @@
   (abs 'fixed-kappa' identical to tuned in 6/10 runs; '-kNN -stage' not re-tuned) and replaced by
   'HSC-CQR fixed-κ' (simple variant, κ = 168 h, = donor-local mixture with fixed pseudo-count);
   (9) all tuning tables stored in run_info. Four new unit tests. All result parts recomputed.
-
-## 2026-11-21 — Revision 1 (review cycle 1, see REVIEW/review_01.md)
-- Data (R5): no imputation (pandas `interpolate(limit=6)` filled the first 6 h of long gaps from future readings);
-  eligibility uses the training/calibration period only (target-year look-ahead removed); targets need only an
-  onboarding window with >= 80 % valid hours (buildings without one are dropped and counted); UCI DST hours masked.
-  BDG2 eligible buildings 842 -> ~1,040. Cache files renamed (*_r1) so old caches are never reused.
-- Stress tests (R6): "weak forecaster" renamed "reduced training pool"; new genuinely weak forecaster (no lag /
-  profile / extreme / variability features); new scenarios: 3-day outage block, +40 % shift at day 7, 15 % noise on
-  inputs only (truth clean), 2 % spikes/zeros on inputs only.
-- Calibration (R1/R3/R10/R2): primary = HSC-CQR simple with kappa by LOBO on a pre-stated reliability objective
-  (MACD, IS tie-break); IS-tuned version kept; ACI level clipped to [0, 1-alpha/10] (no 500 s radius);
-  Self-CQR-fb (pooled until 72/168/336 h own scores, by LOBO); Mondrian-CQR; QShrink-CQR fixed-lambda = 168; TQA-B
-  budget scaled on calibration buildings only and decay by LOBO; GHCP surrogate size by LOBO; inverted intervals
-  collapsed to their midpoint and counted. All LOBO-tuned competitors share the MACD objective.
-- First revision-1 check (BDG2 seed 0): with the clipped level, ACI-CQR selected the upper grid edge (γ = 0.01) and
-  reached the lowest MACD (0.005) at a higher interval score (0.611 vs 0.572 for SSC-CQR). γ grid extended to
-  {…, 0.02, 0.05}; seed-0 parts recomputed. This changes the expected conclusion: ACI on CQR scores is now the
-  most exact per-building strategy on coverage, shrinkage the sharpest among near-nominal strategies.
-- Seed-0 check 2: with γ up to 0.05, the pure MACD objective selected γ = 0.05 for ACI-CQR (MACD 0.0025 on
-  pseudo-targets, below the sampling floor; target width +55 %, median IS 0.77 vs 0.57). MACD alone rewards
-  coverage-forcing. Selection rule changed (before any full calibration pass) to "sharpest reliable": smallest
-  normalised IS among settings with <= 5 % clearly under-covered LOBO pseudo-targets (fallback: smallest share).

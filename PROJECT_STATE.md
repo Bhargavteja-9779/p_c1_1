@@ -1,80 +1,88 @@
-# PROJECT_STATE
+# PROJECT_STATE — read this first when resuming (any new session / account)
 
-Last updated: 2026-11-21 (session 2)
+Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuow2` (all work is pushed here).
+
+## How to resume in a NEW container (nothing outside git survives)
+1. `pip install -r requirements.txt` (CPU torch: `pip install torch --index-url https://download.pytorch.org/whl/cpu`), `pytest -q tests` (14 tests must pass).
+2. Retrain all model caches (deterministic; reproduces committed results exactly, verified 2026-11-20):
+   `setsid nohup python3 -u -c "import sys;sys.path.insert(0,'.');from src import experiments as ex;ex.train_only('full')" > results/experiment_logs/train_only.log 2>&1 &`
+   (~2–3 h on 4 cores; data download is automatic). **Run NOTHING else CPU-heavy while it trains** (OpenMP oversubscription slows it ~4x).
+3. Calibration pass (after "=== all trainings cached ===" appears in the log): `bash scripts/calibration_pass.sh`
+   (4 single-threaded workers; finished parts in results/parts are skipped). Then
+   `python3 -c "import sys;sys.path.insert(0,'.');from src import experiments as ex;ex.sensitivity('full');ex.frontier('full')"`
+   and `python run_all.py --mode full --skip-experiments` (statistics, tables, figures).
+4. Continue at "Exact next steps" below.
+
+## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- 2026-11-21 (jolly-meitner session): great-ride tree adopted onto branch `claude/jolly-meitner-850g1y` (merge);
+  work continues THERE. Third parallel line (SSC-CQR) archived: REVIEW/archive_ssc_line/README.md — its data fixes
+  (no target-year filter, no imputation, DST mask; commit d763a3a) directly address cycle-2 R5 and can be ported.
+- Branch `claude/great-ride-5vxp0a` now carries the funny-euler-sjuow2 line (tree adopted by merge commit dbaa850).
+  Parallel PCS-CQR line and its 10-reviewer critique: REVIEW/archive_pcs_line/ (code in history at 90c477e).
+- Review cycle 2 on this line: 10 reviewer agents run on REVIEW/packet_cycle02.md; raw reviews in REVIEW/cycle02_raw/
+  (all 10 done, all Major revision; R5 adds: target-year filter removes 208/1050 incl. 4 sites; uniform calibration-year offset explains part of CQR failure (18.7->14.7 %); 6-h gap fill + imputed hours scored; UCI DST unmasked, 15-min shift; headline counts building-seed rows (15.4 % seed-averaged). Prompt pattern if rerun needed:
+  read scratch common instructions = role + "known risk areas a-f" listed in REVIEW/archive_pcs_line/review_02.md).
+- NEXT: write REVIEW/review_02.md (consolidate), REVIEW_HISTORY entry, then fixes. User approved the FULL plan:
+  re-analysis + calibration-only recompute (symmetric ACI tuning/extended gamma grid, tolerance sensitivity,
+  autocorrelation-aware floor, one-day-delayed own-score update) + causal quality-filter retraining run; reframe claims
+  to supported time scales (56-day window vs weekly).
+- Consensus issues so far: 56-day headline hides ~19-21 % weekly under-coverage (A); ACI coverage objective picks grid
+  edge gamma=0.01 in all runs, ACI not tuned under same sharpness constraint, decides rule A.1 (A); recency gain is from
+  kappa not rho (week-1 14.2 vs 13.7 % at equal kappa); rule ranks on target metric with tiny margins; noise reference
+  method-dependent; mean IS +3.7 % (tail blow-ups, Rat_office_Colby 23x width); at 80 % nominal rule would pick ACI-CQR;
+  Proposition 1 = corollary of Lee-Barber-Willett and its premises violated (sigma0 asymmetric, pipeline.py:404-410);
+  recency ESS bound off by factor 24; Shahid 2026 already tunes n0 by leave-one-site-out (novelty claim); missing refs
+  (Bersson & Hoff, Fisch, Vejling, Batra, conformal PID, DtACI, SAOCP); D-1 information set; target-year filter.
+- Local note: stale PCS-line intermediates were moved to the session scratchpad (not needed); model caches for this
+  line must be retrained before any recompute (see "How to resume" step 2).
 
 ## Decisions (final unless reviewers force a change)
-- Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
-  Fallback: Energy and AI.
-- Topic: reliable per-building prediction intervals for day-ahead load forecasts of newly metered
-  (cold-start) buildings. Method: Hierarchical Shrinkage Conformal (HSC) calibration layer
-  (stage-matched + similarity-localised population prior, shrunk toward the building's own scores
-  with pseudo-count κ; κ,K by leave-one-building-out on calibration buildings).
-- Data: BDG2 electricity (842 buildings, 12 sites after quality filter), UCI ElectricityLoadDiagrams
-  (315 clients). Raw files in data/raw (gitignored; `src/data/datasets.py::download`).
-- Pre-registration: experiments/PREREGISTRATION.md.
+- Target journal: **Advances in Applied Energy** (Elsevier). Only well-fitting journal with publisher-reported
+  submission→acceptance ≤ 72 days (66 d current panel; older 86 d; unverified at article level). User constraints:
+  ≤ 72 days to acceptance, high-IF Q1, no MDPI; avoid DESK REJECTION (novelty + fit are the main goal).
+- Topic: per-building reliable day-ahead prediction intervals for newly metered buildings (onboarding into DR /
+  flexibility / M&V platforms). Data: BDG2 (842 bldgs, 10 sites) + UCI (315 clients).
+- Evidence on accepted AAE papers: literature/aae_fulltext_benchmark.md (structure: numbered gaps+contributions in
+  Introduction, ~7–10.5k words, 1–3 main tables, 8–12 figures, "Practical implications" + "Limitations" subsections,
+  decision/cost framing; comparison papers accepted when tied to a concrete decision).
 
-## Code status
-- src/data, src/preprocessing, src/models (forecasters, calibration), src/training/pipeline.py,
-  src/experiments.py (E1-E8, resumable), src/statistics/analysis.py, src/visualization/figures.py,
-  tests/test_core.py (6 passing), run_all.py (--mode quick|full).
+## Review cycle 1 (done) → revision in progress
+- REVIEW/review_01.md: Reviewer 1 (Major/near-reject) + author response table. Confirmed problems: no week-1 gain;
+  IS-tuned κ worse than fixed κ; TQA-B used target batch (fixed); ACI grid cap (fixed); MACD floor understated.
+- Pre-registered revision: experiments/PREREGISTRATION.md Addendum A + A.1 (written before results):
+  new variants SSC-CQR, HSC-SSC-CQR, HSC-CQR recency, coverage-objective tuning for HSC/QShrink/ACI,
+  operational outcomes (capacity headroom cost ρ∈{10,20,40}, under-protected share), day-block noise floor,
+  site-level tests, weekly per-building coverage (days-to-reliable), reliability–sharpness frontier (ex.frontier).
+  Recommendation rule (A.1): lowest under-covered share s.t. median rel. IS ≤ 1.02 × CQR on both datasets.
+- Seed-0 pipeline check (not a result): ACI-CQR(cov) forces per-building coverage but doubles IS → frontier framing;
+  HSC-CQR recency and HSC-SSC-CQR promising; SSC-CQR alone weak.
+- SSC theory: construction = HCP of Lee, Barber & Willett (arXiv 2306.06342, Eq. 6, Theorem 1, finite-sample ≥1−α);
+  Dunn et al. pooling-CDFs is only asymptotic. Draft text: manuscript/drafts/method_new_cycle1.md.
 
-## Experiment status
-- FINAL calibration pass complete (2026-11-16 17:19-18:00 UTC): 74 parts (main 30, LSO 5, cross-dataset 9,
-  robustness 30) + sensitivity + examples, all with the audited code. Analysis/tables/figures regenerated.
+## Experiment status (2026-11-21 13:40 UTC)
+- COMPLETE: all 74 calibration parts with the revised code, sensitivity, frontier, clean timing
+  (scripts/timing_benchmark.py -> results/timing.json), statistics, tables, figures. Committed.
+- Rule A.1 selected **HSC-CQR recency** (results/recommended.json).
+- Manuscript v2 (AAE structure; ~7.7k words, 3 tables, 8 figures, 52 refs, abstract 237 words) built:
+  manuscript/Final_Manuscript.{md,docx,pdf}; supplementary/Supplementary_Material.{md,docx} (Tables S1–S15).
 
-## Manuscript status
-- v1 built 2026-11-16 ~18:20 UTC: manuscript/Final_Manuscript.{docx,pdf,md}, supplementary, highlights,
-  title page, claim-evidence map (REVIEW/claim_evidence_map.md). Novelty re-scoped (comparison study +
-  design evidence; no new-mechanism claim).
+## Exact next steps (updated)
+- Review round 2 (novelty/prior art + desk-reject screen) next; then rounds 3–10 per list below.
+- Rebuild after any change: `python run_all.py --mode full --skip-experiments && python manuscript/build_docx.py &&
+  python manuscript/build_supplementary.py` (and `python manuscript/build_extras.py` for highlights/title page).
 
-## Exact next step
-(Updated 2026-11-21, session 2.) Review cycle 1 DONE: raw `REVIEW/review_01_raw.json`, consolidated
-`REVIEW/review_01.md` (20 themes, decisions, tiers A/B/C, execution plan). NOW: implement the cycle-1 execution plan
-in order (step 1 code changes → step 2 full rerun → step 3 re-analysis → step 4 manuscript). Track sub-step progress
-in the checklist below; tick items as they are committed.
-
-### Cycle-1 fix checklist
-- [x] 1a cleaning fix (only gaps <=6 h interpolated, imputed-hour flag excluded from metrics) + unit test
-- [x] 1b target selection without target-year filter; per-site attrition table
-- [x] 1c UCI DST masking (duplicate-meter check moved to step 3 analysis)
-- [x] 1d ACI/ACI-CQR clipped level; cap-hit counts
-- [x] 1e Self-CQR-fallback baseline (72/168/336 h by LOBO); Mondrian-CQR
-- [x] 1f reliability-aware LOBO objective; primary = HSC-CQR simple; fixed-κ reported; cold-start variant
-- [x] 1g TQA-B λ from calibration only, LOBO decay; GHCP weight tuned; QShrink fixed λ=168 + matched grid
-- [x] 1h weak forecaster (no lag/profile); new stress scenarios (block outage, early shift, history-only noise)
-- [x] 1i isolated timing benchmark script (scripts/benchmark_timing.py; RUN ALONE after training, before/after calibration pass)
-- [ ] 2  full rerun: (a) DONE 09:58 UTC (no failures). (b) calibration pass STARTED 09:58 UTC (logs results/experiment_logs/calib_w{1..4}.log;
-       parts saved per job in results/, resumable by rerunning the script; if container restarted, models are lost -> rerun (a) first).
-       After all 4 workers finish: `OMP_NUM_THREADS=1 python scripts/benchmark_timing.py` ALONE, then (c),(d).
-       Original note: `ex.train_only('full')` STARTED 2026-11-21 08:19 UTC (log results/experiment_logs/train_r1.log;
-       models cached in results/cache, NOT in git -> lost if container restarts: just restart it, it resumes per job);
-       (b) then calibration pass `bash scripts/calibration_pass.sh` (4 single-threaded workers) or `ex.execute('full')`;
-       (c) `ex.sensitivity('full')`; (d) `python run_all.py --mode full --skip-experiments`.
-       Network: environment "p_c1_1" (allows archive.ics.uci.edu for UCI; setup script installs requirements).
-       Tuning rule FROZEN (2026-11-21 08:50): sharpest setting with <=5% under-covered LOBO pseudo-targets (cb.pick);
-       ACI gamma grid up to 0.05. main_BDG2_s0_a0.1 part already computed with the final code (kept).
-       NEVER run calibration while training runs (OpenMP spin-wait: training slowed 4x).
-       Decisions taken: cold-start variant skipped (week-1 reported honestly); CQR-family alpha-sensitivity NOT run
-       (claims limited to 90 %); all LOBO-tuned competitors use the MACD objective (IS tie-break); pre-registered
-       HSC/HSC-CQR keep the IS objective.
-- [ ] 3  re-analysis: CODE DONE in analysis.py (window_table, site_table, downstream_table, site sign-flip, median CIs, families); duplicate-meter check DONE (scripts/duplicate_check.py: 0 pairs r>0.99 in BDG2 and UCI, tables/T_duplicates.md); still to do: run it, deviations table (manuscript), update manuscript_tables.py/values.py/figures.py for new method names
-- [ ] 4  manuscript rewrite + rebuild + packet cycle 2; ask user before cycle 2
-       DONE so far: 02_intro contributions 1-2, 03_related, 04_method (SSC naming), 05_setup (rules, methods, stats,
-       sec:prereg + tables/MS_deviations.md, tables/MS_budget.md), references (+8, literature/citation_audit_r1.md),
-       values.py tokens (windows, downstream, timing, psite), manuscript_tables.py rewritten (display names DISPLAY,
-       new MS_windows/MS_sites/MS_downstream/MS_cost from T_timing, SI_abs_*).
-       TODO after results: figures.py (method names -> SSC display, Fig1 redraw as one-parameter layer, Fig4 add
-       fixed-κ, file numbering), 06_results + 07_discussion + conclusion + abstract (_abstract in values.py) +
-       highlights (build_extras.py), contribution 3 in intro, length cut to ~6000 words (abs-score tables to SI),
-       build_supplementary.py for new tables, REVIEW_HISTORY cycle-1 table.
-
-## Automatic resume
-Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in
-session). On resume: read this file, check `ps aux | grep ex.execute`, restart stopped jobs
-(`ex.execute('full', kinds=[...])` skips finished parts), continue with the next unfinished task.
-
-## Planned recompute pass (after audit)
-Add methods: "HSC simple"/"HSC-CQR simple" (K=all, no stage matching; recommended default) and
-"CQR-MLP"/"HSC-CQR-MLP" (model-agnostic check on MLP quantiles); apply verified audit fixes; then
-delete results/parts and rerun `ex.execute('full')` (models cached → calibration only), then
-`ex.sensitivity('full')`, `python run_all.py --mode full --skip-experiments`.
+## Exact next steps (original list)
+0. New container: install; extract the newest results/parts_snapshot tarball into results/; `ex.train_only('full')`
+   ALONE; then `bash scripts/calibration_pass.sh` (+ optionally a 5th worker for kind=='xds').
+1. Finish calibration pass → `ex.sensitivity('full'); ex.frontier('full')` → `python run_all.py --mode full --skip-experiments`
+   (writes results/recommended.json by rule A.1, weekly_coverage.csv, MS2_* tables, Fig_frontier, Fig_weekly).
+2. Apply A.1 rule; update manuscript_tables.py/figures.py/values.py for new methods, frontier figure, operational
+   table, days-to-reliable figure; add new refs (Lee et al. already [24]).
+3. Rewrite manuscript to AAE pattern (benchmark checklist), ~9k words, main tables ≤3, rest to supplementary;
+   graphical abstract; highlights; cover letter. Integrate drafts/method_new_cycle1.md.
+4. Review rounds 2–10 (one independent reviewer agent per round; each must first give a desk-reject verdict):
+   R2 novelty/prior art, R3 statistics/fairness/leakage, R4 ML method + code-vs-paper, R5 data/generalisation/
+   deployment, R6 computation, R7 writing + guideline compliance, R8 competing researcher, R9 associate editor
+   desk screen, R10 final adversarial. Save REVIEW/review_XX.md with author response; fix; rerun if needed.
+5. Final audits (consistency, reproducibility), DOCX/PDF, cover letter, /Target_Journal_Submission package
+   (scripts/package_submission.py), REVIEW/final_audit.md, rejection-risk report, final decision.
