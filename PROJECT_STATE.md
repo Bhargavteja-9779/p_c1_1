@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-20 (session 2)
 
-## Decisions (final unless reviewers force a change)
+## Decisions (final unless reviewers force a change; method re-centred on PCS-CQR in revision 1)
 - Target journal: **Advances in Applied Energy** (Elsevier, gold OA). Evidence: journal_selection/*.md.
   Fallback: Energy and AI.
 - Topic: reliable per-building prediction intervals for day-ahead load forecasts of newly metered
@@ -28,13 +28,19 @@ Last updated: 2026-11-20 (session 2)
   design evidence; no new-mechanism claim).
 
 ## Exact next step
-Review cycle 1 DONE (REVIEW/review_01.md; raw reviews REVIEW/cycle01_raw/; 9x Major revision, 1x Minor).
-Next: implement the corrective plan at the end of review_01.md (calibration-only recompute with
-reliability-aware/grouped LOBO, fixed-kappa everywhere, ACI finite fallback, per-week metrics, site-level tests,
-operational case study; re-centre manuscript on the simple pseudo-count layer; deviations table; length cut),
-then build packet_cycle02.md and run cycle 2.
-Note: new container on 2026-11-20 — data/raw and model cache absent (re-download / retrain needed before
-any recompute); torch not installed.
+Revision 1 (after review cycle 1) IN PROGRESS (session 2, 2026-11-20/21):
+- DONE: v2 code (PCS-CQR = recommended layer; reliability-aware LOBO 'MACDc'; ACI finite fallback; TQA-B fix;
+  observed-hour scoring; UCI DST; LOSO 10x3; disjoint cal period; new stress tests; small pools; CQR family at
+  80/95 %; site sign-flip tests; week + booking metrics), tests (15 pass), manuscript sections 01-05 + 09 rewritten,
+  experiments/DEVIATIONS.md, supp_methods.md, references verified (literature/citation_audit_r1.md).
+- RUNNING: scripts/v2_chain.sh (detached; log results/experiment_logs/v2_chain.log): waits for training
+  (train_v2b.out), then scripts/calibration_pass.sh (4 workers), sensitivity + collect, latency benchmark.
+  If the container restarted: data re-downloads automatically; rerun `python3 -c "from src import experiments as ex;
+  ex.train_only('full')"` (cached models skipped), then `bash scripts/calibration_pass.sh`, then sensitivity/collect.
+- NEXT: python3 -c "from src.statistics import analysis as a; a.run('full')"; figures; values.py; write
+  06_results.md + 07_discussion.md (claims must match results; abstract/highlights/intro claims written from
+  seed 0 are PROVISIONAL: verify ACI-width, QShrink(MACD) similarity, week-1, HSC vs Self-CP claims),
+  build_docx, supplementary, REVIEW/response_01.md, packet cycle 2, review cycle 2.
 
 ## Automatic resume
 Scheduled self-resume messages (user request): 2026-11-16 02:15, 03:45, 07:20 UTC (trigger ids in

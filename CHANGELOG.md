@@ -50,3 +50,12 @@
   (abs 'fixed-kappa' identical to tuned in 6/10 runs; '-kNN -stage' not re-tuned) and replaced by
   'HSC-CQR fixed-κ' (simple variant, κ = 168 h, = donor-local mixture with fixed pseudo-count);
   (9) all tuning tables stored in run_info. Four new unit tests. All result parts recomputed.
+
+## 2026-11-20/21 — Revision 1 (after review cycle 1; REVIEW/review_01.md)
+All changes are listed with reasons in experiments/DEVIATIONS.md (items 8-16). Summary: recommended layer re-centred
+on PCS-CQR (uniform prior, no stage matching, kappa by reliability-aware LOBO); HSC/HSC-CQR kept as the
+pre-registered configurations; ACI conformal level + finite fallback; TQA-B budget without target information;
+kappa=0 fallback; only observed hours scored; UCI DST masking; weather interpolation capped; leave-one-site-out
+(10 sites x 3 seeds); disjoint calibration period; new stress tests; small calibration pools; CQR family at 80/95 %;
+site-level sign-flip randomisation tests; per-week, booking-failure and reserve-cost metrics; latency benchmark;
+new environment 'p_c1_1' with access to the UCI host and Crossref. All models retrained and all results recomputed.
