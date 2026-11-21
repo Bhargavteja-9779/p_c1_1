@@ -43,7 +43,10 @@ in the checklist below; tick items as they are committed.
 - [x] 1g TQA-B λ from calibration only, LOBO decay; GHCP weight tuned; QShrink fixed λ=168 + matched grid
 - [x] 1h weak forecaster (no lag/profile); new stress scenarios (block outage, early shift, history-only noise)
 - [x] 1i isolated timing benchmark script (scripts/benchmark_timing.py; RUN ALONE after training, before/after calibration pass)
-- [ ] 2  full rerun: (a) `ex.train_only('full')` STARTED 2026-11-21 08:19 UTC (log results/experiment_logs/train_r1.log;
+- [ ] 2  full rerun: (a) DONE 09:58 UTC (no failures). (b) calibration pass STARTED 09:58 UTC (logs results/experiment_logs/calib_w{1..4}.log;
+       parts saved per job in results/, resumable by rerunning the script; if container restarted, models are lost -> rerun (a) first).
+       After all 4 workers finish: `OMP_NUM_THREADS=1 python scripts/benchmark_timing.py` ALONE, then (c),(d).
+       Original note: `ex.train_only('full')` STARTED 2026-11-21 08:19 UTC (log results/experiment_logs/train_r1.log;
        models cached in results/cache, NOT in git -> lost if container restarts: just restart it, it resumes per job);
        (b) then calibration pass `bash scripts/calibration_pass.sh` (4 single-threaded workers) or `ex.execute('full')`;
        (c) `ex.sensitivity('full')`; (d) `python run_all.py --mode full --skip-experiments`.
