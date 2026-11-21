@@ -1,0 +1,48 @@
+[2026-11-21 11:12:57] train UCI_UCI_random_s0_w0_f0.1_m1_tb1.0_quick: train=142 cal=63 tgt=95
+[2026-11-21 11:12:58]   training rows 252,834  validation rows 130,920
+[2026-11-21 11:14:27] done main_quick_UCI_s0_a0.1 (50s): HSC IS=0.698 cov=0.908 | SCP-stage IS=1.042
+[2026-11-21 11:14:51] done main_quick_UCI_s0_a0.05 (24s): HSC IS=0.881 cov=0.955 | SCP-stage IS=1.629
+[2026-11-21 11:15:13] done main_quick_UCI_s0_a0.2 (22s): HSC IS=0.539 cov=0.808 | SCP-stage IS=0.661
+[2026-11-21 11:15:36] done robust_quick_UCI_s0_noise5 (21s): HSC IS=0.752 cov=0.904 | SCP-stage IS=1.067
+[2026-11-21 11:15:59] done robust_quick_UCI_s0_noise15 (21s): HSC IS=1.082 cov=0.895 | SCP-stage IS=1.596
+[2026-11-21 11:16:25] done robust_quick_UCI_s0_missing20 (23s): HSC IS=0.803 cov=0.925 | SCP-stage IS=1.068
+[2026-11-21 11:16:50] done robust_quick_UCI_s0_missing40 (22s): HSC IS=0.929 cov=0.952 | SCP-stage IS=1.115
+[2026-11-21 11:17:15] done robust_quick_UCI_s0_shift+40 (23s): HSC IS=0.837 cov=0.879 | SCP-stage IS=1.118
+[2026-11-21 11:17:39] done robust_quick_UCI_s0_shift-40 (22s): HSC IS=1.040 cov=0.863 | SCP-stage IS=1.404
+[2026-11-21 11:18:05] done robust_quick_UCI_s0_shift+40atd5 (24s): HSC IS=0.812 cov=0.938 | SCP-stage IS=1.085
+[2026-11-21 11:18:30] done robust_quick_UCI_s0_vol_x2atd28 (24s): HSC IS=1.177 cov=0.832 | SCP-stage IS=1.635
+[2026-11-21 11:18:55] done robust_quick_UCI_s0_outage_3datd10 (23s): HSC IS=0.747 cov=0.913 | SCP-stage IS=1.063
+[2026-11-21 11:19:20] done robust_quick_UCI_s0_noise15_both (21s): HSC IS=1.076 cov=0.906 | SCP-stage IS=1.305
+[2026-11-21 11:19:24] done robust_quick_UCI_s0_cal10 (4s): HSC IS=0.701 cov=0.913 | SCP-stage IS=1.042
+[2026-11-21 11:19:29] done robust_quick_UCI_s0_cal25 (4s): HSC IS=0.701 cov=0.913 | SCP-stage IS=1.048
+[2026-11-21 11:19:37] done robust_quick_UCI_s0_cal50 (8s): HSC IS=0.698 cov=0.908 | SCP-stage IS=1.042
+[2026-11-21 11:19:58] train BDG2_BDG2_random_s0_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-21 11:20:01]   training rows 1,318,757  validation rows 183,509
+[2026-11-21 11:24:36] train BDG2_BDG2_random_s1_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-21 11:24:39]   training rows 1,322,913  validation rows 186,241
+[2026-11-21 11:29:02] train BDG2_BDG2_random_s2_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-21 11:29:04]   training rows 1,320,185  validation rows 185,756
+[2026-11-21 11:32:21] train BDG2_BDG2_random_s3_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-21 11:32:25]   training rows 1,318,589  validation rows 183,599
+[2026-11-21 11:36:52] train BDG2_BDG2_random_s4_w1_f0.4_m1_tb1.0: train=379 cal=168 tgt=253
+[2026-11-21 11:36:55]   training rows 1,317,922  validation rows 184,495
+[2026-11-21 11:41:16] train UCI_UCI_random_s0_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 11:41:18]   training rows 992,746  validation rows 132,144
+[2026-11-21 11:43:18] train UCI_UCI_random_s1_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 11:43:20]   training rows 998,092  validation rows 130,608
+[2026-11-21 11:44:51] train UCI_UCI_random_s2_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 11:44:53]   training rows 994,452  validation rows 130,560
+[2026-11-21 11:47:33] train UCI_UCI_random_s3_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 11:47:35]   training rows 994,891  validation rows 130,560
+[2026-11-21 11:49:41] train UCI_UCI_random_s4_w0_f0.4_m1_tb1.0: train=142 cal=63 tgt=95
+[2026-11-21 11:49:43]   training rows 995,880  validation rows 130,200
+[2026-11-21 11:52:09] train BDG2_BDG2_lso0_s0_w1_f0.4_m1_tb1.0: train=374 cal=179 tgt=248
+[2026-11-21 11:52:12]   training rows 1,298,981  validation rows 179,532
+[2026-11-21 11:56:02] train BDG2_BDG2_lso1_s1_w1_f0.4_m1_tb1.0: train=442 cal=211 tgt=140
+[2026-11-21 11:56:07]   training rows 1,540,673  validation rows 216,688
+[2026-11-21 11:59:57] train BDG2_BDG2_lso2_s2_w1_f0.4_m1_tb1.0: train=432 cal=207 tgt=155
+[2026-11-21 12:00:01]   training rows 1,500,804  validation rows 208,226
+[2026-11-21 12:03:10] train BDG2_BDG2_lso3_s3_w1_f0.4_m1_tb1.0: train=439 cal=210 tgt=145
+[2026-11-21 12:03:14]   training rows 1,528,150  validation rows 208,361
+[2026-11-21 12:07:35] train BDG2_BDG2_lso4_s4_w1_f0.4_m1_tb1.0: train=433 cal=207 tgt=154
+[2026-11-21 12:07:39]   training rows 1,504,198  validation rows 209,262
