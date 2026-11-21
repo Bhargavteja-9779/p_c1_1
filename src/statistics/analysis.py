@@ -21,13 +21,21 @@ RES = os.path.join(ROOT, "results")
 TAB = os.path.join(ROOT, "tables")
 NOM = {0.1: 0.9, 0.05: 0.95, 0.2: 0.8}
 
+# revision 1: primary = one-parameter layer; confirmatory family declared in advance of the revised runs
+PRIMARY = "HSC-CQR simple"
+CONFIRMATORY = ["CQR", "Self-CQR-fb", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR"]
+EXPLORATORY = ["Self-CQR", "Mondrian-CQR", "QShrink-CQR fixed-λ", "HSC-CQR fixed-κ", "HSC-CQR",
+               "HSC-CQR simple (IS-tuned)", "QR-LGBM", "MLP-QR", "MLP-Gauss", "SCP-stage", "ACI", "Self-CP", "HSC"]
+STRESS = ["CQR", "Self-CQR", "Self-CQR-fb", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR", "HSC-CQR fixed-κ",
+          "HSC-CQR"]
 PROPOSED = ["HSC-CQR", "HSC"]
 FAMILY_CQR = ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR", "QR-LGBM", "MLP-QR",
               "MLP-Gauss", "SCP-stage", "ACI", "Self-CP", "Mondrian-usage", "Naive+SCP", "HSC"]
 FAMILY_ABS = ["SCP", "SCP-stage", "Mondrian-usage", "Self-CP", "ACI", "Raw-SCP"]
 ABLATIONS = ["HSC -stage", "HSC -kNN", "HSC -shrink", "HSC simple"]
 ABLATIONS_CQR = ["HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR -shrink", "HSC-CQR fixed-κ", "Self-CQR", "CQR"]
-ORDER = ["HSC-CQR", "HSC-CQR simple", "HSC", "HSC simple", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR",
+ORDER = ["HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR simple (IS-tuned)", "HSC-CQR", "Self-CQR-fb",
+         "QShrink-CQR fixed-λ", "Mondrian-CQR", "HSC", "HSC simple", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR",
          "QShrink-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss", "CQR (MLP)", "HSC-CQR (MLP)", "ACI", "Self-CP", "SCP-stage",
          "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"] + ABLATIONS + ABLATIONS_CQR[:4]
 
@@ -49,6 +57,74 @@ def seed_level(df):
               rel_IS_early=("rel_IS_early", "median"), cov_early=("coverage_early", "mean"),
               n=("coverage", "size")).reset_index()
     return s
+
+
+def _wstats(c, nominal):
+    c = np.asarray(c)
+    return np.mean(np.abs(c - nominal)), np.mean(c < nominal - 0.05), np.quantile(c, 0.1)
+
+
+def window_table(df, exp, dataset, protocol, methods, alpha=0.1, perturb="none"):
+    """Revision 1 (R3/R6/R10): per-building reliability by onboarding window (week 1, week 2, weeks 3-8),
+    mean ± s.d. over seeds, with the i.i.d. sampling floor of the under-covered share for 168 hourly
+    observations at the nominal level (autocorrelation makes the real floor higher)."""
+    from scipy.stats import binom
+    q = (df.exp == exp) & (df.dataset == dataset) & (df.protocol == protocol) & (df.alpha == alpha) & \
+        (df.perturb == perturb) & df.method.isin(methods)
+    t = df[q]
+    nom = NOM[alpha]
+    rows = []
+    for (m, sd), g in t.groupby(["method", "seed"]):
+        r = dict(method=m, seed=sd)
+        for w, col in (("w1", "coverage_early"), ("w2", "coverage_w2"), ("w3_8", "coverage_w3_8")):
+            if col in g:
+                r[f"macd_{w}"], r[f"under_{w}"], r[f"p10_{w}"] = _wstats(g[col].values, nom)
+        rows.append(r)
+    if not rows:
+        return pd.DataFrame()
+    a = pd.DataFrame(rows).groupby("method").agg(["mean", "std"])
+    a.columns = [f"{c}_{k}" for c, k in a.columns]
+    a = a.drop(columns=[c for c in a.columns if c.startswith("seed")])
+    floor = float(binom.cdf(np.ceil((nom - 0.05) * 168) - 1, 168, nom))
+    a["iid_floor_under_168h"] = floor
+    return a.loc[[m for m in methods if m in a.index]]
+
+
+def site_table(df, exp, dataset, protocol, methods, alpha=0.1):
+    """Revision 1 (R4/R5): per-site MACD and under-covered share (building x seed units) and macro averages."""
+    q = (df.exp == exp) & (df.dataset == dataset) & (df.protocol == protocol) & (df.alpha == alpha) & \
+        (df.perturb == "none") & df.method.isin(methods)
+    t = df[q]
+    g = t.groupby(["site_id", "method"]).agg(n_units=("coverage", "size"), macd=("abs_dev", "mean"),
+                                             under=("under", "mean")).reset_index()
+    w = g.pivot(index="site_id", columns="method", values=["macd", "under"])
+    w.columns = [f"{v} | {m}" for v, m in w.columns]
+    w.insert(0, "n_buildings", t.groupby("site_id").building_id.nunique())
+    w.loc["macro (site mean)"] = w.drop(columns="n_buildings").mean().reindex(w.columns)
+    w.loc["building-weighted"] = [np.nan] + [t[t.method == c.split(" | ")[1]][c.split(" | ")[0].replace(
+        "macd", "abs_dev")].mean() for c in w.columns[1:]]
+    return w
+
+
+def downstream_table(df, exp, dataset, protocol, methods, alpha=0.1, ratios=(5, 10, 20)):
+    """Revision 1 (R9) case study on the existing intervals: a day-ahead import reservation at the upper bound
+    (contracted exceedance probability alpha/2). Per building: exceedance rate, reserved capacity and
+    shortfall (both relative to mean load); cost = reservation + r x shortfall for penalty ratios r."""
+    q = (df.exp == exp) & (df.dataset == dataset) & (df.protocol == protocol) & (df.alpha == alpha) & \
+        (df.perturb == "none") & df.method.isin(methods)
+    t = df[q]
+    if "exceed_hi" not in t:
+        return pd.DataFrame()
+    rows = []
+    for m, g in t.groupby("method"):
+        r = dict(method=m, exceed_rate=g.exceed_hi.mean(),
+                 share_breach_2x=float(np.mean(g.exceed_hi > alpha)),  # more than twice the contracted alpha/2
+                 reserve=g.reserve_hi.mean(), shortfall=g.shortfall_hi.mean())
+        for k in ratios:
+            r[f"cost_r{k}"] = float((g.reserve_hi + k * g.shortfall_hi).mean())
+        rows.append(r)
+    d = pd.DataFrame(rows).set_index("method")
+    return d.loc[[m for m in methods if m in d.index]]
 
 
 def summary_table(s, exp, dataset=None, protocol=None, perturb="none", alpha=0.1, methods=None):
@@ -98,7 +174,7 @@ def _rank_biserial(d):
     return float((wp - wm) / (wp + wm))
 
 
-def _cluster_boot_ci(d, clusters, n_boot=2000, seed=0):
+def _cluster_boot_ci(d, clusters, n_boot=2000, seed=0, stat=np.mean):
     rng = np.random.default_rng(seed)
     d = np.asarray(d)
     cl = np.asarray(clusters)
@@ -111,7 +187,7 @@ def _cluster_boot_ci(d, clusters, n_boot=2000, seed=0):
     for _ in range(n_boot):
         pick = rng.choice(u, len(u), replace=True)
         ii = np.concatenate([idx[c] for c in pick])
-        means.append(d[ii].mean())
+        means.append(stat(d[ii]))
     return [float(np.quantile(means, 0.025)), float(np.quantile(means, 0.975))]
 
 
@@ -127,11 +203,12 @@ def holm(p):
     return adj
 
 
-def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, perturb="none"):
+def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, perturb="none", family=""):
     q = (df.exp == exp) & (df.dataset == dataset) & (df.protocol == protocol) & (df.alpha == alpha) & \
         (df.perturb == perturb)
     t = df[q]
     b = t.groupby(["method", "building_id"]).agg(rel_IS=("rel_IS", "mean"), abs_dev=("abs_dev", "mean"),
+                                                 under=("under", "mean"),
                                                  site=("site_id", "first")).reset_index()
     P = b[b.method == proposed].set_index("building_id")
     res = []
@@ -141,21 +218,44 @@ def paired_tests(df, exp, dataset, protocol, proposed, baselines, alpha=0.1, per
         B = b[b.method == bl].set_index("building_id")
         common = P.index.intersection(B.index)
         common = [c for c in common if np.isfinite(P.loc[c, "rel_IS"]) and np.isfinite(B.loc[c, "rel_IS"])]
-        for metric in ["rel_IS", "abs_dev"]:
+        sites = P.loc[common, "site"].values
+        for metric in ["rel_IS", "abs_dev", "under"]:
             d = (P.loc[common, metric] - B.loc[common, metric]).values  # negative = proposed better
             stat, p = wilcoxon(d, zero_method="wilcox", alternative="two-sided") if np.any(d != 0) else (np.nan, 1.0)
             res.append(dict(dataset=dataset, protocol=protocol, alpha=alpha, perturb=perturb, proposed=proposed,
-                            baseline=bl, metric=metric, n_buildings=len(common), mean_diff=float(d.mean()),
+                            baseline=bl, family=family, metric=metric, n_buildings=len(common),
+                            n_sites=len(np.unique(sites)), mean_diff=float(d.mean()),
                             median_diff=float(np.median(d)), share_proposed_better=float(np.mean(d < 0)),
                             rank_biserial=_rank_biserial(-d),  # positive = proposed better
-                            ci95_mean_diff=_cluster_boot_ci(d, P.loc[common, "site"].values),
-                            W=float(stat), p=float(p)))
+                            ci95_mean_diff=_cluster_boot_ci(d, sites),
+                            ci95_median_diff=_cluster_boot_ci(d, sites, stat=np.median),
+                            W=float(stat), p=float(p), p_site=site_signflip(d, sites)))
     r = pd.DataFrame(res)
     if len(r):
-        for metric in ["rel_IS", "abs_dev"]:
+        for metric in r.metric.unique():
             m = r.metric == metric
             r.loc[m, "p_holm"] = holm(r.loc[m, "p"].values)
+            ps = r.loc[m, "p_site"].values
+            r.loc[m, "p_site_holm"] = holm(ps) if np.all(np.isfinite(ps)) else np.nan
     return r
+
+
+def site_signflip(d, sites, min_sites=5):
+    """Cluster-aware test (revision 1, R4): exact sign-flip permutation test on site-mean paired differences
+    (all 2^G sign patterns, G <= 16 sites; random 20,000 otherwise). NaN with fewer than `min_sites` sites
+    (UCI: one site; clients treated as independent units there)."""
+    u = np.unique(sites)
+    if len(u) < min_sites:
+        return np.nan
+    m = np.array([d[sites == c].mean() for c in u])
+    obs = abs(m.mean())
+    G = len(m)
+    if G <= 16:
+        signs = ((np.arange(2 ** G)[:, None] >> np.arange(G)[None, :]) & 1) * 2 - 1
+    else:
+        signs = np.random.default_rng(0).choice([-1, 1], (20000, G))
+    null = np.abs((signs * m[None, :]).mean(axis=1))
+    return float(np.mean(null >= obs - 1e-15))
 
 
 def run(mode="full"):
@@ -173,13 +273,37 @@ def run(mode="full"):
         if len(t):
             fmt_table(t, os.path.join(TAB, f"T_main_{ds}"), f"Main results, {ds}, 90 % nominal, mean ± s.d. over seeds")
             metrics[f"main_{ds}"] = t.round(4).to_dict(orient="index")
-            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", FAMILY_CQR))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC", FAMILY_ABS))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC", ABLATIONS))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", ABLATIONS_CQR[:4] + ["HSC-CQR simple"]))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR simple",
-                                      ["CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR"]))
-            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR (MLP)", ["CQR (MLP)", "MLP-QR"]))
+            stats.append(paired_tests(df, "main", ds, "random", PRIMARY, CONFIRMATORY, family="confirmatory"))
+            stats.append(paired_tests(df, "main", ds, "random", PRIMARY, EXPLORATORY, family="exploratory"))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC", FAMILY_ABS, family="preregistered H0"))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC", ABLATIONS, family="ablation (abs)"))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR", ABLATIONS_CQR[:4] + ["HSC-CQR simple"],
+                                      family="ablation (CQR)"))
+            stats.append(paired_tests(df, "main", ds, "random", "HSC-CQR (MLP)", ["CQR (MLP)", "MLP-QR"],
+                                      family="model-agnostic"))
+            wm = [PRIMARY, "HSC-CQR fixed-κ", "HSC-CQR"] + CONFIRMATORY + ["Self-CQR", "QShrink-CQR fixed-λ"]
+            wt = window_table(df, "main", ds, "random", wm)
+            if len(wt):
+                wt.to_csv(os.path.join(TAB, f"T_windows_{ds}.csv"))
+                with open(os.path.join(TAB, f"T_windows_{ds}.md"), "w") as f:
+                    f.write(f"**Per-building reliability by onboarding window, {ds} (mean ± s.d. over seeds)**\n\n"
+                            + wt.round(4).to_markdown() + "\n")
+                metrics[f"windows_{ds}"] = wt.round(4).to_dict(orient="index")
+            dm = [PRIMARY, "HSC-CQR fixed-κ"] + CONFIRMATORY + ["Self-CQR", "QR-LGBM"]
+            dt = downstream_table(df, "main", ds, "random", dm)
+            if len(dt):
+                dt.to_csv(os.path.join(TAB, f"T_downstream_{ds}.csv"))
+                with open(os.path.join(TAB, f"T_downstream_{ds}.md"), "w") as f:
+                    f.write(f"**Downstream case study, {ds}: day-ahead import reservation at the upper bound**\n\n"
+                            + dt.round(4).to_markdown() + "\n")
+                metrics[f"downstream_{ds}"] = dt.round(4).to_dict(orient="index")
+            if ds == "BDG2":
+                st_ = site_table(df, "main", ds, "random", [PRIMARY, "CQR", "HSC-CQR fixed-κ", "QShrink-CQR",
+                                                           "Self-CQR-fb"])
+                st_.to_csv(os.path.join(TAB, "T_sites_BDG2.csv"))
+                with open(os.path.join(TAB, "T_sites_BDG2.md"), "w") as f:
+                    f.write("**Per-site reliability, BDG2 random protocol (building x seed units)**\n\n"
+                            + st_.round(3).to_markdown() + "\n")
         for a in [0.05, 0.2]:
             t = summary_table(s, "main", ds, "random", alpha=a)
             if len(t):
@@ -201,26 +325,21 @@ def run(mode="full"):
             nm = prot.replace("->", "to").replace(" (no weather)", "_nw").replace(" ", "")
             fmt_table(t, os.path.join(TAB, f"T_gen_{nm}"), f"Generalisation: {prot}")
             metrics[f"gen_{nm}"] = t.round(4).to_dict(orient="index")
-            stats.append(paired_tests(df, exp, ds, prot, "HSC-CQR", FAMILY_CQR))
-            stats.append(paired_tests(df, exp, ds, prot, "HSC", FAMILY_ABS))
+            stats.append(paired_tests(df, exp, ds, prot, PRIMARY, STRESS, family="transfer"))
+            stats.append(paired_tests(df, exp, ds, prot, "HSC", FAMILY_ABS, family="transfer (abs)"))
     # ---- E4 robustness
     rb = s[s.exp == "robust"]
     if len(rb):
-        keep = ["HSC-CQR", "HSC-CQR simple", "HSC", "CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
-                "QR-LGBM", "MLP-QR", "ACI", "SCP-stage", "Self-CP"]
-        rt = rb[rb.method.isin(keep)].groupby(["perturb", "method"])[["mean_cov", "macd", "under_rate", "rel_IS",
-                                                                      "rel_width"]].mean().reset_index()
+        keep = [PRIMARY] + STRESS + ["QShrink-CQR fixed-λ", "HSC", "QR-LGBM", "ACI", "SCP-stage", "Self-CP"]
+        cols = ["mean_cov", "cov_early", "macd", "under_rate", "rel_IS", "rel_width"]
+        g = rb[rb.method.isin(keep)].groupby(["perturb", "method"])[cols]
+        rt = g.mean().join(g.std().add_suffix("_sd")).reset_index()
         rt.to_csv(os.path.join(TAB, "T_robustness.csv"), index=False)
         with open(os.path.join(TAB, "T_robustness.md"), "w") as f:
             f.write("**Robustness (BDG2, mean over seeds)**\n\n" + rt.round(3).to_markdown(index=False) + "\n")
         metrics["robustness"] = rt.round(4).to_dict(orient="records")
         for p in rb.perturb.unique():
-            stats.append(paired_tests(df, "robust", "BDG2", "random", "HSC-CQR", ["CQR", "Self-CQR", "ACI-CQR",
-                                                                                  "TQA-B-CQR", "GHCP-CQR", "QShrink-CQR",
-                                                                                  "QR-LGBM", "MLP-QR"],
-                                      perturb=p))
-            stats.append(paired_tests(df, "robust", "BDG2", "random", "HSC", ["SCP-stage", "ACI", "Self-CP"],
-                                      perturb=p))
+            stats.append(paired_tests(df, "robust", "BDG2", "random", PRIMARY, STRESS, perturb=p, family="stress"))
     st = pd.concat([x for x in stats if len(x)], ignore_index=True)
     st.to_csv(os.path.join(RES, "statistics.csv"), index=False)
     with open(os.path.join(RES, "statistics.json"), "w") as f:
@@ -229,12 +348,14 @@ def run(mode="full"):
         json.dump(metrics, f, indent=1, default=float)
     # compact test table for the manuscript
     main_t = st[(st.perturb == "none") & (st.alpha == 0.1)].copy()
-    main_t["CI95"] = main_t.ci95_mean_diff.apply(lambda c: f"[{c[0]:.3f}, {c[1]:.3f}]")
-    main_t = main_t[["dataset", "protocol", "proposed", "baseline", "metric", "n_buildings", "mean_diff", "CI95",
-                     "median_diff", "share_proposed_better", "rank_biserial", "p_holm"]]
+    main_t["CI95 mean"] = main_t.ci95_mean_diff.apply(lambda c: f"[{c[0]:.3f}, {c[1]:.3f}]")
+    main_t["CI95 median"] = main_t.ci95_median_diff.apply(lambda c: f"[{c[0]:.4f}, {c[1]:.4f}]")
+    main_t = main_t[["dataset", "protocol", "family", "proposed", "baseline", "metric", "n_buildings", "median_diff",
+                     "CI95 median", "mean_diff", "CI95 mean", "rank_biserial", "p_holm", "p_site", "p_site_holm"]]
     main_t.to_csv(os.path.join(TAB, "T_tests.csv"), index=False)
     with open(os.path.join(TAB, "T_tests.md"), "w") as f:
-        f.write("**Paired Wilcoxon signed-rank tests (per building; Holm-adjusted)**\n\n" +
+        f.write("**Paired tests: building-level Wilcoxon signed-rank (Holm within family x metric) and site-level "
+                "sign-flip permutation test (BDG2, cluster-aware); CIs by site-cluster bootstrap**\n\n" +
                 main_t.round(4).to_markdown(index=False) + "\n")
     _efficiency(tag)
     if mode != "quick":

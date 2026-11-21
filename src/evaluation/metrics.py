@@ -39,6 +39,17 @@ def interval_metrics(y, lo, hi, alpha):
         rel_IS_early=IS[:, early].sum(axis=(1, 2)) / np.maximum(ne, 1) / ybar,
         n_valid=n,
     )
+    # revision 1 (R3/R6/R10): week 2 and weeks 3-8 coverage; (R9) quantities for the downstream case study
+    # (day-ahead import reservation at the upper bound / flexibility floor at the lower bound)
+    w2 = (nh > EARLY) & (nh <= 2 * EARLY)
+    w38 = nh > 2 * EARLY
+    out["coverage_w2"] = cov[:, w2].sum(axis=(1, 2)) / np.maximum(valid[:, w2].sum(axis=(1, 2)), 1)
+    out["coverage_w3_8"] = cov[:, w38].sum(axis=(1, 2)) / np.maximum(valid[:, w38].sum(axis=(1, 2)), 1)
+    out["rel_IS_late"] = IS[:, ~early].sum(axis=(1, 2)) / np.maximum(n - ne, 1) / ybar
+    out["exceed_hi"] = ((yv > hi) & valid).sum(axis=(1, 2)) / np.maximum(n, 1)
+    out["below_lo"] = ((yv < lo) & valid).sum(axis=(1, 2)) / np.maximum(n, 1)
+    out["shortfall_hi"] = np.maximum(yv - hi, 0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar
+    out["reserve_hi"] = np.where(valid, hi, 0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar
     stage_cov = cov.sum(axis=2) / np.maximum(valid.sum(axis=2), 1)  # (nt, NH)
     stage_IS = IS.sum(axis=2) / np.maximum(valid.sum(axis=2), 1) / ybar[:, None]
     return out, stage_cov, stage_IS

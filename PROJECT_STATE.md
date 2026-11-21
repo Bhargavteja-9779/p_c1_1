@@ -42,7 +42,7 @@ in the checklist below; tick items as they are committed.
 - [x] 1f reliability-aware LOBO objective; primary = HSC-CQR simple; fixed-κ reported; cold-start variant
 - [x] 1g TQA-B λ from calibration only, LOBO decay; GHCP weight tuned; QShrink fixed λ=168 + matched grid
 - [x] 1h weak forecaster (no lag/profile); new stress scenarios (block outage, early shift, history-only noise)
-- [ ] 1i isolated timing benchmark
+- [x] 1i isolated timing benchmark script (scripts/benchmark_timing.py; RUN ALONE after training, before/after calibration pass)
 - [ ] 2  full rerun: (a) `ex.train_only('full')` STARTED 2026-11-21 08:19 UTC (log results/experiment_logs/train_r1.log;
        models cached in results/cache, NOT in git -> lost if container restarts: just restart it, it resumes per job);
        (b) then calibration pass `bash scripts/calibration_pass.sh` (4 single-threaded workers) or `ex.execute('full')`;
@@ -51,7 +51,7 @@ in the checklist below; tick items as they are committed.
        Decisions taken: cold-start variant skipped (week-1 reported honestly); CQR-family alpha-sensitivity NOT run
        (claims limited to 90 %); all LOBO-tuned competitors use the MACD objective (IS tie-break); pre-registered
        HSC/HSC-CQR keep the IS objective.
-- [ ] 3  re-analysis (per-window, site-cluster tests, per-site, HL, CIs, deviations table, DR case study)
+- [ ] 3  re-analysis: CODE DONE in analysis.py (window_table, site_table, downstream_table, site sign-flip, median CIs, families); still to do: run it, duplicate-meter check, deviations table (manuscript), update manuscript_tables.py/values.py/figures.py for new method names
 - [ ] 4  manuscript rewrite + rebuild + packet cycle 2; ask user before cycle 2
 
 ## Automatic resume
