@@ -16,13 +16,13 @@ applied to every tuned competitor: PCS, QShrink and ACI. We also report a covera
 pseudo-count versions (PCS-CQR κ=168, QShrink-CQR λ=168) are reported in every protocol. A grouped (leave-site-out)
 LOBO variant is reported where the calibration set spans more than two sites. The small-pool failure the reviewers
 found is now examined systematically (5–40 calibration buildings × 5 draws × 3 seeds; Table S-pools).
-RESULT: {{A1}}
+Result: the LOBO interval score varies by only 1.2 % (BDG2) / 1.1 % (UCI) across finite κ and κ=∞ is only 0.9 % worse. The reliability-aware rule selects κ ∈ {96, 168} (BDG2) and {48, 96, 168} (UCI) and halves the under-covered share relative to IS-tuning (BDG2 1.4 % vs 2.9 %; coverage deviation p = 0.014, under-covered share p = 0.16). Fixed κ=168 is statistically indistinguishable (1.5 %), and the text recommends it for small pools, where it is better than the tuned value (5 calibration buildings: 1.7 % vs 2.7 %). Site-grouped LOBO changes nothing.
 
 **A2 — Headline numbers came from the variant the paper called unnecessary.** Accepted. The method is now the
 one-parameter layer with a uniform prior and no stage matching, renamed *pseudo-count shrinkage* (PCS, PCS-CQR).
 "Hierarchical" was dropped. The similarity (kNN) prior and stage matching appear only in the design ablation, and
 the text states where they hurt. Figure 1 was redrawn. The pre-registered HSC/HSC-CQR configuration stays in as a
-labelled comparator. RESULT: {{A2}}
+labelled comparator. Result: PCS-CQR 1.4 % / 0.4 % under-covered (BDG2/UCI) vs HSC-CQR 3.4 % / 1.3 %. +stage changes nothing, +kNN slightly harms, and HSC-CQR has the worst week 1 of the shrinkage variants (25.2 % vs 19.4 %).
 
 **A3 — Pre-registration overstated.** Accepted. "Pre-registered" was replaced by "internal analysis plan fixed
 before the full experiments (not externally registered)". The false sentence "All settings were fixed…" was
@@ -33,7 +33,7 @@ and for the protocols added in revision are labelled exploratory.
 
 **A4 — No gain in week 1.** Accepted. Every CQR-score strategy is now evaluated per week (weeks 1, 2, 3–4, 5–8;
 under-covered share, MACD, P10), and the main table has a week-1 column. The title no longer says "first days".
-The abstract, introduction and conclusions state that no strategy repairs week-1 under-coverage. RESULT: {{A4}}
+The abstract, introduction and conclusions state that no strategy repairs week-1 under-coverage. Result: week-1 under-covered share on BDG2 is 24.2 % (CQR), 19.4 % (PCS-CQR) and 33.8 % (Self-CQR), against a sampling floor of 1.7 %. Only coverage-only ACI reaches 8.9 %, with 2.4× wider intervals.
 
 ## B. Major
 
@@ -51,7 +51,7 @@ The abstract, introduction and conclusions state that no strategy repairs week-1
 **B2 — ACI was handicapped.** Accepted. The 500·s cap was replaced by the split-conformal level
 ⌈(1−α_h)(N+1)⌉/N with a finite fallback (the largest calibration score). The γ grid includes 0. ACI is also tuned
 with the reliability-aware rule, and a coverage-only ACI shows what unconstrained coverage-targeting costs.
-"ACI adapts slowly" was removed. RESULT: {{B2}}
+"ACI adapts slowly" was removed. Result: ACI-CQR (IS) 8.7 %, ACI-CQR (MACD) 4.2 %, ACI-CQR (coverage only) 0.0 % under-covered on BDG2. The last has intervals 2.4× (BDG2) / 1.2× (UCI) as wide as PCS-CQR and a reserve cost of 4.4 % vs 2.1 % of mean load. It always selected the largest γ in the grid (0.01), which the text states.
 
 **B3 — "Most reliable" not supported everywhere; mechanism confounded with tuning.** Accepted:
 - Shrinkage strategies (PCS, QShrink) are presented as a near-equivalent family, compared at matched fixed
@@ -60,7 +60,7 @@ with the reliability-aware rule, and a coverage-only ACI shows what unconstraine
 - A conditions table (MS_conditions) shows the under-covered share of every strategy in every protocol and stress
   test, so the best strategy per condition is visible.
 
-RESULT: {{B3}}
+Result: QShrink-CQR (MACD) is statistically indistinguishable from PCS-CQR in coverage (BDG2 p = 0.60). LOSO: PCS-CQR 2.4 % vs Self-CQR 7.1 % (p = 0.023) and CQR 24.8 %, below 5 % at every site. The text names the conditions where Self-CQR is as good or better (meter noise in history and truth, early level shift, volatility increase) and the condition where everything fails (volatility increase: ≥ 76 % under-covered for all strategies).
 
 **B4 — Energy-application payoff.** We added two operational metrics computed from the stored intervals and
 interpreted as a capacity reservation sized by the upper bound (demand-response baseline or flexibility
@@ -69,7 +69,7 @@ commitment):
 - reserve cost: pinball loss of U at level 1−α/2, relative to mean load.
 
 Both are reported in the main tables and tested. We did not build a full market case study; Section 6 discusses
-this. RESULT: {{B4}}
+this. Result: booking failures fall from 7.3 % (CQR) to 2.1 % (PCS-CQR) on BDG2 (not significant after Holm with 10 sites, p = 0.070). Reserve cost is unchanged at 2.1 %, while coverage-only ACI costs 4.4 %.
 
 **B5 — Data handling.**
 - The evaluation truth is no longer cleaned or interpolated: only hours with an actual observation are scored, via
@@ -86,7 +86,7 @@ The quality filter still uses target-year completeness. We did not rerun with a 
 cannot be evaluated where truth is missing. The limitations section explains how this excludes very poorly metered
 buildings.
 
-**B6 — Length.** Main text cut to ≈{{words}} words and {{display}} display items. The full tables, extra figures and
+**B6 — Length.** Main text cut to ≈8,400 (including the abstract; excluding tables and references) words and 7 (4 figures, 3 tables) display items. The full tables, extra figures and
 method details (Supplementary Section S2) moved to the supplement.
 
 **B7 — Literature.**
@@ -123,7 +123,7 @@ method details (Supplementary Section S2) moved to the supplement.
 - Leakage tests were extended to h ∈ {1, 7, 14, 28, 56}, including temperature and the descriptor, plus a test that
   the PCS radius uses only past own scores (15 unit tests, all passing).
 - The overlap between the calibration period and the training period is tested by the disjoint-period protocol.
-  RESULT: {{tsplit}}
+  Result: with a disjoint calibration period, PCS-CQR has 1.8 % under-covered vs 18.4 % for CQR, the same pattern as in the main protocol.
 - AI use is described under "Research software" (Section 4) and in the declaration.
-- Fig 11 was dropped. Width and P90 relative width are reported. The PyTorch citation was added, and the DeepAR
+- Fig 11 (examples) moved to the supplement. Width and P90 relative width are reported. The PyTorch citation was added, and the DeepAR
   attribution and arXiv versions were checked.

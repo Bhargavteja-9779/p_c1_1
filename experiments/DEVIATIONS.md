@@ -25,5 +25,6 @@ seen" says whether results on target buildings (from any run) were available whe
 
 Consequences: results for PCS-CQR, the reliability-aware rule and the protocols added in revision are exploratory.
 The planned primary comparison (HSC, absolute score, against the planned baselines) is reported in full in the
-supplementary tests table (family "preregistered-abs"); its hypothesis was not confirmed (HSC does not improve on
-self-only calibration).
+supplementary tests table (family "preregistered-abs"); its hypothesis is only partly supported (HSC has a lower interval
+score than every planned baseline, including self-only calibration, but does not reduce per-building miscalibration
+relative to self-only calibration).

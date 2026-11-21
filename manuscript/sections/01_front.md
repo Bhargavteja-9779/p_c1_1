@@ -13,8 +13,8 @@ title: "Reliable day-ahead prediction intervals for newly metered buildings: com
 - Interval reliability is assessed per building during its first weeks of metering
 - Pooled conformal calibration leaves many newly metered buildings under-covered
 - Shrinking pooled scores toward each building's own errors restores reliability
-- Tuning the shrinkage for reliability, not interval score, is the decisive choice
-- No method fixes week 1; similarity and onboarding-stage priors add nothing
+- Interval-score tuning is flat; tune for reliability or fix one week of scores
+- No method of comparable width fixes week 1; similarity priors add nothing
 
 # Abstract
 

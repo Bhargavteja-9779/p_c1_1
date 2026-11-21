@@ -111,7 +111,7 @@ def tests_table(st):
            "cluster bootstrap (BDG2, 10 sites) or building bootstrap (UCI); p = two-sided sign-flip randomisation test "
            "with whole sites flipped (BDG2; exact, 1024 patterns, so p ≥ 0.002) or buildings flipped (UCI), Holm-"
            "adjusted within dataset, family and metric. Median differences, rank-biserial correlations and building-"
-           "level Wilcoxon tests are in Supplementary Table S-tests.")
+           "level Wilcoxon tests are in Supplementary Table {{supp_T_tests}}.")
 
 
 def ablation_table(s):
@@ -177,7 +177,7 @@ def conditions_table(s):
            "cross-dataset: forecaster and calibration scores from the source dataset, no weather features (3 seeds); "
            "stress tests on BDG2 (3 seeds) perturb the target buildings' onboarding windows; small pools: 5 random "
            "calibration subsets per seed. MACD, interval scores and paired tests for every condition are in the "
-           "Supplementary Tables.")
+           "Supplementary Tables {{supp_T_lso}}–{{supp_T_pools}} and {{supp_T_tests}}.")
 
 
 def weeks_table(s):

@@ -20,4 +20,8 @@ Recommendations: 9 Major revision, 1 Minor revision. Top issues: fixed kappa=168
 method (A1); headline numbers from the full kNN/stage variant the paper calls unnecessary (A2); pre-registration
 overstated, deviations undisclosed (A3); no week-1 gain (A4); site-clustered inference, ACI cap handicap,
 'most reliable' outside main protocol, no operational payoff, data-filter/cleaning issues, length, literature.
-Status: pending (corrective plan in review_01.md).
+Status: addressed in revision 1 (2026-11-21); point-by-point response in REVIEW/response_01.md. Method re-centred
+on PCS-CQR with reliability-aware tuning (fixed kappa=168 reported everywhere); deviations table (Supp. Table S1);
+week-wise metrics with explicit 'no week-1 repair' claim; site sign-flip tests; ACI fallback fix; LOSO 10x3,
+disjoint period, new stress tests, small pools, 80/95 %; operational metrics; observed-hour scoring; ~8.4k words.
+Not done: causal (training-period-only) quality filter (discussed as a limitation); full market case study.
