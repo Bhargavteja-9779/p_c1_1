@@ -10,7 +10,7 @@ while true; do
   cp results/experiment_logs/*.log results/checkpoint/logs/ 2>/dev/null
   {
     echo "checkpoint: $(date -u '+%Y-%m-%d %H:%M UTC')"
-    echo "finished result parts: $(ls results/parts 2>/dev/null | grep -c 'a0\.\|_f[0-9]\.csv$\|robust.*\.csv$\|xds.*\.csv$' )"
+    echo "finished result parts: $(ls results/parts 2>/dev/null | grep '\.csv$' | grep -vc '_curves\.csv$')"
     echo "trained model sets cached locally: $(ls results/cache 2>/dev/null | grep -c '^MODELS_')"
     echo "full pass done: $(grep -q FULL_PASS_DONE results/experiment_logs/train.log 2>/dev/null && echo yes || echo no)"
     echo "post pass done: $(grep -q POST_PASS_DONE results/experiment_logs/post_pass.log 2>/dev/null && echo yes || echo no)"
