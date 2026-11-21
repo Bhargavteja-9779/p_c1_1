@@ -25,3 +25,11 @@ on PCS-CQR with reliability-aware tuning (fixed kappa=168 reported everywhere); 
 week-wise metrics with explicit 'no week-1 repair' claim; site sign-flip tests; ACI fallback fix; LOSO 10x3,
 disjoint period, new stress tests, small pools, 80/95 %; operational metrics; observed-hour scoring; ~8.4k words.
 Not done: causal (training-period-only) quality filter (discussed as a limitation); full market case study.
+
+## Cycle 2 (2026-11-21) — consolidated in REVIEW/review_02.md
+Recommendations: 8 Major revision, 2 Minor revision. Top issues: the 56-day headline hides sub-window
+under-coverage (PCS-CQR 11–20 % per window on BDG2, 41 % fail at least one window after week 1; ACI (MACD) better in
+weeks 5–8) (A1); ACI wins at 80 % nominal and with small pools, and its LOBO objective is computed asymmetrically
+and its grid is truncated (A2); claims stronger than the tables: fixed κ "without data", "equally well", tuning p = 0.164,
+week-1 exceptions, operational payoff not significant (A3); target-year filter and day-ahead information set (B1).
+Status: pending (corrective plan in review_02.md).
