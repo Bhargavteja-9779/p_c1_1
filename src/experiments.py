@@ -424,7 +424,9 @@ def _examples(dsn, ds, obj, tag):
     picks = {"p10": order[int(0.1 * (len(cov) - 1))], "p50": order[int(0.5 * (len(cov) - 1))]}
     rows = []
     for lab, i in picks.items():
-        for meth in ["CQR", "HSC-CQR" if "HSC-CQR" in out else "HSC", "HSC"]:
+        for meth in ["CQR", "HSC-CQR recency", "HSC-CQR", "HSC"]:
+            if meth not in out:
+                continue
             lo, hi = out[meth]
             for h in range(pl.NH):
                 for j in range(24):

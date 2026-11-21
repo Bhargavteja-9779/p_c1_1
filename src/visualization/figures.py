@@ -191,14 +191,15 @@ def fig_tradeoff(s):
 
 
 def fig_ablation(s):
-    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR -shrink",
-             "Self-CQR", "CQR"]
-    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 58 * MM))
+    meths = ["HSC-CQR recency", "HSC-SSC-CQR", "HSC-CQR simple (cov)", "HSC-CQR fixed-κ", "HSC-CQR simple",
+             "HSC-CQR", "HSC-CQR -shrink", "Self-CQR", "CQR"]
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM))
     w = 0.38
-    for j, metric, lab in [(0, "macd", "MACD"), (1, "rel_IS", "Median rel. interval score")]:
+    for j, metric, lab in [(0, "under_rate", "Under-covered buildings (%)"),
+                           (1, "under_wk1", "Under-covered buildings, first week (%)")]:
         for k, ds in enumerate(["BDG2", "UCI"]):
             d = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
-            g = d.groupby("method")[metric].agg(["mean", "std"]).reindex(meths)
+            g = 100 * d.groupby("method")[metric].agg(["mean", "std"]).reindex(meths)
             x = np.arange(len(meths)) + (k - 0.5) * w
             axs[j].bar(x, g["mean"], w * 0.92, yerr=g["std"], color=["#2a78d6", "#eb6834"][k], label=ds,
                        error_kw=dict(lw=0.6, capsize=1.5))
@@ -296,7 +297,7 @@ def fig_sensitivity(tag):
 def fig_errors(df):
     d = df[(df.exp == "main") & (df.alpha == 0.1) & (df.dataset == "BDG2")]
     fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 62 * MM))
-    for m in ["CQR", "HSC-CQR"]:
+    for m in ["CQR", KEY[0]]:
         dm = d[d.method == m]
         axs[0].scatter(dm.cvrmse_lgb, dm.coverage, s=3, alpha=0.45, color=_c(m), label=m, linewidths=0)
     axs[0].set_xscale("log")
@@ -305,12 +306,12 @@ def fig_errors(df):
     axs[0].set_ylabel("Per-building coverage")
     axs[0].legend(frameon=False, markerscale=3)
     axs[0].set_title("a  Coverage vs. forecast difficulty (BDG2)", loc="left")
-    dm = d[d.method == "HSC-CQR"]
+    dm = d[d.method == KEY[0]]
     u = dm.groupby("usage").coverage.agg(["mean", "size"]).query("size >= 30").sort_values("mean")
     dc = d[d.method == "CQR"].groupby("usage").coverage.mean().reindex(u.index)
     y = np.arange(len(u))
     axs[1].scatter(dc.values, y, color=_c("CQR"), marker="s", s=14, label="CQR", zorder=3)
-    axs[1].scatter(u["mean"].values, y, color=_c("HSC-CQR"), marker="o", s=14, label="HSC-CQR", zorder=3)
+    axs[1].scatter(u["mean"].values, y, color=_c(KEY[0]), marker="o", s=14, label=KEY[0], zorder=3)
     for yi, a, b in zip(y, dc.values, u["mean"].values):
         axs[1].plot([a, b], [yi, yi], color=GREY, lw=0.6, zorder=1)
     axs[1].set_yticks(y)
@@ -335,13 +336,13 @@ def fig_examples(tag):
         em0 = e[e.method == "CQR"].sort_values(["stage", "hour"])
         t = (em0.stage.values) * 24 + em0.hour.values
         axs[i].plot(t, em0.y, color=INK, lw=0.8, label="observed", zorder=3)
-        for m, ls in [("CQR", (0, (3, 1.5))), ("HSC-CQR", "-")]:
+        for m, ls in [("CQR", (0, (3, 1.5))), (KEY[0], "-")]:
             em = e[e.method == m].sort_values(["stage", "hour"])
             axs[i].plot(t, em.lo, color=_c(m), lw=0.9, ls=ls, label=f"{m} 90 % bounds")
             axs[i].plot(t, em.hi, color=_c(m), lw=0.9, ls=ls)
             miss = (em.y.values < em.lo.values) | (em.y.values > em.hi.values)
             axs[i].scatter(t[miss], em.y.values[miss], s=9, marker="x" if m == "CQR" else "o", color=_c(m),
-                           zorder=4, linewidths=0.8, facecolors="none" if m == "HSC-CQR" else None,
+                           zorder=4, linewidths=0.8, facecolors="none" if m == KEY[0] else None,
                            label=f"missed by {m}")
         axs[i].set_title(f"{'ab'[i]}  {b}: {'10th' if pick == 'p10' else '50th'} percentile of CQR coverage "
                          f"(seed 0, first 10 forecast days)", loc="left")

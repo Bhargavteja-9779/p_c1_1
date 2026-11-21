@@ -39,7 +39,13 @@ def _indicators(ds_name, seed, frac=0.4):
     return pd.DataFrame(dict(tgt_pos=np.arange(len(shift)), shift=shift, vol=vol))
 
 
+def _primary():
+    f = os.path.join(RES, "recommended.json")
+    return json.load(open(f))["recommended"] if os.path.exists(f) else "HSC-CQR"
+
+
 def run():
+    P = _primary()
     f = os.path.join(RES, "raw_results.csv")
     df = pd.read_csv(f if os.path.exists(f) else f + ".gz")
     out = {}
@@ -48,7 +54,7 @@ def run():
         if not len(d):
             continue
         r = {}
-        for m in ["CQR", "HSC-CQR", "SCP-stage", "HSC"]:
+        for m in ["CQR", P, "HSC-CQR", "SCP-stage", "HSC"]:
             x = d[d.method == m]
             rho, p = spearmanr(x.cvrmse_lgb, x.coverage)
             r[f"rho_cov_cvrmse_{m}"] = float(rho)
@@ -59,7 +65,7 @@ def run():
             ind = _indicators(ds, int(seed))
             if ind is None:
                 continue
-            x = d[(d.method == "HSC-CQR") & (d.seed == seed)].reset_index(drop=True)
+            x = d[(d.method == P) & (d.seed == seed)].reset_index(drop=True)
             ind = ind.iloc[:len(x)]
             rows.append(pd.concat([x[["building_id", "coverage", "usage"]], ind[["shift", "vol"]]], axis=1))
         if rows:
@@ -78,14 +84,15 @@ def run():
             r["rho_absdev_shift"] = float(rho)
             r["p_absdev_shift"] = float(p)
         if ds == "BDG2":
-            u = d[d.method.isin(["CQR", "HSC-CQR"])].assign(absdev=lambda x: (x.coverage - 0.9).abs())
+            u = d[d.method.isin(["CQR", P])].assign(absdev=lambda x: (x.coverage - 0.9).abs())
             g = u.groupby(["usage", "method"]).absdev.mean().unstack()
             n = u[u.method == "CQR"].groupby("usage").size()
             g = g[n >= 30]
-            g["reduction"] = g["CQR"] - g["HSC-CQR"]
+            g["reduction"] = g["CQR"] - g[P]
             r["usage_table"] = g.round(4).reset_index().to_dict(orient="records")
             r["usage_largest_reduction"] = str(g.reduction.idxmax())
             r["usage_smallest_reduction"] = str(g.reduction.idxmin())
+        r["primary"] = P
         out[ds] = r
     json.dump(out, open(os.path.join(RES, "error_analysis.json"), "w"), indent=1)
     return out
