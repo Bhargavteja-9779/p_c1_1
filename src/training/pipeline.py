@@ -27,7 +27,7 @@ from src.evaluation import metrics as mt
 NH = 56
 KAPPAS = [0, 24, 48, 96, 168, 336, 672, 1344, np.inf]
 KS = [10, 25, 50, 100, None]
-GAMMAS = [0.0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01]  # 0 and 1e-4/2e-4 added after audit
+GAMMAS = [0.0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05]  # 0-2e-4 added after audit; 0.02, 0.05 in revision 1 (upper edge hit after clipping)
 
 
 def periods(ds):

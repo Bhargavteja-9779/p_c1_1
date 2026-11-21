@@ -64,3 +64,7 @@
   Self-CQR-fb (pooled until 72/168/336 h own scores, by LOBO); Mondrian-CQR; QShrink-CQR fixed-lambda = 168; TQA-B
   budget scaled on calibration buildings only and decay by LOBO; GHCP surrogate size by LOBO; inverted intervals
   collapsed to their midpoint and counted. All LOBO-tuned competitors share the MACD objective.
+- First revision-1 check (BDG2 seed 0): with the clipped level, ACI-CQR selected the upper grid edge (γ = 0.01) and
+  reached the lowest MACD (0.005) at a higher interval score (0.611 vs 0.572 for SSC-CQR). γ grid extended to
+  {…, 0.02, 0.05}; seed-0 parts recomputed. This changes the expected conclusion: ACI on CQR scores is now the
+  most exact per-building strategy on coverage, shrinkage the sharpest among near-nominal strategies.
