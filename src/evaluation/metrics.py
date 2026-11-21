@@ -7,14 +7,6 @@ onboarding window and interval [lo, hi]:
   rel_IS_b     = mean( (hi-lo) + 2/alpha*(lo-y)_+ + 2/alpha*(y-hi)_+ ) / mean(y)   (Winkler / interval score,
                  Gneiting & Raftery 2007; strictly proper for the central (1-alpha) interval)
 Stage-resolved versions use the 24 hourly values of each onboarding stage h.
-v2 additions:
-  coverage_w1/w2/w34/w58 : per-building coverage in onboarding weeks 1, 2, 3-4 and 5-8 (stages 1-7, 8-14,
-                           15-28, 29-56)
-  exceed_hi             : share of hours above the upper bound (one-sided shortfall frequency; nominal alpha/2)
-  reserve_cost          : capacity-booking cost of the upper bound, i.e. the pinball loss at tau = 1 - alpha/2
-                           (booked-but-unused capacity costs (1 - tau) per kWh, shortfall costs tau per kWh;
-                           the bound that minimises it is the true tau-quantile), relative to mean load
-  rel_width_p90         : 90th percentile over hours of (hi - lo) / mean load (tail sharpness)
 """
 from __future__ import annotations
 
@@ -46,21 +38,33 @@ def interval_metrics(y, lo, hi, alpha):
         rel_IS=IS.sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
         rel_IS_early=IS[:, early].sum(axis=(1, 2)) / np.maximum(ne, 1) / ybar,
         n_valid=n,
+        # operational measures (Addendum A): tail exceedances, capacity-headroom cost components,
+        # day-block standard error of the building's coverage
+        up_exc=((yv > hi) & valid).sum(axis=(1, 2)) / np.maximum(n, 1),
+        lo_exc=((yv < lo) & valid).sum(axis=(1, 2)) / np.maximum(n, 1),
+        U_rel=np.where(valid, hi, 0.0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
+        viol_rel=np.where(valid, np.maximum(yv - hi, 0), 0.0).sum(axis=(1, 2)) / np.maximum(n, 1) / ybar,
+        cov_se_day=_day_block_se(cov, valid),
     )
-    tau = 1 - alpha / 2
-    for lab, (a_, b_) in {"w1": (1, 7), "w2": (8, 14), "w34": (15, 28), "w58": (29, 56)}.items():
-        m_ = (nh >= a_) & (nh <= b_)
-        nv = valid[:, m_].sum(axis=(1, 2))
-        out["coverage_" + lab] = np.where(nv > 0, cov[:, m_].sum(axis=(1, 2)) / np.maximum(nv, 1), np.nan)
-    out["exceed_hi"] = ((yv > hi) & valid).sum(axis=(1, 2)) / np.maximum(n, 1)
-    rc = np.where(valid, tau * np.maximum(yv - hi, 0) + (1 - tau) * np.maximum(hi - yv, 0), 0.0)
-    out["reserve_cost"] = rc.sum(axis=(1, 2)) / np.maximum(n, 1) / ybar
-    wr = np.where(valid, w, np.nan) / ybar[:, None, None]
-    with np.errstate(all="ignore"):
-        out["rel_width_p90"] = np.nanquantile(wr.reshape(wr.shape[0], -1), 0.9, axis=1)
+    # per-building weekly coverage (weeks 1..8 of the onboarding window) -> days-to-reliable analysis
+    nwk = y.shape[1] // 7
+    for w in range(nwk):
+        sl = slice(7 * w, 7 * (w + 1))
+        nw = valid[:, sl].sum(axis=(1, 2))
+        out[f"cov_w{w + 1}"] = np.where(nw > 0, cov[:, sl].sum(axis=(1, 2)) / np.maximum(nw, 1), np.nan)
     stage_cov = cov.sum(axis=2) / np.maximum(valid.sum(axis=2), 1)  # (nt, NH)
     stage_IS = IS.sum(axis=2) / np.maximum(valid.sum(axis=2), 1) / ybar[:, None]
     return out, stage_cov, stage_IS
+
+
+def _day_block_se(cov, valid):
+    """Standard error of a building's window coverage from its daily coverage values (day blocks keep the
+    within-day dependence of misses): s.d. of daily coverage / sqrt(#days with data)."""
+    nd = valid.sum(axis=2)
+    dc = np.where(nd > 0, cov.sum(axis=2) / np.maximum(nd, 1), np.nan)
+    k = (nd > 0).sum(axis=1)
+    sd = np.nanstd(dc, axis=1, ddof=1)
+    return sd / np.sqrt(np.maximum(k, 1))
 
 
 def point_metrics(y, yhat):

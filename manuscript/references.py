@@ -1,7 +1,6 @@
 """Reference database (Elsevier numbered style). Every entry was verified against Crossref, DataCite,
-arXiv, PMLR or NeurIPS proceedings pages (literature/verify_refs.py, literature/references_verified*.json; revision 1 additions and
-re-verification of [hao2026, ristovska2026, shi2026] against the Crossref API on 2026-11-20, see
-literature/citation_audit_r1.md)."""
+arXiv, PMLR or NeurIPS proceedings pages (literature/verify_refs.py, literature/references_verified.json,
+literature/citation_audit.md)."""
 
 REFS = {
     "miller2020bdg2": "Miller C, Kathirgamanathan A, Picchetti B, Arjunan P, Park JY, Nagy Z, et al. The Building Data Genome Project 2, energy meter data from the ASHRAE Great Energy Predictor III competition. Sci Data 2020;7:368. https://doi.org/10.1038/s41597-020-00712-x.",
@@ -68,7 +67,4 @@ REFS = {
     "vejling2026": "Vejling MV, Biscio CAN, Mazoyer A, Popovski P, Pandey SR. Multi-agent conformal prediction with personalized statistical validity. arXiv:2606.00717 [Preprint]; 2026. https://doi.org/10.48550/arXiv.2606.00717.",
     "almeida2015": "Almeida V, Gama J. Prediction intervals for electric load forecast: Evaluation for different profiles. In: 2015 18th International Conference on Intelligent System Application to Power Systems (ISAP); 2015. https://doi.org/10.1109/isap.2015.7325539.",
     "shi2026": "Shi L, Shen Z, Lyu T. Local online conformal prediction for power load forecasting intervals. Electr Power Syst Res 2026;261:113412. https://doi.org/10.1016/j.epsr.2026.113412.",
-    "buhlmann1967": "Bühlmann H. Experience rating and credibility. ASTIN Bull 1967;4:199–207. https://doi.org/10.1017/S0515036100008989.",
-    "jin2022": "Jin Y, Acquah MA, Seo M, Han S. Short-term electric load prediction using transfer learning with interval estimate adjustment. Energy Build 2022;258:111846. https://doi.org/10.1016/j.enbuild.2022.111846.",
-    "wang2024acmcp": "Wang X, Hyndman RJ. Online conformal inference for multi-step time series forecasting. arXiv:2410.13115v2 [Preprint]; 2024 (revised 2026). https://doi.org/10.48550/arXiv.2410.13115.",
 }

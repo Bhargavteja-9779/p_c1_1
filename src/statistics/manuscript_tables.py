@@ -12,14 +12,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 RES = os.path.join(ROOT, "results")
 TAB = os.path.join(ROOT, "tables")
 
-MAIN_METHODS = ["PCS-CQR", "PCS-CQR κ=168", "HSC-CQR", "QShrink-CQR (MACD)", "QShrink-CQR", "Self-CQR", "ACI-CQR",
-                "ACI-CQR (MACD)", "ACI-CQR (coverage only)", "TQA-B-CQR", "GHCP-CQR", "CQR", "QR-LGBM", "MLP-QR",
-                "MLP-Gauss", "PCS-CQR (MLP)", "CQR (MLP)"]
-FULL_METHODS = MAIN_METHODS + ["PCS-CQR (IS-tuned)", "PCS-CQR site-grouped", "PCS", "HSC", "ACI", "Self-CP",
-                               "SCP-stage", "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"]
-COND_METHODS = ["PCS-CQR", "PCS-CQR κ=168", "HSC-CQR", "QShrink-CQR (MACD)", "Self-CQR", "ACI-CQR", "TQA-B-CQR",
-                "GHCP-CQR", "CQR"]
-LAB = {"HSC-CQR": "HSC-CQR (pre-reg.)"}
+MAIN_METHODS = ["HSC-CQR", "HSC-CQR simple", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR",
+                "QR-LGBM", "MLP-QR", "MLP-Gauss", "HSC-CQR (MLP)", "CQR (MLP)", "HSC", "HSC simple", "ACI", "Self-CP",
+                "SCP-stage", "SCP", "Mondrian-usage", "Naive+SCP", "Raw-SCP"]
+KEY = ["HSC-CQR", "HSC-CQR simple", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR", "QR-LGBM",
+       "MLP-QR", "HSC", "ACI", "SCP-stage"]
 
 
 def _pm(m, s, d=3, pct=False):
@@ -39,166 +36,136 @@ def _write(name, df, caption):
         f.write(caption)
 
 
-def _sel(s, exp, ds, prot, perturb="none", alpha=0.1):
-    return s[(s.exp == exp) & (s.dataset == ds) & (s.protocol == prot) & (s.alpha == alpha) & (s.perturb == perturb)]
-
-
-def main_table(s, ds, methods=MAIN_METHODS, name=None, alpha=0.1):
-    t = _sel(s, "main", ds, "random", alpha=alpha)
+def main_table(s, ds, quick=False):
+    t = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
     g = t.groupby("method")
     rows = []
-    for m in methods:
+    for m in MAIN_METHODS:
         if m not in g.groups:
             continue
         x = g.get_group(m)
-        rows.append({"Method": LAB.get(m, m),
+        rows.append({"Method": m,
                      "Coverage": _pm(x.mean_cov.mean(), x.mean_cov.std()),
+                     "Coverage wk 1": _pm(x.cov_early.mean(), x.cov_early.std()),
                      "MACD": _pm(x.macd.mean(), x.macd.std()),
                      "Under-cov. (%)": _pm(x.under_rate.mean(), x.under_rate.std(), pct=True),
-                     "Under-cov. wk 1 (%)": _pm(x.under_w1.mean(), x.under_w1.std(), pct=True),
                      "P10 cov.": _pm(x.p10_cov.mean(), x.p10_cov.std()),
                      "Rel. width": _pm(x.rel_width.mean(), x.rel_width.std()),
-                     "Rel. IS": _pm(x.rel_IS.mean(), x.rel_IS.std()),
-                     "Booking failures (%)": _pm(x.book_fail.mean(), x.book_fail.std(), pct=True),
-                     "Reserve cost (%)": _pm(x.reserve_cost.mean(), x.reserve_cost.std(), d=2, pct=True)})
-    n_b = int(t[t.method == "PCS-CQR"].n.mean()) if len(t) else 0
-    nom = 1 - alpha
-    _write(name or f"MS_main_{ds}", pd.DataFrame(rows),
-           f"Per-building interval reliability and sharpness on {ds} (random-building protocol, nominal {nom:.0%}, "
-           f"{t.seed.nunique()} seeds, ≈{n_b} target buildings per seed). MACD: mean |coverage − {nom:.2f}| over "
-           f"buildings (coverage over the 56-day onboarding window); Under-cov.: share of buildings with coverage below "
-           f"{nom - 0.05:.2f} (wk 1: first 7 forecast days only); P10: 10th percentile of per-building coverage; Rel. "
-           f"width and Rel. IS: medians over buildings of width and interval score divided by the building's mean "
-           f"load; Booking failures: share of buildings whose upper bound is exceeded in more than {100 * alpha:.0f} % of "
-           f"hours (twice the nominal {50 * alpha:.1f} %), e.g. a capacity reservation sized by the upper bound; Reserve "
-           f"cost: capacity-booking cost of the upper bound (pinball loss at {1 - alpha / 2:.3f}) in % of mean load. Mean ± s.d. over seeds. HSC-CQR = the pre-registered configuration (similarity prior, stage "
-           f"matching, κ tuned on the interval score).")
-
-
-def _ci(c):
-    if isinstance(c, str):
-        return [float(x) for x in c.strip("[]").split(",")]
-    return c
+                     "Rel. IS": _pm(x.rel_IS.mean(), x.rel_IS.std())})
+    n_b = int(t[t.method == "HSC-CQR"].n.mean()) if len(t) else 0
+    _write(f"MS_main_{ds}", pd.DataFrame(rows),
+           f"Per-building interval reliability and sharpness on {ds} (random-building protocol, nominal 90 %, "
+           f"{t.seed.nunique()} seeds, ≈{n_b} target buildings per seed). Coverage: mean per-building coverage over the "
+           f"56-day onboarding window; wk 1: first 7 forecast days; MACD: mean |coverage − 0.90|; Under-cov.: share of "
+           f"buildings with coverage < 0.85; P10: 10th percentile of per-building coverage; Rel. width and Rel. IS: "
+           f"medians over buildings of width and interval score divided by the building's mean load. Mean ± s.d. over seeds.")
 
 
 def tests_table(st):
     rows = []
-    t = st[(st.perturb == "none") & (st.alpha == 0.1) & (st.proposed == "PCS-CQR") & (st.protocol == "random")]
-    keep = ["CQR", "QShrink-CQR (MACD)", "QShrink-CQR", "Self-CQR", "ACI-CQR", "ACI-CQR (MACD)", "TQA-B-CQR",
-            "GHCP-CQR", "HSC-CQR", "PCS-CQR κ=168", "PCS-CQR +kNN+stage"]
+    t = st[(st.perturb == "none") & (st.alpha == 0.1) & (st.proposed == "HSC-CQR") & (st.protocol == "random")]
+    keep = ["CQR", "QShrink-CQR", "Self-CQR", "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "QR-LGBM", "MLP-QR", "MLP-Gauss",
+            "HSC-CQR fixed-κ"]
     for ds in ["BDG2", "UCI"]:
         for bl in keep:
-            row = {"Data": ds, "Baseline": LAB.get(bl, bl)}
-            ok = False
-            for metric, lab in [("abs_dev", "CD"), ("under", "Under"), ("rel_IS", "IS")]:
+            for metric, lab in [("abs_dev", "CD"), ("rel_IS", "IS")]:
                 r = t[(t.dataset == ds) & (t.baseline == bl) & (t.metric == metric)]
                 if not len(r):
                     continue
-                ok = True
                 r = r.iloc[0]
-                ci = _ci(r.ci95_mean_diff)
-                sc = 100 if metric == "under" else 1
-                dd = 1 if metric == "under" else 4
-                p = "<0.001" if r.p_holm < 0.001 else f"{r.p_holm:.3f}"
-                row[f"{lab}: diff. [95 % CI]"] = f"{sc * r.mean_diff:+.{dd}f} [{sc * ci[0]:+.{dd}f}, {sc * ci[1]:+.{dd}f}]"
-                row[f"{lab}: p"] = p
-            if ok:
-                rows.append(row)
+                ci = ([float(x) for x in r.ci95_mean_diff.strip("[]").split(",")] if isinstance(r.ci95_mean_diff, str)
+                      else r.ci95_mean_diff)
+                rows.append({"Data": ds, "Baseline": bl, "Metric": lab, "n": int(r.n_buildings),
+                             "Mean diff.": f"{r.mean_diff:+.4f}", "95 % CI": f"[{ci[0]:+.4f}, {ci[1]:+.4f}]",
+                             "Better (%)": f"{100 * r.share_proposed_better:.0f}",
+                             "r_rb": f"{r.rank_biserial:+.2f}",
+                             "p (Holm)": "<0.001" if r.p_holm < 0.001 else f"{r.p_holm:.3f}"})
     _write("MS_tests", pd.DataFrame(rows),
-           "Paired per-building comparison of PCS-CQR with each strategy (random-building protocol, nominal 90 %). "
-           "CD = |coverage − 0.9|; Under = under-covered indicator (percentage points); IS = relative interval score. "
-           "Diff. = PCS-CQR minus baseline, building-weighted mean (negative = PCS-CQR better); 95 % CI by site-"
-           "cluster bootstrap (BDG2, 10 sites) or building bootstrap (UCI); p = two-sided sign-flip randomisation test "
-           "with whole sites flipped (BDG2; exact, 1024 patterns, so p ≥ 0.002) or buildings flipped (UCI), Holm-"
-           "adjusted within dataset, family and metric. Median differences, rank-biserial correlations and building-"
-           "level Wilcoxon tests are in Supplementary Table {{supp_T_tests}}.")
+           "Paired per-building comparison of HSC-CQR with each baseline (random-building protocol, nominal 90 %). "
+           "CD = absolute coverage deviation |cov_b − 0.9|; IS = relative interval score. Mean diff. = HSC-CQR minus "
+           "baseline, averaged over buildings (negative = HSC-CQR better); 95 % CI by site-cluster bootstrap (BDG2) or "
+           "building bootstrap (UCI); Better = share of buildings for which HSC-CQR is better; r_rb = matched-pairs "
+           "rank-biserial correlation (positive = HSC-CQR better); p = two-sided Wilcoxon signed-rank, Holm-adjusted "
+           "within dataset and metric.")
 
 
 def ablation_table(s):
     rows = []
-    meths = ["PCS-CQR", "PCS-CQR κ=168", "PCS-CQR (IS-tuned)", "PCS-CQR site-grouped", "PCS-CQR +stage",
-             "PCS-CQR +kNN", "PCS-CQR +kNN+stage", "HSC-CQR", "PCS-CQR -shrink", "Self-CQR", "CQR",
-             "QShrink-CQR (MACD)", "QShrink-CQR λ=168", "QShrink-CQR",
-             "PCS", "PCS (IS-tuned)", "HSC", "HSC -stage", "HSC -kNN", "HSC -shrink", "Self-CP", "SCP-stage"]
+    meths = ["HSC-CQR", "HSC-CQR -stage", "HSC-CQR -kNN", "HSC-CQR simple", "HSC-CQR fixed-κ", "HSC-CQR -shrink",
+             "Self-CQR", "CQR",
+             "HSC", "HSC -stage", "HSC -kNN", "HSC simple", "HSC -shrink", "Self-CP",
+             "SCP-stage"]
     for m in meths:
-        row = {"Variant": LAB.get(m, m)}
+        row = {"Variant": m}
         for ds in ["BDG2", "UCI"]:
-            x = _sel(s, "main", ds, "random")
-            x = x[x.method == m]
+            x = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none") & (s.method == m)]
             if not len(x):
                 continue
             row[f"{ds} MACD"] = _pm(x.macd.mean(), x.macd.std())
             row[f"{ds} Under (%)"] = _pm(x.under_rate.mean(), x.under_rate.std(), pct=True)
-            row[f"{ds} Under wk 1 (%)"] = _pm(x.under_w1.mean(), x.under_w1.std(), pct=True)
             row[f"{ds} Rel. IS"] = _pm(x.rel_IS.mean(), x.rel_IS.std())
         rows.append(row)
     _write("MS_ablation", pd.DataFrame(rows),
-           "Design elements (random-building protocol, 90 %, mean ± s.d. over 5 seeds). PCS-CQR: uniform prior over "
-           "all calibration buildings, no stage matching, κ by leave-one-building-out (LOBO) on the reliability "
-           "objective (minimum coverage deviation among κ within 2 % of the best LOBO interval score). κ=168: fixed one-"
-           "week pseudo-count (donor–local mixture); IS-tuned: κ by LOBO on the interval score (pre-registered "
-           "objective); site-grouped: LOBO leaving out the whole site; +stage / +kNN: stage-matched / similarity-"
-           "localised prior (re-tuned); HSC-CQR: pre-registered configuration (kNN + stage, IS-tuned); -shrink: prior "
-           "only (κ = ∞); Self-*: κ = 0 with pooled fallback. QShrink: quantile-level shrinkage (λ by LOBO-IS, by the "
-           "reliability objective, or fixed at 168). Lower block: the same on the absolute-residual score.")
+           "Component ablation (random-building protocol, 90 %, mean ± s.d. over 5 seeds). '-stage': prior pooled over "
+           "all onboarding stages; '-kNN': prior from all calibration buildings (K = all); 'simple': both removed; "
+           "'-shrink': prior only (κ = ∞); 'fixed-κ': simple variant with κ = 168 h (one week) instead of the "
+           "leave-one-building-out choice (a donor–local mixture with fixed pseudo-count); Self-*: κ = 0 with "
+           "fallback to the pooled quantile. Except for fixed-κ, every variant is re-tuned on calibration buildings "
+           "with the component removed.")
 
 
-def conditions_table(s):
-    combos = [("main", "BDG2", "random", "none", "BDG2, random buildings"),
-              ("lso", "BDG2", "leave-site-out", "none", "BDG2, leave-one-site-out"),
-              ("xds", "BDG2", "BDG2->BDG2 (no weather)", "none", "BDG2, no weather"),
-              ("xds", "BDG2", "UCI->BDG2 (no weather)", "none", "UCI → BDG2"),
-              ("main", "UCI", "random", "none", "UCI, random clients"),
-              ("xds", "UCI", "BDG2->UCI (no weather)", "none", "BDG2 → UCI"),
-              ("robust", "BDG2", "random", "disjoint-cal-period", "Calibration period disjoint from training"),
-              ("robust", "BDG2", "random", "weak-forecaster", "Weak forecaster"),
-              ("robust", "BDG2", "random", "noise15", "Meter noise 15 % (history and truth)"),
-              ("robust", "BDG2", "random", "noise15-history", "Meter noise 15 % (history only)"),
-              ("robust", "BDG2", "random", "missing40", "Missing hours 40 %"),
-              ("robust", "BDG2", "random", "outage7d", "7-day outage in weeks 1-3"),
-              ("robust", "BDG2", "random", "shift+40@d7", "Level +40 % from day 7"),
-              ("robust", "BDG2", "random", "shift+40", "Level +40 % from day 28"),
-              ("robust", "BDG2", "random", "volatility25", "Day-to-day volatility from day 28"),
-              ("pools", "BDG2", "random", "n_cal=10", "10 calibration buildings"),
-              ("pools", "BDG2", "random", "n_cal=20", "20 calibration buildings")]
+def gen_table(s):
+    combos = [("main", "BDG2", "random", "BDG2 random"), ("lso", "BDG2", "leave-site-out", "BDG2 leave-site-out"),
+              ("xds", "BDG2", "BDG2->BDG2 (no weather)", "BDG2→BDG2 (no wx)"),
+              ("xds", "BDG2", "UCI->BDG2 (no weather)", "UCI→BDG2 (no wx)"),
+              ("main", "UCI", "random", "UCI random"), ("xds", "UCI", "BDG2->UCI (no weather)", "BDG2→UCI (no wx)")]
     rows = []
-    for e, ds, p, pert, lab in combos:
-        x = _sel(s, e, ds, p, perturb=pert)
+    for e, ds, p, lab in combos:
+        x = s[(s.exp == e) & (s.dataset == ds) & (s.protocol == p) & (s.alpha == 0.1) & (s.perturb == "none")]
         if not len(x):
             continue
-        row = {"Condition": lab, "Runs": x.seed.nunique()}
-        for m in COND_METHODS:
-            y = x[x.method == m]
-            row[LAB.get(m, m)] = "–" if not len(y) else f"{100 * y.under_rate.mean():.1f}"
-        rows.append(row)
-    _write("MS_conditions", pd.DataFrame(rows),
-           "Share of under-covered buildings (%, coverage < 0.85 at nominal 90 %) across protocols and stress tests "
-           "(mean over runs). Leave-one-site-out: every BDG2 site held out in turn, 3 training seeds per site; "
-           "cross-dataset: forecaster and calibration scores from the source dataset, no weather features (3 seeds); "
-           "stress tests on BDG2 (3 seeds) perturb the target buildings' onboarding windows; small pools: 5 random "
-           "calibration subsets per seed. MACD, interval scores and paired tests for every condition are in the "
-           "Supplementary Tables {{supp_T_lso}}–{{supp_T_pools}} and {{supp_T_tests}}.")
-
-
-def weeks_table(s):
-    rows = []
-    for ds in ["BDG2", "UCI"]:
-        x = _sel(s, "main", ds, "random")
-        for m in ["PCS-CQR", "PCS-CQR κ=168", "PCS-CQR +stage", "HSC-CQR", "QShrink-CQR (MACD)", "Self-CQR",
-                  "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "CQR"]:
+        for m in ["HSC-CQR", "HSC-CQR simple", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR",
+                  "MLP-QR"]:
             y = x[x.method == m]
             if not len(y):
                 continue
-            row = {"Data": ds, "Method": LAB.get(m, m)}
-            for w, lab in [("w1", "wk 1"), ("w2", "wk 2"), ("w34", "wk 3-4"), ("w58", "wk 5-8")]:
-                row[f"Under {lab} (%)"] = f"{100 * y[f'under_{w}'].mean():.1f}"
-                row[f"P10 {lab}"] = f"{y[f'p10_{w}'].mean():.3f}"
-            rows.append(row)
-    _write("MS_weeks", pd.DataFrame(rows),
-           "Per-building reliability by onboarding week (random-building protocol, 90 %, mean over 5 seeds): share of "
-           "buildings whose coverage within the week is below 0.85, and the 10th percentile of per-building weekly "
-           "coverage. With 168 hourly forecasts per week, sampling noise alone puts roughly 5–10 % of perfectly "
-           "calibrated buildings below 0.85 in a single week.")
+            rows.append({"Setting": lab, "Runs": y.seed.nunique(), "Method": m,
+                         "Coverage": _pm(y.mean_cov.mean(), y.mean_cov.std()),
+                         "MACD": _pm(y.macd.mean(), y.macd.std()),
+                         "Under-cov. (%)": _pm(y.under_rate.mean(), y.under_rate.std(), pct=True),
+                         "Rel. IS": _pm(y.rel_IS.mean(), y.rel_IS.std())})
+    _write("MS_generalisation", pd.DataFrame(rows),
+           "Generalisation to unseen sites (BDG2 leave-site-out, 5 folds) and across datasets/countries (models and "
+           "calibration scores from the source dataset, no weather features; 3 seeds). The BDG2→BDG2 (no wx) rows "
+           "are the within-dataset reference without weather features.")
+
+
+def robust_table(s):
+    rb = s[s.exp == "robust"]
+    if not len(rb):
+        return
+    order = ["noise5", "noise15", "missing20", "missing40", "shift+40", "shift-40", "calpool10", "calpool25",
+             "calpool50", "weak-forecaster"]
+    lab = {"noise5": "Meter noise 5 %", "noise15": "Meter noise 15 %", "missing20": "Missing 20 %",
+           "missing40": "Missing 40 %", "shift+40": "Level +40 % (day 28)", "shift-40": "Level −40 % (day 28)",
+           "calpool10": "Cal. pool 10 %", "calpool25": "Cal. pool 25 %", "calpool50": "Cal. pool 50 %",
+           "weak-forecaster": "Weak forecaster (10 % training buildings)"}
+    rows = []
+    for p in order:
+        x = rb[rb.perturb == p]
+        if not len(x):
+            continue
+        row = {"Condition": lab[p]}
+        for m in ["HSC-CQR", "HSC-CQR simple", "ACI-CQR", "Self-CQR", "TQA-B-CQR", "QShrink-CQR", "GHCP-CQR", "CQR",
+                  "MLP-QR"]:
+            y = x[x.method == m]
+            row[m] = "–" if not len(y) else f"{y.macd.mean():.3f} / {100 * y.under_rate.mean():.0f}"
+        rows.append(row)
+    _write("MS_robustness", pd.DataFrame(rows),
+           "Stress tests on BDG2 (3 seeds): MACD / share of under-covered buildings (%). Noise, missing data and level "
+           "shifts are applied to the target buildings' onboarding windows (history and truth); calibration-pool "
+           "conditions keep a random fraction of calibration buildings; the weak forecaster is trained on 10 % of the "
+           "training buildings (no MLP baselines, '–').")
 
 
 def cost_table():
@@ -208,32 +175,152 @@ def cost_table():
         parts = [k for k in info if k.startswith(f"main_{d}_s") and k.endswith("a0.1")]
         if not parts:
             continue
-        def g(key, f=np.median):
-            v = [info[k][key] for k in parts if info[k].get(key) is not None]
-            return f(v) if v else np.nan
-        tm = lambda name: np.median([info[k]["t_method"][name] for k in parts  # noqa: E731
-                                     if name in (info[k].get("t_method") or {})])
+        g = lambda key: np.mean([info[k][key] for k in parts if info[k].get(key) is not None])  # noqa: E731
         rows.append({"Data": d, "Training rows (M)": f"{g('n_train_rows') / 1e6:.2f}",
-                     "LightGBM training, 3 models (s)": f"{g('lgb'):.0f} ({g('lgb', min):.0f}–{g('lgb', max):.0f})",
-                     "LightGBM inference (ms / building-day)": f"{1e3 * g('pred_lgb_per_target_day'):.2f}",
-                     "PCS-CQR tuning (s)": f"{tm('PCS-CQR tuning'):.1f}",
-                     "HSC-CQR tuning + apply (s)": f"{tm('HSC-CQR'):.1f}",
-                     "QShrink-CQR (s)": f"{tm('QShrink-CQR'):.1f}", "ACI-CQR (s)": f"{tm('ACI-CQR'):.1f}",
-                     "PCS-CQR update (ms / building-day)": f"{1e3 * g('t_pcs_apply_incl_hist_per_target_day'):.3f}"})
-    lat = os.path.join(RES, "latency.json")
-    extra = ""
-    if os.path.exists(lat):
-        L = json.load(open(lat))
-        extra = (f" Single-building latency of the daily PCS update (own-score histogram update + radius, measured "
-                 f"separately on one core, {L['reps']} repetitions): median {L['single_ms_median']:.3f} ms "
-                 f"(IQR {L['single_ms_q25']:.3f}–{L['single_ms_q75']:.3f}); state per building "
-                 f"{L['state_kB']:.0f} kB.")
+                     "LightGBM training, 3 models (s)": f"{g('lgb'):.0f}",
+                     "MLP training, 2 models (s)": f"{g('mlp'):.0f}",
+                     "LightGBM inference (ms / building-day)": f"{1e3 * g('pred_lgb_per_target_day'):.3f}",
+                     "HSC tuning, LOBO (s)": f"{g('t_tune_hsc'):.1f}",
+                     "HSC update (ms / building-day)": f"{1e3 * g('t_hsc_apply_per_target_day'):.3f}",
+                     "HSC store (MB)": f"{g('hsc_store_MB'):.1f}"})
     _write("MS_cost", pd.DataFrame(rows),
-           "Computational cost (median over 5 seeds; range in brackets). Calibration ran in single-threaded worker "
-           "processes, four in parallel on a 4-core CPU; LightGBM training used 4 threads. Tuning times are for "
-           "leave-one-building-out selection on all calibration buildings; 'update' is the batch time for all "
-           "targets and stages divided by the number of building-days (amortised), including the own-score "
-           "histograms." + extra)
+           "Computational cost on a 4-core CPU (mean over 5 seeds). HSC tuning = leave-one-building-out grid search "
+           "over (κ, K) on all calibration buildings; HSC update = computing one building's radius for one day "
+           "(including neighbour search) once its scores are stored.")
+
+
+# ---------------------------------------------------------------- revision (cycle 1): compact main tables
+def primary():
+    f = os.path.join(RES, "recommended.json")
+    return json.load(open(f))["recommended"] if os.path.exists(f) else "HSC-CQR"
+
+
+def _main_methods():
+    p = primary()
+    rest = ["HSC-CQR recency", "HSC-SSC-CQR", "SSC-CQR", "HSC-CQR simple (cov)", "HSC-CQR", "QShrink-CQR (cov)",
+            "QShrink-CQR", "Self-CQR", "ACI-CQR", "ACI-CQR (cov)", "TQA-B-CQR", "GHCP-CQR", "CQR", "MLP-QR", "MLP-Gauss"]
+    return [p] + [m for m in rest if m != p]
+
+
+def ms_main_combined(s):
+    rows = []
+    for ds in ["BDG2", "UCI"]:
+        t = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
+        for m in _main_methods():
+            x = t[t.method == m]
+            if not len(x):
+                continue
+            rows.append({"Data": ds, "Method": m,
+                         "Coverage": _pm(x.mean_cov.mean(), x.mean_cov.std()),
+                         "Under-cov. (%)": _pm(x.under_rate.mean(), x.under_rate.std(), pct=True),
+                         "Under-cov. wk 1 (%)": _pm(x.under_wk1.mean(), x.under_wk1.std(), pct=True),
+                         "P10 cov.": _pm(x.p10_cov.mean(), x.p10_cov.std()),
+                         "Under-prot. (%)": (_pm(x.underprot.mean(), x.underprot.std(), pct=True)
+                                             if "underprot" in x else "–"),
+                         "Rel. IS": _pm(x.rel_IS.mean(), x.rel_IS.std())})
+    _write("MS2_main", pd.DataFrame(rows),
+           "Per-building reliability and sharpness of the calibration strategies (random-building protocol, nominal "
+           "90 %, 5 seeds; all strategies except MLP-QR/MLP-Gauss use the same LightGBM quantile models and CQR "
+           "scores). Coverage: mean per-building coverage over the 56-day onboarding window; Under-cov.: share of "
+           "buildings with coverage < 0.85 (over the window and in the first week); P10: 10th percentile of "
+           "per-building coverage; Under-prot.: share of buildings whose upper bound is exceeded in more than 10 % of "
+           "hours (nominal 5 %); Rel. IS: median over buildings of the interval score divided by the building's mean "
+           "load. Mean ± s.d. over seeds. '(cov)': parameter selected with the per-building coverage objective.")
+
+
+def ms_tests_primary(st):
+    p = primary()
+    t = st[(st.perturb == "none") & (st.alpha == 0.1) & (st.proposed == p) & (st.protocol == "random")]
+    rows = []
+    for ds in ["BDG2", "UCI"]:
+        for bl in ["CQR", "QShrink-CQR (cov)", "ACI-CQR", "ACI-CQR (cov)", "Self-CQR", "HSC-CQR fixed-κ",
+                   "HSC-CQR simple (cov)", "HSC-CQR", "HSC-SSC-CQR", "HSC-CQR recency", "GHCP-CQR", "TQA-B-CQR"]:
+            if bl == p:
+                continue
+            for metric, lab in [("abs_dev", "CD"), ("abs_dev_early", "CD wk 1"), ("rel_IS", "IS")]:
+                r = t[(t.dataset == ds) & (t.baseline == bl) & (t.metric == metric)]
+                if not len(r):
+                    continue
+                r = r.iloc[0]
+                ps = r.get("p_site", np.nan)
+                rows.append({"Data": ds, "Baseline": bl, "Metric": lab, "n": int(r.n_buildings),
+                             "Mean diff.": f"{r.mean_diff:+.4f}", "Better (%)": f"{100 * r.share_proposed_better:.0f}",
+                             "r_rb": f"{r.rank_biserial:+.2f}",
+                             "p (Holm)": "<0.001" if r.p_holm < 0.001 else f"{r.p_holm:.3f}",
+                             "p (sites)": "–" if pd.isna(ps) else ("<0.001" if ps < 0.001 else f"{ps:.3f}")})
+    _write("MS2_tests", pd.DataFrame(rows),
+           f"Paired per-building comparison of {p} with the strongest alternatives (random-building protocol, 90 %). "
+           "CD = |cov_b − 0.9| over the window; CD wk 1 = the same for the first week; IS = relative interval score. "
+           f"Mean diff. = {p} minus baseline (negative = {p} better); Better = share of buildings for which {p} is "
+           "better; r_rb = matched-pairs rank-biserial correlation (positive = better); p (Holm) = two-sided Wilcoxon "
+           "signed-rank over buildings, Holm-adjusted within dataset, metric and family; p (sites) = Wilcoxon on "
+           "site-mean differences (BDG2, 10 sites; unadjusted; '–' for UCI, a single site).")
+
+
+def ms_operational(s):
+    rows = []
+    for ds in ["BDG2", "UCI"]:
+        t = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none")]
+        if "cost20" not in t:
+            return
+        base = t[t.method == "CQR"].groupby("seed")[["cost10", "cost20", "cost40"]].mean()
+        for m in _main_methods():
+            x = t[t.method == m]
+            if not len(x):
+                continue
+            xs = x.groupby("seed")[["cost10", "cost20", "cost40", "underprot", "up_exc"]].mean()
+            row = {"Data": ds, "Method": m,
+                   "Upper exceed. (%)": _pm(xs.up_exc.mean(), xs.up_exc.std(), pct=True),
+                   "Under-prot. (%)": _pm(xs.underprot.mean(), xs.underprot.std(), pct=True)}
+            for r in [10, 20, 40]:
+                d = 100 * (xs[f"cost{r}"] / base[f"cost{r}"] - 1)
+                row[f"Cost Δ ρ={r} (%)"] = f"{d.mean():+.1f} ± {d.std():.1f}"
+            rows.append(row)
+    _write("MS2_operational", pd.DataFrame(rows),
+           "Operational consequence: day-ahead capacity-headroom offers planned on the upper bound (Eq. 9). Upper "
+           "exceed.: mean share of hours above the upper bound (nominal 5 %); Under-prot.: share of buildings with "
+           "more than 10 % exceedance; Cost Δ: change of the mean relative cost (planning load + ρ × violation) versus "
+           "pooled CQR for penalty ratios ρ (ρ = 20 is cost-optimal for a calibrated 95 % upper bound); mean ± s.d. "
+           "over seeds.")
+
+
+def ms_robgen(s):
+    """Under-covered share (%) of the key strategies under every stress and transfer condition (mean over runs)."""
+    meths = [primary(), "QShrink-CQR (cov)", "HSC-CQR simple (cov)", "ACI-CQR", "Self-CQR", "CQR", "MLP-QR"]
+    conds = [("robust", "noise5", "BDG2", None, "Meter noise 5 %"), ("robust", "noise15", "BDG2", None, "Meter noise 15 %"),
+             ("robust", "missing20", "BDG2", None, "Missing hours 20 %"), ("robust", "missing40", "BDG2", None, "Missing hours 40 %"),
+             ("robust", "shift+40", "BDG2", None, "Level shift +40 % (day 28)"),
+             ("robust", "shift-40", "BDG2", None, "Level shift −40 % (day 28)"),
+             ("robust", "calpool10", "BDG2", None, "Calibration pool 10 %"),
+             ("robust", "calpool25", "BDG2", None, "Calibration pool 25 %"),
+             ("robust", "weak-forecaster", "BDG2", None, "Weak forecaster"),
+             ("lso", "none", "BDG2", "leave-site-out", "Unseen sites (BDG2, 5 folds)"),
+             ("xds", "none", "BDG2", "BDG2->BDG2 (no weather)", "BDG2 → BDG2, no weather"),
+             ("xds", "none", "UCI", "BDG2->UCI (no weather)", "BDG2 → UCI (Portugal)"),
+             ("xds", "none", "BDG2", "UCI->BDG2 (no weather)", "UCI → BDG2")]
+    rows = []
+    for e, p_, ds, prot, lab in conds:
+        q = (s.exp == e) & (s.perturb == p_) & (s.dataset == ds) & (s.alpha == 0.1)
+        if prot:
+            q &= s.protocol == prot
+        x = s[q]
+        if not len(x):
+            continue
+        row = {"Condition": lab, "Runs": int(x.seed.nunique())}
+        for m in meths:
+            y = x[x.method == m]
+            row[m] = "–" if not len(y) else f"{100 * y.under_rate.mean():.1f}"
+        y = x[x.method == primary()]
+        row["Δ rel. IS vs CQR (%)"] = "–"
+        c = x[x.method == "CQR"]
+        if len(y) and len(c):
+            row["Δ rel. IS vs CQR (%)"] = f"{100 * (y.rel_IS.mean() / c.rel_IS.mean() - 1):+.1f}"
+        rows.append(row)
+    _write("MS2_robgen", pd.DataFrame(rows),
+           f"Robustness and generalisation: share of under-covered buildings (%, coverage < 0.85 over the 56-day window), "
+           f"mean over runs (stress tests: 3 seeds on BDG2; unseen sites: 5 folds; cross-dataset: 3 seeds, no weather "
+           f"features). Last column: change of the median relative interval score of {primary()} versus pooled CQR. "
+           "MLP-QR is not available for the weak-forecaster condition ('–').")
 
 
 def run():
@@ -242,16 +329,16 @@ def run():
     st = pd.read_csv(os.path.join(RES, "statistics.csv"))
     for ds in ["BDG2", "UCI"]:
         main_table(s, ds)
-        main_table(s, ds, methods=FULL_METHODS, name=f"MS_main_full_{ds}")
-        for a in (0.05, 0.2):
-            main_table(s, ds, methods=["PCS-CQR", "PCS-CQR κ=168", "HSC-CQR", "QShrink-CQR (MACD)", "Self-CQR",
-                                       "ACI-CQR", "TQA-B-CQR", "GHCP-CQR", "CQR", "PCS", "HSC", "Self-CP",
-                                       "SCP-stage"], name=f"MS_alpha{a}_{ds}", alpha=a)
     tests_table(st)
     ablation_table(s)
-    conditions_table(s)
-    weeks_table(s)
+    gen_table(s)
+    robust_table(s)
     cost_table()
+    if (s.method == "HSC-CQR recency").any():
+        ms_main_combined(s)
+        ms_tests_primary(st)
+        ms_operational(s)
+        ms_robgen(s)
 
 
 if __name__ == "__main__":

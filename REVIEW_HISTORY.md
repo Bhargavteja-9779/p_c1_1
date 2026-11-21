@@ -15,21 +15,15 @@ Per-cycle consolidated reviews: REVIEW/review_XX.md. Corrective actions: CHANGEL
 | Descriptor described as "first h days" but uses last min(h,28) days | Minor | manuscript corrected | fixed |
 | First full-run look (seed 0 BDG2): kNN localisation and stage matching show ~no benefit; ACI-CQR close to HSC-CQR | Major (claims) | do not claim benefit of these components unless supported across seeds/datasets; report honestly | pending full results |
 
-## Cycle 1 (2026-11-20) — consolidated in REVIEW/review_01.md
-Recommendations: 9 Major revision, 1 Minor revision. Top issues: fixed kappa=168 beats LOBO-tuned headline
-method (A1); headline numbers from the full kNN/stage variant the paper calls unnecessary (A2); pre-registration
-overstated, deviations undisclosed (A3); no week-1 gain (A4); site-clustered inference, ACI cap handicap,
-'most reliable' outside main protocol, no operational payoff, data-filter/cleaning issues, length, literature.
-Status: addressed in revision 1 (2026-11-21); point-by-point response in REVIEW/response_01.md. Method re-centred
-on PCS-CQR with reliability-aware tuning (fixed kappa=168 reported everywhere); deviations table (Supp. Table S1);
-week-wise metrics with explicit 'no week-1 repair' claim; site sign-flip tests; ACI fallback fix; LOSO 10x3,
-disjoint period, new stress tests, small pools, 80/95 %; operational metrics; observed-hour scoring; ~8.4k words.
-Not done: causal (training-period-only) quality filter (discussed as a limitation); full market case study.
-
-## Cycle 2 (2026-11-21) — consolidated in REVIEW/review_02.md
-Recommendations: 8 Major revision, 2 Minor revision. Top issues: the 56-day headline hides sub-window
-under-coverage (PCS-CQR 11–20 % per window on BDG2, 41 % fail at least one window after week 1; ACI (MACD) better in
-weeks 5–8) (A1); ACI wins at 80 % nominal and with small pools, and its LOBO objective is computed asymmetrically
-and its grid is truncated (A2); claims stronger than the tables: fixed κ "without data", "equally well", tuning p = 0.164,
-week-1 exceptions, operational payoff not significant (A3); target-year filter and day-ahead information set (B1).
-Status: pending (corrective plan in review_02.md).
+## Cycle 1 (Reviewer 1, general; REVIEW/review_01.md) — resolved in manuscript v2
+| Issue | Resolution |
+|---|---|
+| No week-1 gain | Pre-registered recency weighting + coverage objective (Addendum A); week-1 under-covered share now reported (BDG2 23.8 % → 13.7 %, UCI 16.0 % → 5.9 %); weekly figure with noise reference |
+| Fixed κ beat tuned κ (objective mismatch) | Coverage objective for HSC, QShrink and ACI alike; frontier over all parameter grids |
+| Pre-registration overstated | Reworded as internal protocol + committed addendum; deviations in Supplementary S4 |
+| Missing baselines (scale-normalised, recency) | SSC-CQR, HSC-SSC-CQR (with Proposition 1, HCP-based), recency variant |
+| No applied significance | Capacity-headroom cost (ρ = 10/20/40) and under-protected share; result: average cost unchanged, risk redistributed (reported as such) |
+| Noise floor / clustering | Day-block SE per building; under-share noise reference; site-level tests (Table S5) |
+| ACI grid cap; TQA-B target batch | Fixed (finite surrogate; λ from calibration buildings; unit test) |
+| Selective stress reporting | Table 2 reports all key strategies per condition; exceptions stated (α = 0.2 ACI, HSC-SSC in two conditions) |
+| Length/structure vs journal | v2 restructured to AAE pattern (literature/aae_fulltext_benchmark.md) |

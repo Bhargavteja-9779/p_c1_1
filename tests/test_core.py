@@ -27,40 +27,6 @@ def test_features_use_only_history_window():
     assert np.allclose(s0, s1)
 
 
-def test_features_and_descriptor_causal_all_stages():
-    """v2: every stage used in the study; load AND temperature outside the window; descriptor too.
-    Temperature of the target day itself is an input (observed weather as a stand-in for a forecast)."""
-    load, temp, dates = _toy(nd=130)
-    t = 100
-    for h in (1, 7, 14, 28, 56):
-        b, tt, hh = np.array([1]), np.array([t]), np.array([h])
-        X0, _, s0 = fe.build(load, temp, dates, b, tt, hh, True)
-        z0 = fe.descriptor(load, b, tt, hh)
-        L2, T2 = load.copy(), temp.copy()
-        L2[1, t:, :] += 1000.0
-        L2[1, : t - h, :] += 1000.0
-        T2[1, t + 1:, :] += 50.0
-        T2[1, : t - h, :] += 50.0
-        X1, _, s1 = fe.build(L2, T2, dates, b, tt, hh, True)
-        z1 = fe.descriptor(L2, b, tt, hh)
-        assert np.allclose(np.nan_to_num(X0, nan=-9), np.nan_to_num(X1, nan=-9)), h
-        assert np.allclose(s0, s1) and np.allclose(np.nan_to_num(z0, nan=-9), np.nan_to_num(z1, nan=-9)), h
-
-
-def test_pcs_radius_uses_only_past_own_scores():
-    """v2: changing a target's scores at stage >= h leaves its radius at stage h unchanged."""
-    rng = np.random.default_rng(3)
-    cal = rng.exponential(size=(20, 56, 24)).astype(np.float32)
-    tgt = rng.exponential(size=(3, 56, 24)).astype(np.float32)
-    stages = np.arange(1, 57)
-    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
-    q0 = cb.hsc_quantiles(cb.cum_counts(tgt), binc, None, 0.1, [96], stages, stage_matched=False)[0]
-    t2 = tgt.copy()
-    t2[:, 30:] *= 10
-    q1 = cb.hsc_quantiles(cb.cum_counts(t2), binc, None, 0.1, [96], stages, stage_matched=False)[0]
-    assert np.allclose(q0[:, :31], q1[:, :31]) and not np.allclose(q0[:, 31:], q1[:, 31:])
-
-
 def test_lags_masked_beyond_history():
     load, temp, dates = _toy()
     names = fe.feature_names(False)
@@ -103,28 +69,8 @@ def test_hsc_limits():
     # huge kappa ~ prior; small kappa adapts toward 3x larger target scores late in the window
     assert np.allclose(q[1, :, 0], q[0, :, 0], rtol=0.02)
     assert (q[2, :, -1] > 2 * q[0, :, -1]).all()
-    # kappa=0: no own scores at stage 1 -> falls back to the prior-only radius (v2)
-    assert np.allclose(q[3, :, 0], q[0, :, 0])
-
-
-def test_aci_gamma0_equals_pooled_and_finite_fallback():
-    rng = np.random.default_rng(5)
-    cal = rng.exponential(size=(30, 56, 24)).astype(np.float32)
-    tgt = (5 * rng.exponential(size=(4, 56, 24))).astype(np.float32)
-    stages = np.arange(1, 57)
-    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
-    P = binc.sum(axis=0)
-    qp = cb.pooled_quantile(binc, 0.1, True)[cb.stage_bin(stages)]
-    assert np.allclose(cb.aci_quantiles(tgt, P, 0.1, 0.0, stages), qp[None, :])
-    q = cb.aci_quantiles(tgt, P, 0.1, 0.05, stages)  # large step -> alpha_h <= 0 occurs
-    assert np.all(q <= np.nanmax(cal) * 1.01 + 1e-6) and np.all(np.isfinite(q))
-
-
-def test_coverage_objective():
-    sc = np.zeros((3, 56, 24))
-    sc[0] = 2.0
-    macd, under = cb.coverage_objective(np.ones((1, 3, 56)), sc, 0.1)
-    assert np.isclose(under[0], 1 / 3) and np.isclose(macd[0], (0.9 + 0.1 + 0.1) / 3)
+    # kappa=0: no own scores at stage 1 -> infinite radius
+    assert np.all(q[3, :, 0] >= cb.INF_RADIUS * 0.999)
 
 
 def test_interval_metrics():
@@ -196,3 +142,60 @@ def test_aci_level_below_zero_gives_noninverted_interval():
     tgt = np.zeros((2, 56, 24), dtype=np.float32)  # always covered -> alpha_h drifts above 1 with large gamma
     q = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, np.arange(1, 57))
     assert (q >= 0).all()
+
+
+# ---------------------------------------------------------------- review-cycle-1 additions
+def test_ssc_stagewise_marginal_coverage_exchangeable_buildings():
+    """With exchangeable buildings (heterogeneous error scales), SSC-CQR attains >= 1-alpha coverage averaged
+    over new buildings at every stage (Dunn et al. pooled-CDF argument), up to Monte-Carlo error."""
+    import numpy as np
+    from src.models import calibration as cb
+    rng = np.random.default_rng(0)
+    alpha, NH, M, nt = 0.1, 6, 150, 3000
+    def draw(n):
+        scale = np.exp(rng.normal(0, 0.6, size=(n, 1, 1)))
+        a = np.abs(rng.normal(0, 1, size=(n, NH, 24))) * scale * 0.1
+        e = a - 0.12 * scale  # CQR-like score: negative inside the band
+        return a, e
+    ac, ec = draw(M)
+    at, et = draw(nt)
+    s0 = float(np.mean(ac))
+    rc = cb.running_scale_ratio(ac, s0, 24.0)
+    rt = cb.running_scale_ratio(at, s0, 24.0)
+    q = cb.ssc_quantiles(ec / rc[:, :, None], alpha, nt)
+    cov = ((et / rt[:, :, None]) <= q[:, :, None]).mean(axis=(0, 2))
+    assert np.all(cov >= 1 - alpha - 0.01), cov
+
+
+def test_tqab_does_not_depend_on_other_targets():
+    import numpy as np
+    from src.models import calibration as cb
+    rng = np.random.default_rng(1)
+    NH = 10
+    cal = np.abs(rng.normal(size=(40, NH, 24)))
+    tgt = np.abs(rng.normal(size=(5, NH, 24)))
+    stages = np.arange(1, NH + 1)
+    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
+    q1 = cb.tqab_quantiles(tgt, cal, binc.sum(axis=0), 0.1, stages)
+    tgt2 = tgt.copy()
+    tgt2[1:] *= 25.0  # change all OTHER targets drastically
+    q2 = cb.tqab_quantiles(tgt2, cal, binc.sum(axis=0), 0.1, stages)
+    assert np.allclose(q1[0], q2[0])
+
+
+def test_hsc_decay_one_equals_default_and_aci_finite():
+    import numpy as np
+    from src.models import calibration as cb
+    rng = np.random.default_rng(2)
+    NH = 8
+    cal = np.abs(rng.normal(size=(30, NH, 24)))
+    tgt = np.abs(rng.normal(size=(4, NH, 24))) * 3
+    stages = np.arange(1, NH + 1)
+    binc, _ = cb.bin_cdfs(cb.cum_counts(cal), stages)
+    cct = cb.cum_counts(tgt)
+    a = cb.hsc_quantiles(cct, binc, None, 0.1, [48], stages)
+    b = cb.hsc_quantiles(cct, binc, None, 0.1, [48], stages, decay=1.0)
+    c = cb.hsc_quantiles(cct, binc, None, 0.1, [48], stages, decay=0.5)
+    assert np.allclose(a, b) and not np.allclose(a, c)
+    q, frac = cb.aci_quantiles(tgt, binc.sum(axis=0), 0.1, 0.05, stages, return_capped=True)
+    assert np.all(q <= np.nanmax(cal) * 1.01 + 1e-3) and frac >= 0

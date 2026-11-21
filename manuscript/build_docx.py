@@ -209,8 +209,8 @@ def build(mode="full", out_name="Final_Manuscript"):
     vals = V.compute(mode)
     secs = sorted(glob.glob(os.path.join(HERE, "sections", "*.md")))
     text = "\n\n".join(open(s).read() for s in secs)
-    text = include_tables(text)  # before token filling, so that captions may cite supplementary numbers
     text = fill_tokens(text, vals)
+    text = include_tables(text)
     text = number_labels(text)
     text, refs, order = cite(text)
     text = text.replace("<<REFERENCES>>", refs)

@@ -47,3 +47,64 @@ Seasonal-naive + SCP (classical); raw-kWh pooled SCP; normalised pooled SCP; sta
 Mondrian-by-usage SCP; self-only conformal (fallback to pooled); ACI (Gibbs & Candès 2021);
 LightGBM quantile regression; CQR (Romano et al. 2019); MLP-Gaussian (NLL); MLP quantile regression;
 HSC on CQR scores (variant).
+
+---
+## Addendum A (2026-11-20, review cycle 1) — written BEFORE any of the following was implemented or run
+
+Context: Reviewer #1 showed, and the author confirmed from results/raw_results.csv.gz, that (i) no shrinkage
+variant improves reliability in the first week (BDG2 under-covered share, week 1: HSC-CQR 24.5 %, CQR 23.8 %),
+(ii) the interval-score tuning objective selects larger κ than per-building reliability favours (fixed κ = 168 h
+beats tuned κ on MACD), (iii) TQA-B used the maximum budget over *target* buildings to scale λ (fairness bug),
+(iv) ACI set the radius to the grid cap whenever α_h ≤ 0. The original pre-registration file was committed with
+the code (commit e9ca94d) and is an internal protocol, not an external registration; the manuscript will say so
+and list all deviations.
+
+### New hypotheses and fixed designs
+H-A (objective mismatch). Selecting κ by leave-one-building-out *per-building coverage deviation*
+(LOBO-MACD on calibration buildings) instead of the interval score yields lower target MACD than IS-tuning.
+Fairness: the same objective is also applied to QShrink-CQR (λ) and ACI-CQR (γ). Variants:
+"HSC-CQR simple (cov)", "QShrink-CQR (cov)", "ACI-CQR (cov)".
+
+H-B (scale before quantile). A building's error *scale* can be estimated from far fewer own scores than its
+90 % tail quantile. Stage-wise studentised conformal calibration ("SSC-CQR"): each CQR score is divided by the
+building's running shrunk scale ratio r_{b,h} = σ̂_{b,h}/σ0, σ̂_{b,h} = (κ_s σ0 + Σ own |abs residual|/s)/(κ_s + n_{b,h})
+using only stages < h; the radius is the (1−α) quantile of the building-weighted pooled CDF of studentised
+calibration scores at the *exact* stage h, with a point mass 1/(M+1) at +∞ for the new building
+(Dunn et al. pooled-CDF construction); interval [q̂lo − q r s, q̂hi + q r s]. κ_s fixed a priori at 24
+(one day of hourly scores; not tuned, so that the stage-wise exchangeability argument is not affected by tuning);
+σ0 = building-weighted mean abs residual of calibration buildings (leave-one-out for calibration buildings).
+Prediction: lower under-covered share than CQR and HSC-CQR in week 1 (days 2–7) and overall.
+Combination: "HSC-SSC-CQR" = HSC simple (κ by LOBO-MACD) applied to the studentised scores.
+
+H-C (recency). Exponential down-weighting of own scores (factor 0.95 per day, half-life ≈ 13.5 days, fixed a
+priori) reduces under-coverage after level shifts. Variant "HSC-CQR recency" (simple, κ by LOBO-MACD).
+
+### Fixes to baselines
+* TQA-B-CQR: λ computed from the calibration buildings' own budgets (each ranked among the others), never
+  from target buildings.
+* ACI / ACI-CQR: for α_h ≤ 0 the radius is the largest observed calibration score (finite surrogate of the
+  infinite interval) instead of the 500·s grid cap; the frequency of α_h ≤ 0 events is logged.
+* α ∈ {0.05, 0.2}: all CQR-based methods are now evaluated too (quantile models trained at α = 0.1; conformal
+  calibration corrects the level; documented as a deviation).
+
+### New outcome measures (operational, pre-specified)
+* Upper- and lower-tail exceedance rates per building (nominal 5 % each).
+* Capacity-headroom case study: an operator offers headroom below a contracted limit equal to (limit − U) and
+  pays a penalty for violations (y − U)+. Relative cost per building = mean(U)/ȳ + ρ·mean((y − U)+)/ȳ for
+  penalty ratios ρ ∈ {10, 20, 40} (all three reported); share of buildings with
+  upper-tail exceedance > 10 % (twice nominal) = "under-protected buildings".
+* Day-block standard error of each building's coverage (daily coverage values, s.d./√days) → sampling floor of MACD
+  E|N(0,SE²)| = SE·√(2/π), replacing the independence-based floor.
+* Statistics: additionally a site-level paired test for BDG2 (Wilcoxon on site means, n = 10 sites) and a
+  sensitivity analysis excluding the largest site (Rat).
+
+All results, favourable or not, will be reported; no variant will be dropped after seeing results.
+
+### Addendum A.1 (2026-11-20 21:47 UTC; only the BDG2 seed-0 pipeline check had been inspected)
+Decision rule for the configuration recommended in the manuscript, fixed before the full rerun:
+among all CQR-score calibration strategies, the recommended one is the strategy with the lowest
+under-covered share (averaged over the BDG2 and UCI main experiments, 5 seeds each) among those whose median
+relative interval score is at most 2 % above that of pooled CQR on both datasets (a sharpness constraint:
+reliability may not be bought with wider intervals). Strategies violating the constraint (e.g. aggressive
+online level control) are reported on the reliability–sharpness frontier but not recommended. The paired
+tests are reported for every Addendum-A variant regardless of which one is recommended.

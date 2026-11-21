@@ -56,3 +56,8 @@ Fast (<72 d) Q1 journals found (J. Energy Chemistry 37 d, Separation & Purificat
 
 ## Decision
 Advances in Applied Energy: highest JIF among journals with publisher-reported acceptance ≤100 days **and** genuine scope fit.
+
+**Update 2026-11-20 (user constraint: ≤ 72 days submission→acceptance).** Advances in Applied Energy is the only
+journal with genuine scope fit whose *current* publisher-reported submission→acceptance time (66 d) is ≤ 72 d
+(older snapshot 86 d; unverified at article level). All other well-fitting candidates in Table B exceed 72 d.
+Decision unchanged; the timeline remains an unverified publisher aggregate.

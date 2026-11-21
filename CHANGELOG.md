@@ -50,27 +50,3 @@
   (abs 'fixed-kappa' identical to tuned in 6/10 runs; '-kNN -stage' not re-tuned) and replaced by
   'HSC-CQR fixed-κ' (simple variant, κ = 168 h, = donor-local mixture with fixed pseudo-count);
   (9) all tuning tables stored in run_info. Four new unit tests. All result parts recomputed.
-
-## 2026-11-20/21 — Revision 1 (after review cycle 1; REVIEW/review_01.md)
-All changes are listed with reasons in experiments/DEVIATIONS.md (items 8-16). Summary: recommended layer re-centred
-on PCS-CQR (uniform prior, no stage matching, kappa by reliability-aware LOBO); HSC/HSC-CQR kept as the
-pre-registered configurations; ACI conformal level + finite fallback; TQA-B budget without target information;
-kappa=0 fallback; only observed hours scored; UCI DST masking; weather interpolation capped; leave-one-site-out
-(10 sites x 3 seeds); disjoint calibration period; new stress tests; small calibration pools; CQR family at 80/95 %;
-site-level sign-flip randomisation tests; per-week, booking-failure and reserve-cost metrics; latency benchmark;
-new environment 'p_c1_1' with access to the UCI host and Crossref. All models retrained and all results recomputed.
-
-## 2026-11-21 (revision 1 completed)
-- Full revision-1 run finished (61 jobs, no failures); analysis, tables, figures, values regenerated.
-- Raw results archived per experiment (results/raw/raw_results_<exp>.csv.gz, floats at 6 significant digits):
-  the single 110 MB gzip exceeded the repository file-size limit. analysis.read_raw() loads either form.
-- Claims checked against the full results: ACI width ratio now quoted exactly (2.4x BDG2, 1.2x UCI; the
-  provisional "about twice" was wrong for UCI); week-1 claim restricted to strategies of comparable width; the
-  pre-registered hypothesis described as partly supported (HSC lower IS than Self-CP, no CD gain); LOSO
-  per-site claim corrected to "< 5 %".
-- New sections 06_results.md, 07_discussion.md (label sec:limits); supplementary tables/figures with fixed
-  numbers exposed as tokens; Table 2/3 captions cite them (tables now inserted before token filling).
-- Figure fixes: Fig5 legend above panels; Fig7 legend/labels; Fig10 label spacing.
-- Error-analysis text: wording fix for tied usage classes and singular 'remains'.
-- Cover letter rewritten for the PCS framing.
-

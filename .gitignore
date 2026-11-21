@@ -9,4 +9,3 @@ checkpoints/
 results/parts/
 results/experiment_logs/*.log
 results/raw_results.csv
-results/raw_results.csv.gz

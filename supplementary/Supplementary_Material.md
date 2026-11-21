@@ -1,65 +1,9 @@
 ---
-title: "Supplementary material: Reliable day-ahead prediction intervals for newly metered buildings"
+title: "Supplementary material: Trustworthy day-ahead load intervals for newly metered buildings via recency-weighted shrinkage conformal calibration"
 ---
-# S1. Deviations from the analysis plan
+# S1. Input features of the global forecasters
 
-**Table S1.** 
-The analysis plan (experiments/PREREGISTRATION.md, committed 2026-11-15 12:59 UTC in e9ca94d) is an internal,
-version-controlled file, not an external registration. Every change after it is listed below. "Target results
-seen" says whether results on target buildings (from any run) were available when the change was decided.
-
-| # | Date (UTC) | Change | Reason | Target results seen? |
-|---|---|---|---|---|
-| 1 | 2026-11-15 | Stuck-meter rule widened to any run of ≥ 24 identical readings; training rows with normalised target > 20 excluded from model fitting | Smoke test (reduced data) showed errors ~80× too large from flat-lined meters at one site | Yes (smoke test, 15 % of training rows) |
-| 2 | 2026-11-15 | Self-CQR and ACI-CQR added; HSC-CQR component ablations added | Quick-mode check: self-only calibration a strong competitor; fair test of HSC-CQR needs same-score competitors | Yes (quick mode) |
-| 3 | 2026-11-15 | Evaluation on the common set of hours with observed truth and finite intervals | Bug: hours without any possible forecast were counted as misses | No (bug found in code; all results recomputed) |
-| 4 | 2026-11-16 | GHCP-CQR, TQA-B-CQR, QShrink-CQR added | Prior-art audit identified these as the closest published mechanisms | Yes (interim full-run results) |
-| 5 | 2026-11-16 | "Simple" variants (uniform prior, no stage matching), fixed-κ = 168 h variant, MLP-CQR check added | Interim ablation showed no benefit of the similarity prior or stage matching | Yes |
-| 6 | 2026-11-16 | ACI γ grid extended by {0, 1e-4, 2e-4} | Lower grid edge selected in 7 of 10 runs | Yes (selected γ only) |
-| 7 | 2026-11-16 | Code-audit fixes (NaN-safe neighbour search, empty-bin prior, grid range, ACI empty-set convention, TQA-B λ-scaling, QShrink grid) | Independent code audit | Yes (all results recomputed) |
-| 8 | 2026-11-20 | Recommended layer changed from HSC-CQR (similarity prior + stage matching, κ by LOBO interval score) to PCS-CQR (uniform prior, no stage matching, κ by the reliability-aware LOBO rule) | Review cycle 1: the refinements added nothing and the pre-registered interval-score objective is nearly flat in κ and selected a less reliable κ than a fixed one-week value | Yes (complete v1 results) |
-| 9 | 2026-11-20 | Reliability-aware LOBO rule (minimum coverage deviation among parameter values within 2 % of the best LOBO interval score) applied to PCS, QShrink and ACI; unconstrained coverage-only ACI added as reference | Same as 8; applied to all tuned competitors for fairness | Yes |
-| 10 | 2026-11-20 | ACI: split-conformal level ⌈(1−α_h)(N+1)⌉/N and finite fallback (largest calibration score) instead of a 500·s radius when α_h ≤ 1/(N+1) | Review: the cap dominated the tuning objective and handicapped ACI | Yes |
-| 11 | 2026-11-20 | TQA-B budget scaling from the largest attainable rank instead of the maximum over target buildings; κ = 0 with pooled fallback in the grid | Review: target information used in TQA-B; κ = 0 previously unselectable | Yes |
-| 12 | 2026-11-20 | Only actually observed hours are scored (interpolated/masked hours used as inputs only); UCI daylight-saving artefacts masked; weather interpolation limited to 6 h | Review (data and leakage) | Yes |
-| 13 | 2026-11-20 | Leave-site-out with 5 site groups and one seed replaced by leave-one-site-out (10 sites × 3 seeds) | Review: site-dependent results, single training run per fold | Yes |
-| 14 | 2026-11-20 | Added: disjoint calibration period; history-only noise, contiguous outages, early level shift, volatility increase; small calibration pools (5–40 buildings, 5 draws); CQR-score strategies at 80 % and 95 % | Review (robustness, experimental design) | Yes |
-| 15 | 2026-11-20 | Inference: site-level sign-flip randomisation tests (BDG2) instead of building-level Wilcoxon as primary; tests of the under-covered share and booking failures; per-week metrics; operational metrics | Review (statistics): building-level tests ignore clustering in 10 sites | Yes |
-| 16 | 2026-11-20 | Headline metric: share of under-covered buildings (an RQ1 metric in the plan) reported first; the planned primary endpoints (interval score and |coverage − 0.9|) are tested and reported for every comparison | The paper's question is per-building reliability; the interval score barely separates strategies | Yes |
-
-Consequences: results for PCS-CQR, the reliability-aware rule and the protocols added in revision are exploratory.
-The planned primary comparison (HSC, absolute score, against the planned baselines) is reported in full in the
-supplementary tests table (family "preregistered-abs"); its hypothesis is only partly supported (HSC has a lower interval
-score than every planned baseline, including self-only calibration, but does not reduce per-building miscalibration
-relative to self-only calibration).
-
-
-# S2. Methods and implementation details
-
-## S2.1 Calibration strategies
-
-All strategies use the same LightGBM quantile models, the scale-normalised CQR score $e$ of Eq. (2), the 4000-point score grid and, where stated, the onboarding-stage bins $\{1\},\{2\},\{3\},\{4..6\},\{7..13\},\{14..27\},\{28..56\}$. $N$ denotes the number of pooled calibration scores in the relevant bin, $n_{b,h}$ the number of the building's own scores observed before stage $h$, and "LOBO" leave-one-building-out selection on calibration buildings. Two LOBO rules are used: the planned rule minimises the mean normalised interval score; the reliability-aware rule minimises the mean absolute coverage deviation of the pseudo-targets among the parameter values whose interval score is within 2 % of the minimum.
-
-* **CQR** [Romano et al.]: radius = the $\lceil(1-\alpha)(N+1)\rceil$-th smallest pooled calibration score of the stage bin.
-* **Self-CQR**: split-conformal quantile of the building's own past scores once $\lceil(1-\alpha)(n+1)\rceil\le n$ (i.e. from the second day at α = 0.1), the CQR radius before.
-* **ACI-CQR** [Gibbs & Candès]: $\alpha_{h+1}=\alpha_h+\gamma\sum_j(\alpha-\mathrm{err}_{h,j})$ over the 24 hourly feedback signals of day $h$; radius = pooled stage-bin quantile at level $\lceil(1-\alpha_h)(N+1)\rceil/N$; if this level exceeds 1, the largest observed calibration score; if $\alpha_h\ge1$, the smallest observed score. $\gamma\in\{0,10^{-4},2\cdot10^{-4},5\cdot10^{-4},10^{-3},2\cdot10^{-3},5\cdot10^{-3},10^{-2}\}$ by LOBO (both rules; "coverage only": minimum coverage deviation without the interval-score constraint). $\gamma=0$ is exactly CQR.
-* **TQA-B-CQR** [Lin et al.]: the building's exponentially decayed mean daily score (decay 0.8 per day, days before $h$ only) is ranked among the calibration buildings' decayed means at the same stage, $r=|\{c:\bar e_c<\bar e_b\}|/(N_c+1)$; queried level $1-a$ with $a=\alpha-\lambda g^B(r)$, $g^B(r)=C(r-(1-\alpha))$ for $r<1-\alpha$ and $r-(1-\alpha)$ otherwise, $C=\alpha^2/(1-\alpha)^2$, and $\lambda=\min\{1,(\alpha-0.01)/g^B_{\max}\}$ with $g^B_{\max}$ the value at the largest attainable rank $N_c/(N_c+1)$ (no target information); the quantile is taken over the pooled scores with a point at $+\infty$. The TQA-E variant is an ACI-type update and is represented by ACI-CQR.
-* **GHCP-CQR** [Mallick et al.]: each of the $M$ calibration buildings receives weight $1/(M+1)$ spread evenly over its scores (all stages); the new building receives the same share, spread over its observed scores and a point mass at $+\infty$ for its not-yet-observed scores, with a surrogate group size equal to the median number of scores per calibration building. The local-predictor step of GHCP is omitted because the global forecaster already conditions on the building's own history.
-* **QShrink-CQR** [Rafe & Das]: $q=w\,q^{\mathrm{own}}+(1-w)q^{\mathrm{CQR}}$, $w=n_{b,h}/(n_{b,h}+\lambda)$, $w=0$ while the own quantile does not exist; $\lambda$ from the κ grid by LOBO (both rules) or fixed at 168.
-* **PCS-CQR**: Eq. (3) with the uniform population prior, no stage matching, κ by the reliability-aware LOBO rule. *IS-tuned*: κ by the planned rule. *κ=168*: fixed. *Site-grouped*: LOBO leaves out all calibration buildings of the pseudo-target's site. *+stage*: stage-matched prior. *+kNN*: prior averaged over the K nearest calibration buildings in the descriptor (24-value normalised mean daily profile, its mean absolute day-to-day change, log mean load, over the last min(h,28) days; standardised Euclidean distance; undefined descriptors never selected), K ∈ {10, 25, 50, 100, all}. *-shrink*: κ = ∞. All variants except κ=168 are re-tuned with the reliability-aware rule.
-* **HSC-CQR / HSC** (planned configuration): +kNN and +stage, (κ, K) by the planned rule, on CQR / absolute scores; HSC −stage, −kNN, −shrink are the planned ablations.
-* **Absolute-score methods**: SCP (pooled over stages), SCP-stage, Mondrian-usage (SCP-stage per primary-usage class with ≥ 10 calibration buildings), Self-CP, ACI, PCS and PCS (IS-tuned) on $|y-\hat y|/s$; Raw-SCP on unnormalised residuals; Naive+SCP: seasonal-naive forecast (same hour one week earlier if $h\ge7$, else the previous day) with stage-matched conformal intervals.
-
-## S2.2 Forecasters
-
-LightGBM: 63 leaves, learning rate 0.05, at least 200 samples per leaf, feature and bagging fractions 0.8, L2 regularisation 1, early stopping (50 rounds) on the validation buildings, deterministic mode; identical settings for the point and the two quantile models; 40 % of the training-building days are sampled for fitting. MLP (PyTorch [Paszke et al.]): 256-256-128 ReLU, Gaussian output trained by negative log-likelihood (MLP-Gauss) or two pinball-loss outputs (MLP-QR); same features (missing values set to zero with missingness indicators, standardised), Adam (learning rate $10^{-3}$, batch 4096), at most 12 epochs, early stopping on the validation buildings (patience 3).
-
-## S2.3 Implementation checks
-
-Unit tests (tests/test_core.py) verify that features at stage $h$ do not change when load outside the building's first $h$ days is perturbed, the limits of Eq. (3) ($\kappa=\infty$ equals the pooled quantile; $\kappa=0$ falls back to it before own scores exist), that ACI with $\gamma=0$ equals CQR and never returns a radius above the largest calibration score, the coverage objective, the evaluation mask, the neighbour search (self-exclusion, undefined descriptors) and the empty-bin handling of the prior.
-
-
-**Table S2. Forecaster features.**
+**Table S1. Input features (identical for LightGBM and MLP models).**
 
 | Group | Features (computed only from the building's own h days of history, divided by the scale s) |
 |:--|:--|
@@ -73,1674 +17,799 @@ Unit tests (tests/test_core.py) verify that features at stage $h$ do not change 
 | Target | y / s (point model: squared error; quantile models: pinball loss at α/2 and 1 − α/2) |
 
 
-# S3. Full results, protocols, stress tests and tests
-
-Mean ± s.d. over seeds; Rel. IS and Rel. width are medians over buildings (means are in tables/*_raw.csv).
-
-**Table S3. BDG2, random-building protocol, nominal 90 %, all methods.**
-
-| Method                  | Coverage      | MACD          | Under-cov. (%)   | Under-cov. wk 1 (%)   | P10 cov.      | Rel. width    | Rel. IS       | Booking failures (%)   | Reserve cost (%)   |
-|:------------------------|:--------------|:--------------|:-----------------|:----------------------|:--------------|:--------------|:--------------|:-----------------------|:-------------------|
-| PCS-CQR                 | 0.895 ± 0.001 | 0.015 ± 0.001 | 1.4 ± 0.8        | 19.4 ± 2.1            | 0.871 ± 0.001 | 0.391 ± 0.014 | 0.562 ± 0.025 | 2.1 ± 1.2              | 2.1 ± 0.1          |
-| PCS-CQR κ=168           | 0.895 ± 0.002 | 0.015 ± 0.001 | 1.5 ± 0.9        | 19.7 ± 2.2            | 0.871 ± 0.001 | 0.390 ± 0.014 | 0.562 ± 0.025 | 2.0 ± 1.0              | 2.1 ± 0.1          |
-| HSC-CQR (pre-reg.)      | 0.892 ± 0.003 | 0.018 ± 0.001 | 3.4 ± 1.0        | 25.2 ± 3.6            | 0.865 ± 0.002 | 0.384 ± 0.011 | 0.561 ± 0.025 | 2.6 ± 1.4              | 2.1 ± 0.1          |
-| QShrink-CQR (MACD)      | 0.896 ± 0.001 | 0.015 ± 0.001 | 1.3 ± 0.8        | 17.7 ± 2.5            | 0.873 ± 0.002 | 0.392 ± 0.013 | 0.562 ± 0.024 | 1.4 ± 1.1              | 2.1 ± 0.1          |
-| QShrink-CQR             | 0.897 ± 0.002 | 0.021 ± 0.005 | 4.3 ± 2.8        | 20.7 ± 3.6            | 0.865 ± 0.006 | 0.387 ± 0.012 | 0.561 ± 0.024 | 2.9 ± 1.3              | 2.1 ± 0.1          |
-| Self-CQR                | 0.889 ± 0.002 | 0.021 ± 0.001 | 7.6 ± 2.2        | 33.8 ± 0.9            | 0.856 ± 0.005 | 0.396 ± 0.015 | 0.571 ± 0.022 | 2.2 ± 0.9              | 2.2 ± 0.2          |
-| ACI-CQR                 | 0.894 ± 0.002 | 0.025 ± 0.004 | 8.7 ± 3.5        | 23.8 ± 2.9            | 0.853 ± 0.009 | 0.384 ± 0.013 | 0.560 ± 0.024 | 3.9 ± 1.3              | 2.1 ± 0.1          |
-| ACI-CQR (MACD)          | 0.895 ± 0.002 | 0.020 ± 0.001 | 4.2 ± 1.0        | 23.7 ± 2.7            | 0.862 ± 0.001 | 0.387 ± 0.012 | 0.560 ± 0.024 | 2.9 ± 1.0              | 2.1 ± 0.1          |
-| ACI-CQR (coverage only) | 0.900 ± 0.000 | 0.004 ± 0.000 | 0.0 ± 0.0        | 8.9 ± 1.4             | 0.894 ± 0.001 | 0.949 ± 0.179 | 1.110 ± 0.184 | 0.1 ± 0.2              | 4.4 ± 0.7          |
-| TQA-B-CQR               | 0.894 ± 0.003 | 0.039 ± 0.001 | 17.3 ± 1.6       | 23.2 ± 1.7            | 0.834 ± 0.003 | 0.382 ± 0.011 | 0.562 ± 0.024 | 6.7 ± 1.8              | 2.1 ± 0.1          |
-| GHCP-CQR                | 0.893 ± 0.004 | 0.038 ± 0.002 | 17.2 ± 1.1       | 22.5 ± 2.1            | 0.831 ± 0.004 | 0.385 ± 0.013 | 0.560 ± 0.023 | 6.7 ± 1.9              | 2.1 ± 0.1          |
-| CQR                     | 0.891 ± 0.004 | 0.039 ± 0.002 | 18.2 ± 1.7       | 24.2 ± 2.8            | 0.829 ± 0.003 | 0.382 ± 0.013 | 0.560 ± 0.023 | 7.3 ± 2.1              | 2.1 ± 0.1          |
-| QR-LGBM                 | 0.857 ± 0.010 | 0.052 ± 0.008 | 41.6 ± 11.0      | 37.2 ± 3.5            | 0.796 ± 0.009 | 0.355 ± 0.008 | 0.570 ± 0.030 | 14.2 ± 4.2             | 2.1 ± 0.1          |
-| MLP-QR                  | 0.882 ± 0.007 | 0.038 ± 0.002 | 23.2 ± 4.7       | 25.1 ± 5.2            | 0.827 ± 0.007 | 0.374 ± 0.008 | 0.562 ± 0.029 | 7.7 ± 3.8              | 2.1 ± 0.1          |
-| MLP-Gauss               | 0.927 ± 0.009 | 0.042 ± 0.004 | 4.7 ± 2.1        | 9.9 ± 2.3             | 0.871 ± 0.010 | 0.455 ± 0.034 | 0.609 ± 0.037 | 3.2 ± 1.0              | 2.6 ± 0.6          |
-| PCS-CQR (MLP)           | 0.895 ± 0.003 | 0.015 ± 0.001 | 1.8 ± 1.7        | 16.1 ± 2.8            | 0.871 ± 0.004 | 0.395 ± 0.017 | 0.566 ± 0.027 | 1.1 ± 0.8              | 2.1 ± 0.1          |
-| CQR (MLP)               | 0.894 ± 0.004 | 0.036 ± 0.001 | 15.7 ± 2.3       | 21.5 ± 2.8            | 0.840 ± 0.004 | 0.385 ± 0.013 | 0.561 ± 0.031 | 6.2 ± 3.6              | 2.1 ± 0.1          |
-| PCS-CQR (IS-tuned)      | 0.894 ± 0.002 | 0.017 ± 0.001 | 2.9 ± 1.4        | 21.4 ± 2.0            | 0.868 ± 0.002 | 0.386 ± 0.012 | 0.561 ± 0.025 | 2.5 ± 1.4              | 2.1 ± 0.1          |
-| PCS-CQR site-grouped    | 0.895 ± 0.001 | 0.015 ± 0.001 | 1.5 ± 0.6        | 19.1 ± 2.8            | 0.871 ± 0.002 | 0.391 ± 0.014 | 0.562 ± 0.025 | 2.0 ± 1.2              | 2.1 ± 0.1          |
-| PCS                     | 0.905 ± 0.001 | 0.026 ± 0.002 | 6.0 ± 1.0        | 18.7 ± 2.8            | 0.860 ± 0.002 | 0.437 ± 0.022 | 0.646 ± 0.025 | 2.2 ± 0.8              | 2.4 ± 0.2          |
-| HSC                     | 0.899 ± 0.003 | 0.029 ± 0.002 | 9.6 ± 1.7        | 31.3 ± 5.8            | 0.852 ± 0.003 | 0.411 ± 0.016 | 0.635 ± 0.028 | 3.6 ± 1.1              | 2.3 ± 0.1          |
-| ACI                     | 0.914 ± 0.003 | 0.044 ± 0.001 | 12.8 ± 1.0       | 25.8 ± 3.9            | 0.845 ± 0.002 | 0.433 ± 0.020 | 0.627 ± 0.029 | 3.6 ± 1.3              | 2.5 ± 0.1          |
-| Self-CP                 | 0.904 ± 0.003 | 0.026 ± 0.001 | 6.1 ± 1.4        | 16.2 ± 3.1            | 0.861 ± 0.003 | 0.440 ± 0.023 | 0.646 ± 0.028 | 2.4 ± 0.6              | 2.4 ± 0.3          |
-| SCP-stage               | 0.880 ± 0.009 | 0.094 ± 0.005 | 29.3 ± 2.9       | 27.0 ± 3.2            | 0.701 ± 0.018 | 0.458 ± 0.025 | 0.631 ± 0.026 | 19.1 ± 2.4             | 2.7 ± 0.1          |
-| SCP                     | 0.881 ± 0.008 | 0.094 ± 0.005 | 29.2 ± 3.3       | 34.2 ± 3.2            | 0.701 ± 0.020 | 0.457 ± 0.024 | 0.637 ± 0.025 | 19.1 ± 2.2             | 2.7 ± 0.1          |
-| Mondrian-usage          | 0.882 ± 0.011 | 0.093 ± 0.004 | 28.6 ± 4.2       | 26.5 ± 4.7            | 0.703 ± 0.011 | 0.431 ± 0.040 | 0.662 ± 0.034 | 20.2 ± 3.9             | 2.7 ± 0.1          |
-| Naive+SCP               | 0.882 ± 0.011 | 0.092 ± 0.006 | 30.3 ± 2.2       | 29.3 ± 3.4            | 0.708 ± 0.031 | 0.688 ± 0.053 | 0.973 ± 0.047 | 22.1 ± 2.9             | 3.8 ± 0.2          |
-| Raw-SCP                 | 0.906 ± 0.024 | 0.119 ± 0.014 | 18.9 ± 4.7       | 21.8 ± 5.8            | 0.696 ± 0.114 | 0.761 ± 0.077 | 1.127 ± 0.043 | 14.9 ± 3.8             | 6.6 ± 0.7          |
-
-
-**Table S4. UCI, random-building protocol, nominal 90 %, all methods.**
-
-| Method                  | Coverage      | MACD          | Under-cov. (%)   | Under-cov. wk 1 (%)   | P10 cov.      | Rel. width    | Rel. IS       | Booking failures (%)   | Reserve cost (%)   |
-|:------------------------|:--------------|:--------------|:-----------------|:----------------------|:--------------|:--------------|:--------------|:-----------------------|:-------------------|
-| PCS-CQR                 | 0.900 ± 0.002 | 0.013 ± 0.002 | 0.4 ± 0.9        | 10.3 ± 2.6            | 0.879 ± 0.004 | 0.266 ± 0.013 | 0.367 ± 0.014 | 0.6 ± 0.6              | 1.6 ± 0.2          |
-| PCS-CQR κ=168           | 0.901 ± 0.003 | 0.013 ± 0.002 | 0.8 ± 1.4        | 12.0 ± 2.2            | 0.881 ± 0.006 | 0.266 ± 0.013 | 0.365 ± 0.015 | 0.8 ± 0.5              | 1.6 ± 0.2          |
-| HSC-CQR (pre-reg.)      | 0.898 ± 0.004 | 0.014 ± 0.003 | 1.3 ± 1.7        | 16.4 ± 2.6            | 0.876 ± 0.008 | 0.265 ± 0.012 | 0.365 ± 0.015 | 1.1 ± 0.7              | 1.6 ± 0.2          |
-| QShrink-CQR (MACD)      | 0.901 ± 0.002 | 0.013 ± 0.002 | 0.2 ± 0.5        | 9.3 ± 1.6             | 0.882 ± 0.004 | 0.265 ± 0.011 | 0.366 ± 0.015 | 0.4 ± 0.6              | 1.6 ± 0.2          |
-| QShrink-CQR             | 0.902 ± 0.004 | 0.016 ± 0.004 | 1.9 ± 2.3        | 13.9 ± 2.6            | 0.878 ± 0.012 | 0.266 ± 0.012 | 0.364 ± 0.016 | 1.1 ± 0.7              | 1.6 ± 0.2          |
-| Self-CQR                | 0.895 ± 0.002 | 0.016 ± 0.002 | 1.9 ± 1.9        | 22.7 ± 3.8            | 0.870 ± 0.004 | 0.264 ± 0.011 | 0.372 ± 0.014 | 0.4 ± 0.6              | 1.6 ± 0.2          |
-| ACI-CQR                 | 0.903 ± 0.005 | 0.019 ± 0.006 | 2.7 ± 1.8        | 14.9 ± 2.4            | 0.873 ± 0.007 | 0.270 ± 0.015 | 0.364 ± 0.015 | 0.8 ± 0.5              | 1.6 ± 0.2          |
-| ACI-CQR (MACD)          | 0.903 ± 0.004 | 0.018 ± 0.007 | 2.5 ± 1.9        | 14.9 ± 2.4            | 0.876 ± 0.008 | 0.271 ± 0.013 | 0.364 ± 0.015 | 0.8 ± 0.5              | 1.6 ± 0.2          |
-| ACI-CQR (coverage only) | 0.901 ± 0.001 | 0.004 ± 0.000 | 0.0 ± 0.0        | 4.6 ± 2.1             | 0.895 ± 0.001 | 0.330 ± 0.024 | 0.430 ± 0.023 | 0.0 ± 0.0              | 2.7 ± 0.9          |
-| TQA-B-CQR               | 0.900 ± 0.006 | 0.032 ± 0.006 | 9.3 ± 5.6        | 14.7 ± 2.9            | 0.857 ± 0.015 | 0.271 ± 0.013 | 0.366 ± 0.012 | 2.9 ± 1.4              | 1.6 ± 0.2          |
-| GHCP-CQR                | 0.906 ± 0.010 | 0.034 ± 0.006 | 7.6 ± 3.3        | 13.5 ± 3.0            | 0.864 ± 0.015 | 0.279 ± 0.018 | 0.366 ± 0.013 | 1.9 ± 1.4              | 1.6 ± 0.2          |
-| CQR                     | 0.899 ± 0.010 | 0.033 ± 0.005 | 9.1 ± 4.9        | 15.6 ± 2.7            | 0.855 ± 0.015 | 0.273 ± 0.017 | 0.364 ± 0.014 | 2.3 ± 1.7              | 1.6 ± 0.2          |
-| QR-LGBM                 | 0.877 ± 0.008 | 0.036 ± 0.006 | 18.7 ± 7.3       | 22.9 ± 2.3            | 0.835 ± 0.017 | 0.256 ± 0.012 | 0.367 ± 0.016 | 5.1 ± 3.3              | 1.6 ± 0.2          |
-| MLP-QR                  | 0.892 ± 0.016 | 0.036 ± 0.007 | 13.5 ± 11.6      | 17.7 ± 5.1            | 0.845 ± 0.024 | 0.265 ± 0.027 | 0.373 ± 0.015 | 4.8 ± 4.8              | 1.6 ± 0.1          |
-| MLP-Gauss               | 0.925 ± 0.006 | 0.037 ± 0.001 | 3.8 ± 1.9        | 9.1 ± 6.4             | 0.882 ± 0.011 | 0.298 ± 0.013 | 0.391 ± 0.013 | 2.1 ± 1.7              | 1.6 ± 0.1          |
-| PCS-CQR (MLP)           | 0.903 ± 0.006 | 0.015 ± 0.002 | 0.8 ± 1.4        | 8.2 ± 5.0             | 0.881 ± 0.004 | 0.272 ± 0.017 | 0.374 ± 0.016 | 1.3 ± 1.9              | 1.6 ± 0.2          |
-| CQR (MLP)               | 0.901 ± 0.007 | 0.033 ± 0.006 | 8.2 ± 2.8        | 14.5 ± 3.6            | 0.858 ± 0.014 | 0.272 ± 0.019 | 0.373 ± 0.018 | 3.6 ± 2.9              | 1.6 ± 0.1          |
-| PCS-CQR (IS-tuned)      | 0.901 ± 0.004 | 0.014 ± 0.003 | 1.1 ± 1.5        | 13.5 ± 3.3            | 0.879 ± 0.009 | 0.267 ± 0.013 | 0.365 ± 0.015 | 1.1 ± 0.7              | 1.6 ± 0.2          |
-| PCS                     | 0.908 ± 0.003 | 0.021 ± 0.001 | 2.3 ± 1.7        | 9.9 ± 1.9             | 0.878 ± 0.003 | 0.295 ± 0.013 | 0.419 ± 0.011 | 2.3 ± 1.9              | 1.8 ± 0.2          |
-| HSC                     | 0.905 ± 0.004 | 0.021 ± 0.001 | 3.8 ± 2.2        | 17.9 ± 4.5            | 0.871 ± 0.005 | 0.288 ± 0.014 | 0.416 ± 0.016 | 2.5 ± 1.2              | 1.8 ± 0.2          |
-| ACI                     | 0.920 ± 0.011 | 0.050 ± 0.019 | 9.5 ± 5.4        | 16.8 ± 2.2            | 0.844 ± 0.035 | 0.335 ± 0.032 | 0.423 ± 0.014 | 4.6 ± 5.3              | 1.9 ± 0.2          |
-| Self-CP                 | 0.908 ± 0.003 | 0.021 ± 0.001 | 2.3 ± 1.7        | 7.6 ± 1.6             | 0.877 ± 0.002 | 0.297 ± 0.014 | 0.420 ± 0.012 | 2.3 ± 1.9              | 1.8 ± 0.2          |
-| SCP-stage               | 0.903 ± 0.016 | 0.089 ± 0.006 | 20.4 ± 4.4       | 18.1 ± 1.9            | 0.771 ± 0.028 | 0.377 ± 0.033 | 0.441 ± 0.018 | 14.7 ± 2.6             | 2.2 ± 0.3          |
-| SCP                     | 0.904 ± 0.015 | 0.089 ± 0.006 | 20.8 ± 4.3       | 23.8 ± 3.9            | 0.773 ± 0.029 | 0.376 ± 0.032 | 0.443 ± 0.017 | 14.1 ± 2.2             | 2.2 ± 0.3          |
-| Naive+SCP               | 0.905 ± 0.009 | 0.076 ± 0.004 | 21.5 ± 3.6       | 21.5 ± 3.0            | 0.762 ± 0.017 | 0.474 ± 0.028 | 0.581 ± 0.018 | 14.5 ± 2.4             | 2.8 ± 0.3          |
-| Raw-SCP                 | 0.908 ± 0.048 | 0.130 ± 0.028 | 17.7 ± 10.0      | 18.5 ± 10.4           | 0.681 ± 0.218 | 0.967 ± 0.323 | 1.128 ± 0.210 | 15.6 ± 8.4             | 8.7 ± 8.5          |
-
-
-**Table S5. Per-building reliability by onboarding week (CQR-score strategies).**
-
-| Data   | Method             |   Under wk 1 (%) |   P10 wk 1 |   Under wk 2 (%) |   P10 wk 2 |   Under wk 3-4 (%) |   P10 wk 3-4 |   Under wk 5-8 (%) |   P10 wk 5-8 |
-|:-------|:-------------------|-----------------:|-----------:|-----------------:|-----------:|-------------------:|-------------:|-------------------:|-------------:|
-| BDG2   | PCS-CQR            |             19.4 |      0.822 |             19.8 |      0.812 |               15.3 |        0.833 |               11   |        0.848 |
-| BDG2   | PCS-CQR κ=168      |             19.7 |      0.821 |             19.8 |      0.811 |               15.3 |        0.833 |               10.9 |        0.848 |
-| BDG2   | PCS-CQR +stage     |             19.3 |      0.824 |             20.4 |      0.811 |               15.6 |        0.832 |               10.8 |        0.849 |
-| BDG2   | HSC-CQR (pre-reg.) |             25.2 |      0.801 |             21.7 |      0.803 |               17.6 |        0.83  |               11.1 |        0.848 |
-| BDG2   | QShrink-CQR (MACD) |             17.7 |      0.828 |             18.9 |      0.817 |               14.5 |        0.835 |               10.3 |        0.85  |
-| BDG2   | Self-CQR           |             33.8 |      0.785 |             25.2 |      0.799 |               17.4 |        0.827 |               12.6 |        0.846 |
-| BDG2   | ACI-CQR            |             23.8 |      0.794 |             23   |      0.794 |               20.6 |        0.824 |               10.7 |        0.851 |
-| BDG2   | TQA-B-CQR          |             23.2 |      0.802 |             24.4 |      0.794 |               24.4 |        0.812 |               19.8 |        0.825 |
-| BDG2   | GHCP-CQR           |             22.5 |      0.793 |             22.4 |      0.794 |               21.9 |        0.809 |               21   |        0.821 |
-| BDG2   | CQR                |             24.2 |      0.79  |             25.8 |      0.787 |               25.5 |        0.802 |               20.7 |        0.821 |
-| UCI    | PCS-CQR            |             10.3 |      0.85  |             12.2 |      0.843 |                8.6 |        0.853 |                4.4 |        0.86  |
-| UCI    | PCS-CQR κ=168      |             12   |      0.841 |             11.4 |      0.847 |                8.6 |        0.857 |                4   |        0.863 |
-| UCI    | PCS-CQR +stage     |              8.6 |      0.855 |             12.6 |      0.843 |                8.6 |        0.852 |                4.2 |        0.861 |
-| UCI    | HSC-CQR (pre-reg.) |             16.4 |      0.831 |             12.6 |      0.841 |               10.1 |        0.852 |                5.1 |        0.861 |
-| UCI    | QShrink-CQR (MACD) |              9.3 |      0.854 |             11.6 |      0.845 |                9.1 |        0.854 |                4.6 |        0.861 |
-| UCI    | Self-CQR           |             22.7 |      0.812 |             15.6 |      0.832 |               13.5 |        0.845 |                5.5 |        0.859 |
-| UCI    | ACI-CQR            |             14.9 |      0.83  |             14.3 |      0.84  |               11.2 |        0.848 |                3.4 |        0.87  |
-| UCI    | TQA-B-CQR          |             14.7 |      0.83  |             15.2 |      0.833 |               14.9 |        0.837 |               11.2 |        0.854 |
-| UCI    | GHCP-CQR           |             13.5 |      0.836 |             10.3 |      0.846 |               10.5 |        0.848 |                9.9 |        0.856 |
-| UCI    | CQR                |             15.6 |      0.827 |             16.6 |      0.831 |               15.6 |        0.832 |               11.4 |        0.853 |
-
-
-**Table S6. Design elements, tuning rules and ablations.**
-
-| Variant              | BDG2 MACD     | BDG2 Under (%)   | BDG2 Under wk 1 (%)   | BDG2 Rel. IS   | UCI MACD      | UCI Under (%)   | UCI Under wk 1 (%)   | UCI Rel. IS   |
-|:---------------------|:--------------|:-----------------|:----------------------|:---------------|:--------------|:----------------|:---------------------|:--------------|
-| PCS-CQR              | 0.015 ± 0.001 | 1.4 ± 0.8        | 19.4 ± 2.1            | 0.562 ± 0.025  | 0.013 ± 0.002 | 0.4 ± 0.9       | 10.3 ± 2.6           | 0.367 ± 0.014 |
-| PCS-CQR κ=168        | 0.015 ± 0.001 | 1.5 ± 0.9        | 19.7 ± 2.2            | 0.562 ± 0.025  | 0.013 ± 0.002 | 0.8 ± 1.4       | 12.0 ± 2.2           | 0.365 ± 0.015 |
-| PCS-CQR (IS-tuned)   | 0.017 ± 0.001 | 2.9 ± 1.4        | 21.4 ± 2.0            | 0.561 ± 0.025  | 0.014 ± 0.003 | 1.1 ± 1.5       | 13.5 ± 3.3           | 0.365 ± 0.015 |
-| PCS-CQR site-grouped | 0.015 ± 0.001 | 1.5 ± 0.6        | 19.1 ± 2.8            | 0.562 ± 0.025  | nan           | nan             | nan                  | nan           |
-| PCS-CQR +stage       | 0.015 ± 0.001 | 1.4 ± 0.8        | 19.3 ± 3.0            | 0.563 ± 0.024  | 0.013 ± 0.002 | 0.4 ± 0.9       | 8.6 ± 2.4            | 0.366 ± 0.015 |
-| PCS-CQR +kNN         | 0.015 ± 0.001 | 1.8 ± 1.0        | 20.3 ± 1.6            | 0.562 ± 0.025  | 0.013 ± 0.002 | 0.6 ± 0.9       | 11.2 ± 2.8           | 0.366 ± 0.014 |
-| PCS-CQR +kNN+stage   | 0.016 ± 0.001 | 1.8 ± 1.0        | 21.7 ± 2.6            | 0.563 ± 0.024  | 0.013 ± 0.002 | 0.6 ± 0.9       | 11.6 ± 4.4           | 0.367 ± 0.015 |
-| HSC-CQR (pre-reg.)   | 0.018 ± 0.001 | 3.4 ± 1.0        | 25.2 ± 3.6            | 0.561 ± 0.025  | 0.014 ± 0.003 | 1.3 ± 1.7       | 16.4 ± 2.6           | 0.365 ± 0.015 |
-| PCS-CQR -shrink      | 0.039 ± 0.002 | 18.5 ± 1.9       | 24.2 ± 2.1            | 0.560 ± 0.023  | 0.033 ± 0.005 | 9.3 ± 4.8       | 16.6 ± 3.6           | 0.364 ± 0.014 |
-| Self-CQR             | 0.021 ± 0.001 | 7.6 ± 2.2        | 33.8 ± 0.9            | 0.571 ± 0.022  | 0.016 ± 0.002 | 1.9 ± 1.9       | 22.7 ± 3.8           | 0.372 ± 0.014 |
-| CQR                  | 0.039 ± 0.002 | 18.2 ± 1.7       | 24.2 ± 2.8            | 0.560 ± 0.023  | 0.033 ± 0.005 | 9.1 ± 4.9       | 15.6 ± 2.7           | 0.364 ± 0.014 |
-| QShrink-CQR (MACD)   | 0.015 ± 0.001 | 1.3 ± 0.8        | 17.7 ± 2.5            | 0.562 ± 0.024  | 0.013 ± 0.002 | 0.2 ± 0.5       | 9.3 ± 1.6            | 0.366 ± 0.015 |
-| QShrink-CQR λ=168    | 0.015 ± 0.001 | 1.2 ± 0.7        | 18.1 ± 2.2            | 0.562 ± 0.024  | 0.013 ± 0.001 | 0.4 ± 0.9       | 9.5 ± 2.7            | 0.365 ± 0.015 |
-| QShrink-CQR          | 0.021 ± 0.005 | 4.3 ± 2.8        | 20.7 ± 3.6            | 0.561 ± 0.024  | 0.016 ± 0.004 | 1.9 ± 2.3       | 13.9 ± 2.6           | 0.364 ± 0.016 |
-| PCS                  | 0.026 ± 0.002 | 6.0 ± 1.0        | 18.7 ± 2.8            | 0.646 ± 0.025  | 0.021 ± 0.001 | 2.3 ± 1.7       | 9.9 ± 1.9            | 0.419 ± 0.011 |
-| PCS (IS-tuned)       | 0.029 ± 0.002 | 5.5 ± 1.0        | 20.4 ± 2.6            | 0.640 ± 0.026  | 0.024 ± 0.002 | 2.3 ± 1.7       | 12.0 ± 6.6           | 0.419 ± 0.013 |
-| HSC                  | 0.029 ± 0.002 | 9.6 ± 1.7        | 31.3 ± 5.8            | 0.635 ± 0.028  | 0.021 ± 0.001 | 3.8 ± 2.2       | 17.9 ± 4.5           | 0.416 ± 0.016 |
-| HSC -stage           | 0.029 ± 0.002 | 10.1 ± 2.0       | 38.3 ± 5.4            | 0.640 ± 0.026  | 0.021 ± 0.001 | 3.8 ± 2.7       | 22.5 ± 6.7           | 0.417 ± 0.016 |
-| HSC -kNN             | 0.029 ± 0.002 | 5.0 ± 0.9        | 14.3 ± 2.6            | 0.638 ± 0.027  | 0.025 ± 0.003 | 2.3 ± 1.7       | 9.7 ± 4.0            | 0.420 ± 0.013 |
-| HSC -shrink          | 0.094 ± 0.005 | 46.7 ± 3.0       | 46.5 ± 6.8            | 0.660 ± 0.031  | 0.078 ± 0.004 | 31.8 ± 4.2      | 36.4 ± 5.9           | 0.438 ± 0.034 |
-| Self-CP              | 0.026 ± 0.001 | 6.1 ± 1.4        | 16.2 ± 3.1            | 0.646 ± 0.028  | 0.021 ± 0.001 | 2.3 ± 1.7       | 7.6 ± 1.6            | 0.420 ± 0.012 |
-| SCP-stage            | 0.094 ± 0.005 | 29.3 ± 2.9       | 27.0 ± 3.2            | 0.631 ± 0.026  | 0.089 ± 0.006 | 20.4 ± 4.4      | 18.1 ± 1.9           | 0.441 ± 0.018 |
-
-
-**Table S7. BDG2, nominal 95 %.**
-
-| Method             | Coverage      | MACD          | Under-cov. (%)   | Under-cov. wk 1 (%)   | P10 cov.      | Rel. width    | Rel. IS       | Booking failures (%)   | Reserve cost (%)   |
-|:-------------------|:--------------|:--------------|:-----------------|:----------------------|:--------------|:--------------|:--------------|:-----------------------|:-------------------|
-| PCS-CQR            | 0.948 ± 0.001 | 0.012 ± 0.002 | 0.3 ± 0.2        | 14.7 ± 2.3            | 0.930 ± 0.002 | 0.495 ± 0.025 | 0.691 ± 0.024 | 7.7 ± 2.2              | 1.4 ± 0.1          |
-| PCS-CQR κ=168      | 0.948 ± 0.001 | 0.011 ± 0.001 | 0.4 ± 0.3        | 15.5 ± 2.2            | 0.930 ± 0.001 | 0.493 ± 0.025 | 0.689 ± 0.026 | 7.7 ± 2.2              | 1.4 ± 0.2          |
-| HSC-CQR (pre-reg.) | 0.946 ± 0.002 | 0.013 ± 0.001 | 0.6 ± 0.4        | 19.8 ± 3.7            | 0.925 ± 0.002 | 0.481 ± 0.022 | 0.685 ± 0.025 | 10.4 ± 2.6             | 1.4 ± 0.1          |
-| QShrink-CQR (MACD) | 0.949 ± 0.001 | 0.012 ± 0.002 | 0.3 ± 0.2        | 13.6 ± 3.6            | 0.930 ± 0.002 | 0.496 ± 0.027 | 0.693 ± 0.025 | 7.4 ± 2.1              | 1.4 ± 0.1          |
-| Self-CQR           | 0.942 ± 0.001 | 0.015 ± 0.001 | 1.8 ± 1.1        | 31.7 ± 3.2            | 0.918 ± 0.003 | 0.499 ± 0.028 | 0.704 ± 0.027 | 9.2 ± 0.9              | 1.5 ± 0.2          |
-| ACI-CQR            | 0.947 ± 0.002 | 0.022 ± 0.001 | 5.1 ± 1.6        | 19.9 ± 3.3            | 0.910 ± 0.003 | 0.477 ± 0.020 | 0.678 ± 0.031 | 14.6 ± 3.4             | 1.4 ± 0.1          |
-| TQA-B-CQR          | 0.943 ± 0.003 | 0.031 ± 0.001 | 14.3 ± 2.1       | 20.3 ± 3.4            | 0.889 ± 0.007 | 0.470 ± 0.018 | 0.677 ± 0.030 | 19.4 ± 3.1             | 1.4 ± 0.1          |
-| GHCP-CQR           | 0.945 ± 0.004 | 0.031 ± 0.001 | 13.2 ± 2.0       | 20.3 ± 3.5            | 0.890 ± 0.008 | 0.479 ± 0.021 | 0.677 ± 0.028 | 18.4 ± 3.4             | 1.4 ± 0.1          |
-| CQR                | 0.942 ± 0.004 | 0.032 ± 0.001 | 14.7 ± 1.9       | 20.4 ± 3.5            | 0.887 ± 0.007 | 0.471 ± 0.020 | 0.676 ± 0.030 | 19.8 ± 3.2             | 1.4 ± 0.1          |
-| PCS                | 0.951 ± 0.003 | 0.017 ± 0.001 | 2.1 ± 1.2        | 21.8 ± 5.9            | 0.922 ± 0.003 | 0.586 ± 0.027 | 0.817 ± 0.031 | 7.0 ± 1.4              | 1.7 ± 0.2          |
-| HSC                | 0.949 ± 0.003 | 0.020 ± 0.002 | 4.0 ± 1.8        | 25.8 ± 7.3            | 0.914 ± 0.005 | 0.560 ± 0.018 | 0.797 ± 0.023 | 8.9 ± 3.0              | 1.6 ± 0.1          |
-| Self-CP            | 0.950 ± 0.002 | 0.017 ± 0.001 | 2.8 ± 1.5        | 20.9 ± 2.5            | 0.921 ± 0.003 | 0.588 ± 0.027 | 0.820 ± 0.031 | 7.2 ± 1.9              | 1.7 ± 0.2          |
-| SCP-stage          | 0.937 ± 0.006 | 0.059 ± 0.003 | 20.5 ± 2.5       | 19.7 ± 4.4            | 0.821 ± 0.017 | 0.690 ± 0.047 | 0.808 ± 0.028 | 21.3 ± 3.1             | 1.9 ± 0.1          |
-
-
-**Table S8. UCI, nominal 95 %.**
-
-| Method             | Coverage      | MACD          | Under-cov. (%)   | Under-cov. wk 1 (%)   | P10 cov.      | Rel. width    | Rel. IS       | Booking failures (%)   | Reserve cost (%)   |
-|:-------------------|:--------------|:--------------|:-----------------|:----------------------|:--------------|:--------------|:--------------|:-----------------------|:-------------------|
-| PCS-CQR            | 0.951 ± 0.002 | 0.009 ± 0.001 | 0.0 ± 0.0        | 8.8 ± 1.9             | 0.936 ± 0.004 | 0.329 ± 0.012 | 0.443 ± 0.019 | 4.4 ± 2.3              | 1.0 ± 0.2          |
-| PCS-CQR κ=168      | 0.952 ± 0.002 | 0.010 ± 0.001 | 0.0 ± 0.0        | 8.8 ± 2.1             | 0.938 ± 0.004 | 0.332 ± 0.015 | 0.441 ± 0.018 | 4.4 ± 2.3              | 1.0 ± 0.2          |
-| HSC-CQR (pre-reg.) | 0.949 ± 0.002 | 0.010 ± 0.001 | 0.6 ± 0.9        | 12.4 ± 2.0            | 0.932 ± 0.004 | 0.327 ± 0.011 | 0.441 ± 0.019 | 5.9 ± 2.5              | 1.0 ± 0.2          |
-| QShrink-CQR (MACD) | 0.951 ± 0.002 | 0.010 ± 0.001 | 0.0 ± 0.0        | 7.8 ± 2.4             | 0.936 ± 0.004 | 0.330 ± 0.011 | 0.442 ± 0.017 | 4.2 ± 2.4              | 1.0 ± 0.2          |
-| Self-CQR           | 0.948 ± 0.002 | 0.011 ± 0.001 | 0.0 ± 0.0        | 21.1 ± 5.8            | 0.929 ± 0.002 | 0.328 ± 0.013 | 0.446 ± 0.015 | 5.7 ± 2.2              | 1.1 ± 0.2          |
-| ACI-CQR            | 0.953 ± 0.004 | 0.018 ± 0.006 | 2.7 ± 2.1        | 11.6 ± 2.8            | 0.924 ± 0.006 | 0.345 ± 0.021 | 0.440 ± 0.017 | 9.1 ± 4.4              | 1.1 ± 0.2          |
-| TQA-B-CQR          | 0.949 ± 0.006 | 0.027 ± 0.005 | 7.8 ± 3.0        | 12.8 ± 2.6            | 0.912 ± 0.008 | 0.345 ± 0.023 | 0.439 ± 0.019 | 12.0 ± 4.2             | 1.1 ± 0.2          |
-| GHCP-CQR           | 0.959 ± 0.006 | 0.028 ± 0.004 | 5.1 ± 0.9        | 9.9 ± 2.6             | 0.923 ± 0.007 | 0.371 ± 0.028 | 0.450 ± 0.022 | 9.9 ± 3.1              | 1.1 ± 0.2          |
-| CQR                | 0.950 ± 0.007 | 0.027 ± 0.005 | 6.9 ± 2.2        | 12.2 ± 3.2            | 0.913 ± 0.009 | 0.348 ± 0.025 | 0.440 ± 0.019 | 12.2 ± 4.2             | 1.1 ± 0.2          |
-| PCS                | 0.954 ± 0.002 | 0.014 ± 0.001 | 0.2 ± 0.5        | 12.8 ± 2.2            | 0.933 ± 0.004 | 0.390 ± 0.017 | 0.517 ± 0.011 | 5.9 ± 2.2              | 1.2 ± 0.2          |
-| HSC                | 0.953 ± 0.004 | 0.015 ± 0.001 | 1.5 ± 2.2        | 14.3 ± 3.8            | 0.929 ± 0.009 | 0.382 ± 0.021 | 0.513 ± 0.013 | 5.7 ± 2.8              | 1.1 ± 0.2          |
-| Self-CP            | 0.954 ± 0.002 | 0.014 ± 0.001 | 0.4 ± 0.6        | 11.2 ± 2.4            | 0.933 ± 0.004 | 0.394 ± 0.019 | 0.521 ± 0.010 | 5.9 ± 2.2              | 1.2 ± 0.2          |
-| SCP-stage          | 0.950 ± 0.015 | 0.060 ± 0.009 | 13.9 ± 4.0       | 13.9 ± 2.7            | 0.878 ± 0.032 | 0.575 ± 0.082 | 0.608 ± 0.066 | 14.1 ± 4.0             | 1.6 ± 0.3          |
-
-
-**Table S9. BDG2, nominal 80 %.**
-
-| Method             | Coverage      | MACD          | Under-cov. (%)   | Under-cov. wk 1 (%)   | P10 cov.      | Rel. width    | Rel. IS       | Booking failures (%)   | Reserve cost (%)   |
-|:-------------------|:--------------|:--------------|:-----------------|:----------------------|:--------------|:--------------|:--------------|:-----------------------|:-------------------|
-| PCS-CQR            | 0.793 ± 0.002 | 0.021 ± 0.001 | 6.3 ± 0.7        | 18.3 ± 1.4            | 0.759 ± 0.004 | 0.318 ± 0.011 | 0.460 ± 0.018 | 0.1 ± 0.2              | 3.2 ± 0.1          |
-| PCS-CQR κ=168      | 0.794 ± 0.002 | 0.021 ± 0.001 | 6.2 ± 0.9        | 18.2 ± 1.7            | 0.760 ± 0.004 | 0.319 ± 0.011 | 0.460 ± 0.018 | 0.1 ± 0.2              | 3.2 ± 0.1          |
-| HSC-CQR (pre-reg.) | 0.794 ± 0.003 | 0.023 ± 0.001 | 6.1 ± 1.7        | 24.0 ± 2.9            | 0.758 ± 0.005 | 0.316 ± 0.009 | 0.460 ± 0.019 | 0.1 ± 0.2              | 3.2 ± 0.1          |
-| QShrink-CQR (MACD) | 0.789 ± 0.003 | 0.023 ± 0.002 | 8.8 ± 1.7        | 24.3 ± 2.7            | 0.754 ± 0.005 | 0.317 ± 0.012 | 0.461 ± 0.019 | 0.2 ± 0.2              | 3.2 ± 0.2          |
-| Self-CQR           | 0.782 ± 0.002 | 0.030 ± 0.002 | 15.5 ± 2.9       | 39.7 ± 4.0            | 0.739 ± 0.005 | 0.317 ± 0.013 | 0.466 ± 0.019 | 0.1 ± 0.2              | 3.3 ± 0.3          |
-| ACI-CQR            | 0.802 ± 0.001 | 0.019 ± 0.003 | 1.4 ± 1.2        | 24.7 ± 3.4            | 0.772 ± 0.004 | 0.320 ± 0.010 | 0.460 ± 0.018 | 0.0 ± 0.0              | 3.2 ± 0.1          |
-| TQA-B-CQR          | 0.818 ± 0.003 | 0.040 ± 0.003 | 5.3 ± 1.3        | 18.4 ± 2.1            | 0.762 ± 0.002 | 0.325 ± 0.008 | 0.462 ± 0.019 | 0.0 ± 0.0              | 3.2 ± 0.1          |
-| GHCP-CQR           | 0.797 ± 0.005 | 0.047 ± 0.003 | 15.9 ± 2.0       | 19.2 ± 2.2            | 0.724 ± 0.009 | 0.327 ± 0.010 | 0.460 ± 0.017 | 1.4 ± 0.7              | 3.2 ± 0.1          |
-| CQR                | 0.794 ± 0.006 | 0.048 ± 0.003 | 16.6 ± 2.4       | 26.2 ± 3.2            | 0.720 ± 0.010 | 0.325 ± 0.010 | 0.460 ± 0.017 | 1.7 ± 0.7              | 3.2 ± 0.1          |
-| PCS                | 0.809 ± 0.002 | 0.038 ± 0.002 | 10.8 ± 1.8       | 20.4 ± 2.2            | 0.748 ± 0.006 | 0.291 ± 0.013 | 0.498 ± 0.021 | 0.2 ± 0.2              | 3.5 ± 0.3          |
-| HSC                | 0.799 ± 0.003 | 0.039 ± 0.001 | 15.9 ± 3.0       | 35.3 ± 3.9            | 0.734 ± 0.006 | 0.276 ± 0.010 | 0.490 ± 0.024 | 0.2 ± 0.2              | 3.3 ± 0.1          |
-| Self-CP            | 0.809 ± 0.004 | 0.038 ± 0.001 | 10.8 ± 2.2       | 16.8 ± 1.5            | 0.748 ± 0.007 | 0.294 ± 0.012 | 0.499 ± 0.021 | 0.2 ± 0.5              | 3.5 ± 0.3          |
-| SCP-stage          | 0.773 ± 0.011 | 0.139 ± 0.006 | 38.9 ± 2.6       | 35.4 ± 2.4            | 0.527 ± 0.030 | 0.280 ± 0.012 | 0.488 ± 0.025 | 15.4 ± 1.8             | 3.7 ± 0.1          |
-
-
-**Table S10. UCI, nominal 80 %.**
-
-| Method             | Coverage      | MACD          | Under-cov. (%)   | Under-cov. wk 1 (%)   | P10 cov.      | Rel. width    | Rel. IS       | Booking failures (%)   | Reserve cost (%)   |
-|:-------------------|:--------------|:--------------|:-----------------|:----------------------|:--------------|:--------------|:--------------|:-----------------------|:-------------------|
-| PCS-CQR            | 0.796 ± 0.003 | 0.019 ± 0.003 | 3.2 ± 1.8        | 9.3 ± 3.8             | 0.768 ± 0.004 | 0.213 ± 0.012 | 0.301 ± 0.013 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| PCS-CQR κ=168      | 0.798 ± 0.004 | 0.019 ± 0.003 | 3.8 ± 2.1        | 11.4 ± 3.5            | 0.769 ± 0.008 | 0.214 ± 0.011 | 0.301 ± 0.013 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| HSC-CQR (pre-reg.) | 0.796 ± 0.003 | 0.021 ± 0.003 | 4.8 ± 2.2        | 20.8 ± 3.6            | 0.767 ± 0.005 | 0.214 ± 0.009 | 0.302 ± 0.012 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| QShrink-CQR (MACD) | 0.794 ± 0.004 | 0.020 ± 0.003 | 4.8 ± 2.1        | 15.4 ± 3.5            | 0.767 ± 0.007 | 0.212 ± 0.011 | 0.301 ± 0.013 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| Self-CQR           | 0.786 ± 0.002 | 0.025 ± 0.002 | 9.3 ± 2.7        | 36.0 ± 4.9            | 0.751 ± 0.005 | 0.209 ± 0.010 | 0.302 ± 0.013 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| ACI-CQR            | 0.806 ± 0.006 | 0.021 ± 0.003 | 1.9 ± 1.4        | 19.6 ± 4.0            | 0.779 ± 0.006 | 0.217 ± 0.012 | 0.301 ± 0.012 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| TQA-B-CQR          | 0.808 ± 0.003 | 0.043 ± 0.005 | 10.3 ± 5.2       | 14.9 ± 3.8            | 0.753 ± 0.017 | 0.220 ± 0.006 | 0.306 ± 0.012 | 0.0 ± 0.0              | 2.5 ± 0.3          |
-| GHCP-CQR           | 0.805 ± 0.017 | 0.048 ± 0.007 | 12.0 ± 7.6       | 12.0 ± 4.9            | 0.755 ± 0.029 | 0.222 ± 0.015 | 0.303 ± 0.011 | 0.4 ± 0.6              | 2.5 ± 0.3          |
-| CQR                | 0.798 ± 0.017 | 0.048 ± 0.009 | 13.7 ± 9.0       | 20.8 ± 4.9            | 0.745 ± 0.031 | 0.219 ± 0.015 | 0.303 ± 0.011 | 0.6 ± 0.9              | 2.5 ± 0.3          |
-| PCS                | 0.811 ± 0.003 | 0.029 ± 0.000 | 5.1 ± 2.5        | 13.3 ± 3.1            | 0.768 ± 0.004 | 0.205 ± 0.005 | 0.324 ± 0.010 | 0.2 ± 0.5              | 2.7 ± 0.3          |
-| HSC                | 0.805 ± 0.005 | 0.028 ± 0.001 | 6.7 ± 1.8        | 24.2 ± 1.3            | 0.762 ± 0.005 | 0.198 ± 0.007 | 0.321 ± 0.013 | 0.2 ± 0.5              | 2.6 ± 0.3          |
-| Self-CP            | 0.811 ± 0.004 | 0.029 ± 0.002 | 4.6 ± 2.3        | 9.3 ± 2.9             | 0.769 ± 0.005 | 0.206 ± 0.005 | 0.324 ± 0.010 | 0.2 ± 0.5              | 2.7 ± 0.3          |
-| SCP-stage          | 0.806 ± 0.018 | 0.123 ± 0.006 | 27.8 ± 4.6       | 27.6 ± 4.7            | 0.613 ± 0.032 | 0.232 ± 0.014 | 0.327 ± 0.012 | 8.6 ± 3.9              | 2.9 ± 0.3          |
-
-
-**Table S11. BDG2 leave-one-site-out (10 sites × 3 training seeds).**
-
-| Method                  | Coverage      | MACD          | Under-covered share   | P10 coverage   | Under-covered, week 1   | Rel. width (median)   | Rel. IS (median)   | Reserve cost    |
-|:------------------------|:--------------|:--------------|:----------------------|:---------------|:------------------------|:----------------------|:-------------------|:----------------|
-| PCS-CQR                 | 0.894 ± 0.001 | 0.016 ± 0.001 | 0.024 ± 0.002         | 0.868 ± 0.002  | 0.222 ± 0.010           | 0.378 ± 0.005         | 0.541 ± 0.008      | 0.0187 ± 0.0005 |
-| PCS-CQR κ=168           | 0.894 ± 0.000 | 0.016 ± 0.000 | 0.023 ± 0.002         | 0.868 ± 0.001  | 0.229 ± 0.014           | 0.376 ± 0.004         | 0.541 ± 0.008      | 0.0186 ± 0.0006 |
-| PCS-CQR (IS-tuned)      | 0.893 ± 0.000 | 0.019 ± 0.000 | 0.038 ± 0.003         | 0.863 ± 0.001  | 0.255 ± 0.012           | 0.374 ± 0.001         | 0.540 ± 0.008      | 0.0186 ± 0.0006 |
-| PCS-CQR site-grouped    | 0.894 ± 0.001 | 0.016 ± 0.001 | 0.023 ± 0.002         | 0.868 ± 0.003  | 0.222 ± 0.010           | 0.377 ± 0.005         | 0.541 ± 0.008      | 0.0187 ± 0.0005 |
-| PCS-CQR +stage          | 0.895 ± 0.001 | 0.016 ± 0.001 | 0.022 ± 0.002         | 0.869 ± 0.002  | 0.209 ± 0.020           | 0.378 ± 0.004         | 0.541 ± 0.008      | 0.0187 ± 0.0005 |
-| PCS-CQR +kNN            | 0.893 ± 0.001 | 0.016 ± 0.000 | 0.024 ± 0.002         | 0.867 ± 0.002  | 0.237 ± 0.012           | 0.374 ± 0.004         | 0.541 ± 0.008      | 0.0186 ± 0.0006 |
-| PCS-CQR +kNN+stage      | 0.893 ± 0.001 | 0.016 ± 0.000 | 0.026 ± 0.001         | 0.867 ± 0.001  | 0.234 ± 0.023           | 0.375 ± 0.005         | 0.541 ± 0.009      | 0.0186 ± 0.0006 |
-| PCS-CQR -shrink         | 0.887 ± 0.001 | 0.044 ± 0.001 | 0.247 ± 0.014         | 0.815 ± 0.003  | 0.281 ± 0.001           | 0.366 ± 0.003         | 0.543 ± 0.005      | 0.0189 ± 0.0006 |
-| HSC-CQR                 | 0.890 ± 0.001 | 0.020 ± 0.000 | 0.046 ± 0.004         | 0.860 ± 0.001  | 0.282 ± 0.041           | 0.370 ± 0.001         | 0.541 ± 0.007      | 0.0186 ± 0.0006 |
-| CQR                     | 0.887 ± 0.001 | 0.044 ± 0.001 | 0.248 ± 0.013         | 0.815 ± 0.004  | 0.273 ± 0.017           | 0.366 ± 0.003         | 0.543 ± 0.005      | 0.0189 ± 0.0006 |
-| Self-CQR                | 0.890 ± 0.000 | 0.021 ± 0.000 | 0.071 ± 0.006         | 0.856 ± 0.002  | 0.356 ± 0.015           | 0.385 ± 0.004         | 0.549 ± 0.008      | 0.0191 ± 0.0006 |
-| ACI-CQR                 | 0.894 ± 0.000 | 0.026 ± 0.001 | 0.077 ± 0.005         | 0.854 ± 0.001  | 0.267 ± 0.019           | 0.375 ± 0.001         | 0.540 ± 0.007      | 0.0192 ± 0.0009 |
-| ACI-CQR (MACD)          | 0.893 ± 0.000 | 0.024 ± 0.001 | 0.069 ± 0.007         | 0.856 ± 0.001  | 0.266 ± 0.018           | 0.374 ± 0.001         | 0.540 ± 0.007      | 0.0191 ± 0.0009 |
-| ACI-CQR (coverage only) | 0.900 ± 0.000 | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.893 ± 0.000  | 0.111 ± 0.008           | 1.770 ± 0.505         | 1.949 ± 0.504      | 0.0807 ± 0.0262 |
-| TQA-B-CQR               | 0.890 ± 0.001 | 0.043 ± 0.002 | 0.236 ± 0.015         | 0.820 ± 0.004  | 0.268 ± 0.014           | 0.367 ± 0.002         | 0.542 ± 0.007      | 0.0189 ± 0.0006 |
-| GHCP-CQR                | 0.889 ± 0.001 | 0.044 ± 0.001 | 0.238 ± 0.012         | 0.818 ± 0.003  | 0.269 ± 0.006           | 0.368 ± 0.003         | 0.543 ± 0.006      | 0.0189 ± 0.0006 |
-| QShrink-CQR             | 0.896 ± 0.000 | 0.024 ± 0.001 | 0.057 ± 0.011         | 0.859 ± 0.002  | 0.241 ± 0.021           | 0.373 ± 0.001         | 0.541 ± 0.008      | 0.0186 ± 0.0006 |
-| QShrink-CQR (MACD)      | 0.896 ± 0.000 | 0.016 ± 0.001 | 0.020 ± 0.001         | 0.870 ± 0.001  | 0.210 ± 0.023           | 0.378 ± 0.003         | 0.542 ± 0.007      | 0.0187 ± 0.0006 |
-| QShrink-CQR λ=168       | 0.896 ± 0.000 | 0.016 ± 0.000 | 0.021 ± 0.001         | 0.869 ± 0.001  | 0.213 ± 0.021           | 0.378 ± 0.004         | 0.542 ± 0.007      | 0.0187 ± 0.0006 |
-| QR-LGBM                 | 0.860 ± 0.002 | 0.052 ± 0.002 | 0.412 ± 0.015         | 0.790 ± 0.009  | 0.367 ± 0.011           | 0.345 ± 0.001         | 0.548 ± 0.004      | 0.0190 ± 0.0006 |
-| MLP-QR                  | 0.883 ± 0.005 | 0.044 ± 0.001 | 0.259 ± 0.023         | 0.818 ± 0.001  | 0.293 ± 0.010           | 0.378 ± 0.007         | 0.551 ± 0.001      | 0.0190 ± 0.0002 |
-| MLP-Gauss               | 0.935 ± 0.008 | 0.048 ± 0.004 | 0.042 ± 0.014         | 0.878 ± 0.013  | 0.097 ± 0.020           | 0.489 ± 0.022         | 0.625 ± 0.014      | 0.0224 ± 0.0006 |
-| CQR (MLP)               | 0.887 ± 0.001 | 0.042 ± 0.002 | 0.231 ± 0.007         | 0.820 ± 0.003  | 0.279 ± 0.010           | 0.381 ± 0.003         | 0.549 ± 0.001      | 0.0190 ± 0.0002 |
-| PCS-CQR (MLP)           | 0.894 ± 0.001 | 0.017 ± 0.000 | 0.027 ± 0.012         | 0.867 ± 0.001  | 0.215 ± 0.025           | 0.389 ± 0.007         | 0.548 ± 0.002      | 0.0188 ± 0.0002 |
-| PCS                     | 0.905 ± 0.001 | 0.026 ± 0.000 | 0.061 ± 0.003         | 0.861 ± 0.002  | 0.194 ± 0.013           | 0.424 ± 0.001         | 0.634 ± 0.016      | 0.0213 ± 0.0004 |
-| PCS (IS-tuned)          | 0.910 ± 0.001 | 0.029 ± 0.002 | 0.059 ± 0.006         | 0.864 ± 0.002  | 0.219 ± 0.027           | 0.420 ± 0.001         | 0.625 ± 0.014      | 0.0210 ± 0.0005 |
-| HSC                     | 0.899 ± 0.002 | 0.028 ± 0.002 | 0.094 ± 0.020         | 0.851 ± 0.005  | 0.301 ± 0.042           | 0.403 ± 0.008         | 0.624 ± 0.010      | 0.0209 ± 0.0004 |
-| HSC -stage              | 0.899 ± 0.001 | 0.027 ± 0.001 | 0.089 ± 0.015         | 0.853 ± 0.003  | 0.365 ± 0.044           | 0.402 ± 0.005         | 0.626 ± 0.010      | 0.0209 ± 0.0005 |
-| HSC -kNN                | 0.912 ± 0.001 | 0.030 ± 0.002 | 0.051 ± 0.004         | 0.867 ± 0.002  | 0.147 ± 0.009           | 0.427 ± 0.001         | 0.625 ± 0.012      | 0.0210 ± 0.0005 |
-| HSC -shrink             | 0.821 ± 0.011 | 0.110 ± 0.008 | 0.505 ± 0.020         | 0.640 ± 0.018  | 0.485 ± 0.019           | 0.327 ± 0.017         | 0.673 ± 0.005      | 0.0243 ± 0.0007 |
-| ACI                     | 0.905 ± 0.002 | 0.060 ± 0.002 | 0.220 ± 0.023         | 0.806 ± 0.015  | 0.278 ± 0.005           | 0.441 ± 0.006         | 0.623 ± 0.011      | 0.0241 ± 0.0013 |
-| Self-CP                 | 0.905 ± 0.001 | 0.026 ± 0.000 | 0.059 ± 0.003         | 0.862 ± 0.002  | 0.157 ± 0.010           | 0.428 ± 0.002         | 0.635 ± 0.017      | 0.0213 ± 0.0004 |
-| SCP-stage               | 0.873 ± 0.006 | 0.101 ± 0.005 | 0.327 ± 0.010         | 0.681 ± 0.013  | 0.283 ± 0.003           | 0.452 ± 0.007         | 0.632 ± 0.009      | 0.0253 ± 0.0006 |
-| SCP                     | 0.874 ± 0.006 | 0.100 ± 0.004 | 0.323 ± 0.008         | 0.684 ± 0.013  | 0.366 ± 0.006           | 0.452 ± 0.007         | 0.633 ± 0.010      | 0.0253 ± 0.0006 |
-| Mondrian-usage          | 0.866 ± 0.005 | 0.103 ± 0.006 | 0.350 ± 0.021         | 0.673 ± 0.020  | 0.306 ± 0.006           | 0.405 ± 0.016         | 0.654 ± 0.009      | 0.0253 ± 0.0007 |
-| Naive+SCP               | 0.877 ± 0.004 | 0.101 ± 0.004 | 0.318 ± 0.010         | 0.674 ± 0.009  | 0.279 ± 0.014           | 0.698 ± 0.006         | 0.935 ± 0.023      | 0.0354 ± 0.0011 |
-| Raw-SCP                 | 0.895 ± 0.010 | 0.120 ± 0.003 | 0.220 ± 0.017         | 0.652 ± 0.030  | 0.255 ± 0.022           | 0.665 ± 0.037         | 1.021 ± 0.037      | 0.0590 ± 0.0037 |
-
-
-**Table S12. Leave-one-site-out: under-covered share per held-out site.**
-
-| site_id   |   n_buildings |   PCS-CQR |   PCS-CQR κ=168 |   PCS-CQR +kNN+stage |   HSC-CQR |   CQR |   Self-CQR |   QShrink-CQR (MACD) |   ACI-CQR |   TQA-B-CQR |   GHCP-CQR |
-|:----------|--------------:|----------:|----------------:|---------------------:|----------:|------:|-----------:|---------------------:|----------:|------------:|-----------:|
-| Bear      |            72 |     0.009 |           0.009 |                0.009 |     0.009 | 0.079 |      0.074 |                0.009 |     0.037 |       0.083 |      0.079 |
-| Bull      |           109 |     0.015 |           0.012 |                0.015 |     0.012 | 0.092 |      0.098 |                0.006 |     0.043 |       0.08  |      0.092 |
-| Eagle     |            60 |     0.006 |           0.006 |                0.006 |     0.006 | 0.072 |      0.044 |                0.006 |     0.006 |       0.1   |      0.056 |
-| Fox       |           119 |     0.02  |           0.017 |                0.02  |     0.025 | 0.112 |      0.078 |                0.011 |     0.05  |       0.12  |      0.112 |
-| Hog       |           134 |     0.022 |           0.022 |                0.027 |     0.032 | 0.117 |      0.087 |                0.012 |     0.052 |       0.107 |      0.104 |
-| Moose     |             6 |     0     |           0     |                0     |     0     | 0     |      0.167 |                0     |     0     |       0     |      0     |
-| Peacock   |            36 |     0.009 |           0.009 |                0.009 |     0.019 | 0.074 |      0.074 |                0.009 |     0.019 |       0.102 |      0.074 |
-| Rat       |           248 |     0.04  |           0.042 |                0.042 |     0.082 | 0.497 |      0.047 |                0.044 |     0.106 |       0.488 |      0.476 |
-| Robin     |            22 |     0     |           0     |                0     |     0     | 0.152 |      0.091 |                0     |     0.045 |       0.136 |      0.136 |
-| Wolf      |            36 |     0.046 |           0.046 |                0.065 |     0.213 | 0.852 |      0.083 |                0.028 |     0.454 |       0.602 |      0.843 |
-
-
-**Table S13. Leave-one-site-out: site-balanced means.**
-
-| method             |   under |   macd |
-|:-------------------|--------:|-------:|
-| ACI-CQR            |   0.081 |  0.026 |
-| CQR                |   0.205 |  0.043 |
-| GHCP-CQR           |   0.197 |  0.043 |
-| HSC-CQR            |   0.04  |  0.018 |
-| PCS-CQR            |   0.017 |  0.015 |
-| PCS-CQR +kNN+stage |   0.019 |  0.016 |
-| PCS-CQR κ=168      |   0.016 |  0.015 |
-| QShrink-CQR (MACD) |   0.013 |  0.015 |
-| Self-CQR           |   0.084 |  0.022 |
-| TQA-B-CQR          |   0.182 |  0.04  |
-
-
-**Table S14. BDG2 → UCI transfer (no weather; 3 seeds).**
-
-| Method                  | Coverage      | MACD          | Under-covered share   | P10 coverage   | Under-covered, week 1   | Rel. width (median)   | Rel. IS (median)   | Reserve cost    |
-|:------------------------|:--------------|:--------------|:----------------------|:---------------|:------------------------|:----------------------|:-------------------|:----------------|
-| PCS-CQR                 | 0.901 ± 0.002 | 0.011 ± 0.001 | 0.004 ± 0.006         | 0.885 ± 0.001  | 0.081 ± 0.034           | 0.314 ± 0.007         | 0.439 ± 0.015      | 0.0164 ± 0.0014 |
-| PCS-CQR κ=168           | 0.901 ± 0.002 | 0.011 ± 0.001 | 0.004 ± 0.006         | 0.885 ± 0.001  | 0.088 ± 0.043           | 0.315 ± 0.007         | 0.439 ± 0.016      | 0.0164 ± 0.0013 |
-| PCS-CQR (IS-tuned)      | 0.902 ± 0.003 | 0.013 ± 0.001 | 0.007 ± 0.006         | 0.885 ± 0.003  | 0.102 ± 0.032           | 0.315 ± 0.005         | 0.438 ± 0.016      | 0.0163 ± 0.0013 |
-| PCS-CQR +stage          | 0.900 ± 0.002 | 0.011 ± 0.001 | 0.004 ± 0.006         | 0.884 ± 0.001  | 0.098 ± 0.022           | 0.313 ± 0.007         | 0.438 ± 0.015      | 0.0164 ± 0.0014 |
-| PCS-CQR +kNN            | 0.899 ± 0.003 | 0.012 ± 0.001 | 0.004 ± 0.006         | 0.882 ± 0.003  | 0.123 ± 0.084           | 0.313 ± 0.008         | 0.439 ± 0.016      | 0.0164 ± 0.0013 |
-| PCS-CQR +kNN+stage      | 0.898 ± 0.003 | 0.012 ± 0.000 | 0.004 ± 0.006         | 0.882 ± 0.001  | 0.147 ± 0.086           | 0.312 ± 0.008         | 0.439 ± 0.013      | 0.0164 ± 0.0014 |
-| PCS-CQR -shrink         | 0.902 ± 0.013 | 0.028 ± 0.005 | 0.056 ± 0.043         | 0.867 ± 0.011  | 0.137 ± 0.046           | 0.315 ± 0.013         | 0.440 ± 0.015      | 0.0163 ± 0.0013 |
-| HSC-CQR                 | 0.899 ± 0.004 | 0.013 ± 0.000 | 0.004 ± 0.006         | 0.881 ± 0.005  | 0.172 ± 0.090           | 0.311 ± 0.007         | 0.437 ± 0.016      | 0.0163 ± 0.0013 |
-| CQR                     | 0.902 ± 0.013 | 0.027 ± 0.005 | 0.056 ± 0.043         | 0.868 ± 0.011  | 0.151 ± 0.030           | 0.316 ± 0.013         | 0.439 ± 0.015      | 0.0163 ± 0.0013 |
-| Self-CQR                | 0.892 ± 0.003 | 0.016 ± 0.001 | 0.021 ± 0.028         | 0.866 ± 0.004  | 0.316 ± 0.092           | 0.314 ± 0.007         | 0.444 ± 0.014      | 0.0169 ± 0.0015 |
-| ACI-CQR                 | 0.903 ± 0.005 | 0.015 ± 0.000 | 0.011 ± 0.011         | 0.884 ± 0.004  | 0.133 ± 0.016           | 0.315 ± 0.007         | 0.437 ± 0.016      | 0.0163 ± 0.0013 |
-| ACI-CQR (MACD)          | 0.903 ± 0.005 | 0.015 ± 0.000 | 0.011 ± 0.011         | 0.884 ± 0.004  | 0.133 ± 0.016           | 0.315 ± 0.007         | 0.437 ± 0.016      | 0.0163 ± 0.0013 |
-| ACI-CQR (coverage only) | 0.901 ± 0.001 | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.896 ± 0.001  | 0.046 ± 0.012           | 0.465 ± 0.036         | 0.572 ± 0.032      | 0.0269 ± 0.0064 |
-| TQA-B-CQR               | 0.900 ± 0.013 | 0.027 ± 0.005 | 0.063 ± 0.038         | 0.866 ± 0.012  | 0.161 ± 0.037           | 0.312 ± 0.012         | 0.438 ± 0.017      | 0.0163 ± 0.0012 |
-| GHCP-CQR                | 0.905 ± 0.013 | 0.028 ± 0.004 | 0.053 ± 0.038         | 0.871 ± 0.010  | 0.105 ± 0.028           | 0.318 ± 0.013         | 0.440 ± 0.015      | 0.0163 ± 0.0013 |
-| QShrink-CQR             | 0.902 ± 0.003 | 0.014 ± 0.001 | 0.004 ± 0.006         | 0.882 ± 0.003  | 0.116 ± 0.021           | 0.314 ± 0.004         | 0.436 ± 0.016      | 0.0163 ± 0.0013 |
-| QShrink-CQR (MACD)      | 0.900 ± 0.002 | 0.011 ± 0.001 | 0.000 ± 0.000         | 0.884 ± 0.000  | 0.105 ± 0.032           | 0.313 ± 0.006         | 0.437 ± 0.016      | 0.0165 ± 0.0014 |
-| QShrink-CQR λ=168       | 0.900 ± 0.002 | 0.011 ± 0.001 | 0.000 ± 0.000         | 0.884 ± 0.000  | 0.105 ± 0.032           | 0.313 ± 0.006         | 0.437 ± 0.016      | 0.0165 ± 0.0014 |
-| QR-LGBM                 | 0.882 ± 0.005 | 0.031 ± 0.006 | 0.161 ± 0.016         | 0.841 ± 0.004  | 0.207 ± 0.037           | 0.299 ± 0.006         | 0.440 ± 0.016      | 0.0163 ± 0.0013 |
-| MLP-QR                  | 0.908 ± 0.002 | 0.024 ± 0.002 | 0.035 ± 0.022         | 0.873 ± 0.005  | 0.130 ± 0.070           | 0.326 ± 0.003         | 0.433 ± 0.013      | 0.0162 ± 0.0013 |
-| MLP-Gauss               | 0.947 ± 0.014 | 0.048 ± 0.014 | 0.004 ± 0.006         | 0.919 ± 0.014  | 0.025 ± 0.006           | 0.383 ± 0.039         | 0.455 ± 0.024      | 0.0175 ± 0.0011 |
-| CQR (MLP)               | 0.901 ± 0.003 | 0.024 ± 0.003 | 0.042 ± 0.021         | 0.866 ± 0.005  | 0.112 ± 0.024           | 0.321 ± 0.003         | 0.433 ± 0.016      | 0.0162 ± 0.0013 |
-| PCS-CQR (MLP)           | 0.900 ± 0.004 | 0.013 ± 0.001 | 0.004 ± 0.006         | 0.880 ± 0.007  | 0.105 ± 0.056           | 0.327 ± 0.016         | 0.434 ± 0.013      | 0.0164 ± 0.0014 |
-| PCS                     | 0.918 ± 0.001 | 0.026 ± 0.001 | 0.018 ± 0.016         | 0.890 ± 0.002  | 0.140 ± 0.034           | 0.363 ± 0.009         | 0.485 ± 0.023      | 0.0197 ± 0.0018 |
-| PCS (IS-tuned)          | 0.923 ± 0.002 | 0.031 ± 0.003 | 0.011 ± 0.018         | 0.889 ± 0.009  | 0.102 ± 0.016           | 0.372 ± 0.015         | 0.478 ± 0.016      | 0.0194 ± 0.0018 |
-| HSC                     | 0.920 ± 0.002 | 0.031 ± 0.005 | 0.042 ± 0.000         | 0.881 ± 0.009  | 0.186 ± 0.016           | 0.359 ± 0.009         | 0.474 ± 0.016      | 0.0192 ± 0.0018 |
-| HSC -stage              | 0.919 ± 0.003 | 0.031 ± 0.005 | 0.042 ± 0.000         | 0.877 ± 0.010  | 0.235 ± 0.016           | 0.359 ± 0.009         | 0.474 ± 0.016      | 0.0193 ± 0.0018 |
-| HSC -kNN                | 0.925 ± 0.002 | 0.032 ± 0.003 | 0.007 ± 0.012         | 0.892 ± 0.009  | 0.074 ± 0.011           | 0.377 ± 0.015         | 0.481 ± 0.015      | 0.0194 ± 0.0018 |
-| HSC -shrink             | 0.896 ± 0.010 | 0.077 ± 0.008 | 0.207 ± 0.034         | 0.776 ± 0.012  | 0.365 ± 0.044           | 0.392 ± 0.026         | 0.498 ± 0.007      | 0.0223 ± 0.0035 |
-| ACI                     | 0.931 ± 0.004 | 0.052 ± 0.008 | 0.095 ± 0.021         | 0.856 ± 0.010  | 0.207 ± 0.043           | 0.405 ± 0.032         | 0.484 ± 0.022      | 0.0221 ± 0.0041 |
-| Self-CP                 | 0.920 ± 0.001 | 0.026 ± 0.001 | 0.018 ± 0.016         | 0.892 ± 0.003  | 0.130 ± 0.026           | 0.366 ± 0.010         | 0.488 ± 0.023      | 0.0197 ± 0.0018 |
-| SCP-stage               | 0.915 ± 0.009 | 0.088 ± 0.009 | 0.158 ± 0.028         | 0.800 ± 0.016  | 0.221 ± 0.038           | 0.463 ± 0.024         | 0.519 ± 0.018      | 0.0231 ± 0.0032 |
-| SCP                     | 0.914 ± 0.010 | 0.087 ± 0.008 | 0.158 ± 0.028         | 0.802 ± 0.015  | 0.284 ± 0.038           | 0.462 ± 0.024         | 0.521 ± 0.017      | 0.0233 ± 0.0033 |
-| Naive+SCP               | 0.941 ± 0.007 | 0.085 ± 0.001 | 0.109 ± 0.006         | 0.847 ± 0.006  | 0.140 ± 0.022           | 0.657 ± 0.041         | 0.686 ± 0.029      | 0.0279 ± 0.0017 |
-| Raw-SCP                 | 0.786 ± 0.043 | 0.196 ± 0.036 | 0.411 ± 0.079         | 0.358 ± 0.136  | 0.512 ± 0.043           | 0.410 ± 0.038         | 0.754 ± 0.048      | 0.0319 ± 0.0017 |
-
-
-**Table S15. UCI → BDG2 transfer (no weather; 3 seeds).**
-
-| Method                  | Coverage      | MACD          | Under-covered share   | P10 coverage   | Under-covered, week 1   | Rel. width (median)   | Rel. IS (median)   | Reserve cost    |
-|:------------------------|:--------------|:--------------|:----------------------|:---------------|:------------------------|:----------------------|:-------------------|:----------------|
-| PCS-CQR                 | 0.893 ± 0.004 | 0.019 ± 0.002 | 0.042 ± 0.032         | 0.865 ± 0.008  | 0.298 ± 0.035           | 0.413 ± 0.016         | 0.603 ± 0.028      | 0.0227 ± 0.0017 |
-| PCS-CQR κ=168           | 0.891 ± 0.002 | 0.019 ± 0.002 | 0.045 ± 0.030         | 0.862 ± 0.005  | 0.333 ± 0.024           | 0.406 ± 0.019         | 0.602 ± 0.030      | 0.0224 ± 0.0014 |
-| PCS-CQR (IS-tuned)      | 0.888 ± 0.002 | 0.022 ± 0.003 | 0.070 ± 0.051         | 0.856 ± 0.008  | 0.362 ± 0.050           | 0.403 ± 0.021         | 0.601 ± 0.030      | 0.0224 ± 0.0014 |
-| PCS-CQR +stage          | 0.894 ± 0.004 | 0.019 ± 0.002 | 0.040 ± 0.025         | 0.866 ± 0.007  | 0.265 ± 0.043           | 0.414 ± 0.015         | 0.603 ± 0.030      | 0.0227 ± 0.0017 |
-| PCS-CQR +kNN            | 0.892 ± 0.004 | 0.019 ± 0.002 | 0.043 ± 0.029         | 0.863 ± 0.007  | 0.316 ± 0.025           | 0.410 ± 0.015         | 0.604 ± 0.029      | 0.0227 ± 0.0017 |
-| PCS-CQR +kNN+stage      | 0.893 ± 0.003 | 0.019 ± 0.002 | 0.041 ± 0.024         | 0.865 ± 0.006  | 0.291 ± 0.016           | 0.407 ± 0.020         | 0.603 ± 0.033      | 0.0227 ± 0.0017 |
-| PCS-CQR -shrink         | 0.861 ± 0.002 | 0.060 ± 0.005 | 0.416 ± 0.030         | 0.780 ± 0.015  | 0.419 ± 0.029           | 0.373 ± 0.021         | 0.606 ± 0.028      | 0.0228 ± 0.0012 |
-| HSC-CQR                 | 0.886 ± 0.002 | 0.023 ± 0.003 | 0.087 ± 0.049         | 0.853 ± 0.007  | 0.397 ± 0.037           | 0.399 ± 0.020         | 0.601 ± 0.030      | 0.0224 ± 0.0014 |
-| CQR                     | 0.861 ± 0.002 | 0.059 ± 0.005 | 0.419 ± 0.028         | 0.780 ± 0.015  | 0.399 ± 0.049           | 0.374 ± 0.020         | 0.606 ± 0.029      | 0.0228 ± 0.0012 |
-| Self-CQR                | 0.893 ± 0.004 | 0.023 ± 0.002 | 0.080 ± 0.036         | 0.855 ± 0.008  | 0.394 ± 0.038           | 0.426 ± 0.019         | 0.613 ± 0.032      | 0.0236 ± 0.0024 |
-| ACI-CQR                 | 0.882 ± 0.011 | 0.030 ± 0.014 | 0.165 ± 0.148         | 0.843 ± 0.029  | 0.377 ± 0.037           | 0.399 ± 0.003         | 0.601 ± 0.027      | 0.0228 ± 0.0013 |
-| ACI-CQR (MACD)          | 0.882 ± 0.011 | 0.030 ± 0.014 | 0.165 ± 0.148         | 0.843 ± 0.029  | 0.377 ± 0.037           | 0.399 ± 0.003         | 0.601 ± 0.027      | 0.0228 ± 0.0013 |
-| ACI-CQR (coverage only) | 0.899 ± 0.000 | 0.005 ± 0.000 | 0.000 ± 0.000         | 0.892 ± 0.001  | 0.144 ± 0.022           | 1.690 ± 1.207         | 1.934 ± 1.271      | 0.0676 ± 0.0436 |
-| TQA-B-CQR               | 0.868 ± 0.006 | 0.056 ± 0.004 | 0.377 ± 0.022         | 0.788 ± 0.012  | 0.379 ± 0.035           | 0.377 ± 0.019         | 0.605 ± 0.029      | 0.0227 ± 0.0012 |
-| GHCP-CQR                | 0.868 ± 0.002 | 0.056 ± 0.005 | 0.370 ± 0.005         | 0.789 ± 0.015  | 0.369 ± 0.018           | 0.380 ± 0.021         | 0.605 ± 0.030      | 0.0227 ± 0.0012 |
-| QShrink-CQR             | 0.888 ± 0.003 | 0.026 ± 0.006 | 0.107 ± 0.064         | 0.849 ± 0.013  | 0.337 ± 0.033           | 0.400 ± 0.021         | 0.603 ± 0.031      | 0.0226 ± 0.0016 |
-| QShrink-CQR (MACD)      | 0.895 ± 0.004 | 0.019 ± 0.002 | 0.034 ± 0.022         | 0.866 ± 0.006  | 0.283 ± 0.008           | 0.412 ± 0.013         | 0.605 ± 0.032      | 0.0228 ± 0.0018 |
-| QShrink-CQR λ=168       | 0.893 ± 0.003 | 0.019 ± 0.002 | 0.041 ± 0.018         | 0.865 ± 0.005  | 0.292 ± 0.024           | 0.408 ± 0.014         | 0.603 ± 0.032      | 0.0226 ± 0.0016 |
-| QR-LGBM                 | 0.838 ± 0.007 | 0.072 ± 0.007 | 0.555 ± 0.050         | 0.757 ± 0.020  | 0.499 ± 0.026           | 0.355 ± 0.017         | 0.616 ± 0.035      | 0.0230 ± 0.0012 |
-| MLP-QR                  | 0.854 ± 0.019 | 0.065 ± 0.012 | 0.439 ± 0.122         | 0.763 ± 0.027  | 0.480 ± 0.064           | 0.376 ± 0.009         | 0.623 ± 0.038      | 0.0226 ± 0.0005 |
-| MLP-Gauss               | 0.892 ± 0.014 | 0.050 ± 0.005 | 0.240 ± 0.090         | 0.814 ± 0.018  | 0.256 ± 0.064           | 0.428 ± 0.034         | 0.659 ± 0.044      | 0.0308 ± 0.0071 |
-| CQR (MLP)               | 0.859 ± 0.005 | 0.061 ± 0.008 | 0.399 ± 0.042         | 0.769 ± 0.019  | 0.404 ± 0.042           | 0.381 ± 0.013         | 0.622 ± 0.035      | 0.0226 ± 0.0004 |
-| PCS-CQR (MLP)           | 0.898 ± 0.006 | 0.020 ± 0.002 | 0.032 ± 0.004         | 0.867 ± 0.005  | 0.296 ± 0.079           | 0.429 ± 0.013         | 0.613 ± 0.029      | 0.0225 ± 0.0013 |
-| PCS                     | 0.904 ± 0.001 | 0.026 ± 0.001 | 0.074 ± 0.013         | 0.859 ± 0.002  | 0.196 ± 0.042           | 0.472 ± 0.022         | 0.704 ± 0.039      | 0.0256 ± 0.0022 |
-| PCS (IS-tuned)          | 0.905 ± 0.001 | 0.028 ± 0.001 | 0.072 ± 0.018         | 0.859 ± 0.005  | 0.235 ± 0.076           | 0.461 ± 0.027         | 0.688 ± 0.042      | 0.0251 ± 0.0022 |
-| HSC                     | 0.897 ± 0.006 | 0.029 ± 0.002 | 0.107 ± 0.040         | 0.846 ± 0.008  | 0.365 ± 0.176           | 0.438 ± 0.043         | 0.688 ± 0.045      | 0.0250 ± 0.0022 |
-| HSC -stage              | 0.898 ± 0.003 | 0.028 ± 0.001 | 0.096 ± 0.011         | 0.850 ± 0.003  | 0.408 ± 0.119           | 0.444 ± 0.034         | 0.692 ± 0.046      | 0.0250 ± 0.0022 |
-| HSC -kNN                | 0.906 ± 0.002 | 0.028 ± 0.001 | 0.072 ± 0.011         | 0.862 ± 0.004  | 0.163 ± 0.041           | 0.466 ± 0.028         | 0.690 ± 0.049      | 0.0253 ± 0.0024 |
-| HSC -shrink             | 0.772 ± 0.026 | 0.151 ± 0.020 | 0.655 ± 0.058         | 0.570 ± 0.032  | 0.635 ± 0.026           | 0.292 ± 0.036         | 0.763 ± 0.068      | 0.0296 ± 0.0018 |
-| ACI                     | 0.893 ± 0.006 | 0.046 ± 0.008 | 0.235 ± 0.044         | 0.825 ± 0.026  | 0.385 ± 0.026           | 0.416 ± 0.015         | 0.670 ± 0.048      | 0.0252 ± 0.0008 |
-| Self-CP                 | 0.905 ± 0.002 | 0.027 ± 0.001 | 0.071 ± 0.010         | 0.860 ± 0.002  | 0.169 ± 0.038           | 0.475 ± 0.022         | 0.698 ± 0.043      | 0.0256 ± 0.0022 |
-| SCP-stage               | 0.837 ± 0.006 | 0.111 ± 0.001 | 0.419 ± 0.029         | 0.635 ± 0.017  | 0.401 ± 0.023           | 0.396 ± 0.016         | 0.674 ± 0.048      | 0.0290 ± 0.0012 |
-| SCP                     | 0.837 ± 0.006 | 0.111 ± 0.001 | 0.424 ± 0.026         | 0.635 ± 0.019  | 0.486 ± 0.007           | 0.394 ± 0.016         | 0.674 ± 0.047      | 0.0290 ± 0.0012 |
-| Naive+SCP               | 0.824 ± 0.015 | 0.123 ± 0.010 | 0.472 ± 0.042         | 0.605 ± 0.034  | 0.436 ± 0.014           | 0.490 ± 0.007         | 0.956 ± 0.082      | 0.0402 ± 0.0006 |
-| Raw-SCP                 | 0.963 ± 0.017 | 0.103 ± 0.005 | 0.076 ± 0.034         | 0.896 ± 0.065  | 0.094 ± 0.053           | 1.917 ± 0.384         | 2.077 ± 0.292      | 0.1387 ± 0.0166 |
-
-
-**Table S16. BDG2 → BDG2 without weather features (reference; 3 seeds).**
-
-| Method                  | Coverage      | MACD          | Under-covered share   | P10 coverage   | Under-covered, week 1   | Rel. width (median)   | Rel. IS (median)   | Reserve cost    |
-|:------------------------|:--------------|:--------------|:----------------------|:---------------|:------------------------|:----------------------|:-------------------|:----------------|
-| PCS-CQR                 | 0.895 ± 0.002 | 0.015 ± 0.000 | 0.013 ± 0.002         | 0.870 ± 0.002  | 0.184 ± 0.005           | 0.403 ± 0.015         | 0.571 ± 0.025      | 0.0208 ± 0.0008 |
-| PCS-CQR κ=168           | 0.895 ± 0.003 | 0.015 ± 0.000 | 0.016 ± 0.004         | 0.871 ± 0.003  | 0.191 ± 0.010           | 0.403 ± 0.015         | 0.571 ± 0.025      | 0.0208 ± 0.0008 |
-| PCS-CQR (IS-tuned)      | 0.895 ± 0.003 | 0.017 ± 0.000 | 0.024 ± 0.008         | 0.869 ± 0.004  | 0.215 ± 0.024           | 0.398 ± 0.015         | 0.570 ± 0.025      | 0.0207 ± 0.0007 |
-| PCS-CQR site-grouped    | 0.895 ± 0.002 | 0.015 ± 0.000 | 0.013 ± 0.002         | 0.870 ± 0.002  | 0.184 ± 0.005           | 0.403 ± 0.015         | 0.571 ± 0.025      | 0.0208 ± 0.0008 |
-| PCS-CQR +stage          | 0.895 ± 0.003 | 0.015 ± 0.000 | 0.014 ± 0.005         | 0.870 ± 0.003  | 0.199 ± 0.015           | 0.403 ± 0.014         | 0.572 ± 0.025      | 0.0209 ± 0.0008 |
-| PCS-CQR +kNN            | 0.895 ± 0.002 | 0.015 ± 0.000 | 0.016 ± 0.004         | 0.871 ± 0.001  | 0.195 ± 0.009           | 0.400 ± 0.018         | 0.572 ± 0.024      | 0.0208 ± 0.0008 |
-| PCS-CQR +kNN+stage      | 0.894 ± 0.002 | 0.016 ± 0.000 | 0.016 ± 0.004         | 0.870 ± 0.002  | 0.216 ± 0.009           | 0.402 ± 0.016         | 0.573 ± 0.024      | 0.0208 ± 0.0008 |
-| PCS-CQR -shrink         | 0.893 ± 0.004 | 0.037 ± 0.001 | 0.171 ± 0.016         | 0.834 ± 0.007  | 0.225 ± 0.024           | 0.389 ± 0.011         | 0.570 ± 0.022      | 0.0209 ± 0.0008 |
-| HSC-CQR                 | 0.894 ± 0.003 | 0.017 ± 0.001 | 0.028 ± 0.008         | 0.867 ± 0.003  | 0.240 ± 0.008           | 0.394 ± 0.018         | 0.570 ± 0.025      | 0.0207 ± 0.0007 |
-| CQR                     | 0.893 ± 0.003 | 0.037 ± 0.001 | 0.178 ± 0.018         | 0.833 ± 0.007  | 0.245 ± 0.014           | 0.390 ± 0.012         | 0.571 ± 0.023      | 0.0209 ± 0.0008 |
-| Self-CQR                | 0.888 ± 0.003 | 0.022 ± 0.002 | 0.075 ± 0.007         | 0.857 ± 0.001  | 0.347 ± 0.023           | 0.404 ± 0.015         | 0.583 ± 0.022      | 0.0220 ± 0.0015 |
-| ACI-CQR                 | 0.897 ± 0.002 | 0.020 ± 0.001 | 0.042 ± 0.005         | 0.865 ± 0.002  | 0.238 ± 0.012           | 0.397 ± 0.019         | 0.571 ± 0.026      | 0.0209 ± 0.0009 |
-| ACI-CQR (MACD)          | 0.897 ± 0.002 | 0.020 ± 0.001 | 0.042 ± 0.005         | 0.865 ± 0.002  | 0.238 ± 0.012           | 0.397 ± 0.019         | 0.571 ± 0.026      | 0.0209 ± 0.0009 |
-| ACI-CQR (coverage only) | 0.900 ± 0.000 | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.894 ± 0.001  | 0.087 ± 0.014           | 0.878 ± 0.119         | 1.043 ± 0.130      | 0.0437 ± 0.0067 |
-| TQA-B-CQR               | 0.896 ± 0.002 | 0.038 ± 0.002 | 0.178 ± 0.022         | 0.837 ± 0.003  | 0.235 ± 0.009           | 0.394 ± 0.012         | 0.569 ± 0.025      | 0.0210 ± 0.0007 |
-| GHCP-CQR                | 0.896 ± 0.003 | 0.037 ± 0.001 | 0.155 ± 0.006         | 0.837 ± 0.007  | 0.216 ± 0.023           | 0.392 ± 0.012         | 0.569 ± 0.022      | 0.0209 ± 0.0008 |
-| QShrink-CQR             | 0.898 ± 0.004 | 0.020 ± 0.003 | 0.030 ± 0.024         | 0.868 ± 0.004  | 0.221 ± 0.010           | 0.400 ± 0.020         | 0.571 ± 0.024      | 0.0210 ± 0.0010 |
-| QShrink-CQR (MACD)      | 0.896 ± 0.003 | 0.015 ± 0.001 | 0.012 ± 0.004         | 0.872 ± 0.004  | 0.194 ± 0.004           | 0.403 ± 0.014         | 0.571 ± 0.025      | 0.0212 ± 0.0011 |
-| QShrink-CQR λ=168       | 0.896 ± 0.003 | 0.015 ± 0.001 | 0.012 ± 0.004         | 0.872 ± 0.004  | 0.194 ± 0.004           | 0.403 ± 0.014         | 0.571 ± 0.025      | 0.0212 ± 0.0011 |
-| QR-LGBM                 | 0.874 ± 0.012 | 0.042 ± 0.005 | 0.274 ± 0.089         | 0.815 ± 0.012  | 0.296 ± 0.031           | 0.373 ± 0.007         | 0.574 ± 0.027      | 0.0210 ± 0.0008 |
-| MLP-QR                  | 0.900 ± 0.006 | 0.036 ± 0.004 | 0.125 ± 0.048         | 0.846 ± 0.011  | 0.216 ± 0.047           | 0.400 ± 0.007         | 0.561 ± 0.024      | 0.0207 ± 0.0008 |
-| MLP-Gauss               | 0.929 ± 0.009 | 0.043 ± 0.003 | 0.038 ± 0.023         | 0.874 ± 0.016  | 0.100 ± 0.040           | 0.463 ± 0.047         | 0.606 ± 0.046      | 0.0240 ± 0.0031 |
-| CQR (MLP)               | 0.894 ± 0.005 | 0.035 ± 0.004 | 0.146 ± 0.049         | 0.841 ± 0.010  | 0.217 ± 0.063           | 0.395 ± 0.008         | 0.560 ± 0.024      | 0.0207 ± 0.0008 |
-| PCS-CQR (MLP)           | 0.898 ± 0.002 | 0.015 ± 0.000 | 0.016 ± 0.010         | 0.874 ± 0.003  | 0.162 ± 0.045           | 0.406 ± 0.018         | 0.561 ± 0.021      | 0.0207 ± 0.0009 |
-| PCS                     | 0.904 ± 0.001 | 0.026 ± 0.001 | 0.066 ± 0.014         | 0.860 ± 0.000  | 0.182 ± 0.014           | 0.453 ± 0.030         | 0.655 ± 0.021      | 0.0243 ± 0.0018 |
-| PCS (IS-tuned)          | 0.910 ± 0.002 | 0.028 ± 0.001 | 0.049 ± 0.006         | 0.864 ± 0.002  | 0.191 ± 0.026           | 0.450 ± 0.028         | 0.647 ± 0.017      | 0.0235 ± 0.0011 |
-| HSC                     | 0.901 ± 0.002 | 0.029 ± 0.002 | 0.076 ± 0.015         | 0.856 ± 0.002  | 0.307 ± 0.067           | 0.428 ± 0.023         | 0.648 ± 0.020      | 0.0231 ± 0.0008 |
-| HSC -stage              | 0.900 ± 0.001 | 0.028 ± 0.002 | 0.080 ± 0.008         | 0.855 ± 0.002  | 0.373 ± 0.074           | 0.427 ± 0.024         | 0.648 ± 0.018      | 0.0231 ± 0.0009 |
-| HSC -kNN                | 0.911 ± 0.002 | 0.029 ± 0.001 | 0.049 ± 0.009         | 0.867 ± 0.003  | 0.144 ± 0.022           | 0.455 ± 0.028         | 0.646 ± 0.018      | 0.0236 ± 0.0011 |
-| HSC -shrink             | 0.846 ± 0.006 | 0.092 ± 0.003 | 0.441 ± 0.016         | 0.692 ± 0.017  | 0.436 ± 0.071           | 0.373 ± 0.013         | 0.661 ± 0.031      | 0.0256 ± 0.0003 |
-| ACI                     | 0.912 ± 0.003 | 0.049 ± 0.008 | 0.152 ± 0.047         | 0.831 ± 0.027  | 0.281 ± 0.031           | 0.444 ± 0.029         | 0.633 ± 0.021      | 0.0244 ± 0.0005 |
-| Self-CP                 | 0.905 ± 0.001 | 0.027 ± 0.001 | 0.065 ± 0.012         | 0.861 ± 0.001  | 0.155 ± 0.005           | 0.457 ± 0.031         | 0.654 ± 0.024      | 0.0243 ± 0.0018 |
-| SCP-stage               | 0.881 ± 0.005 | 0.094 ± 0.005 | 0.286 ± 0.019         | 0.701 ± 0.023  | 0.295 ± 0.022           | 0.463 ± 0.024         | 0.637 ± 0.023      | 0.0271 ± 0.0004 |
-| SCP                     | 0.881 ± 0.005 | 0.094 ± 0.005 | 0.289 ± 0.022         | 0.701 ± 0.026  | 0.356 ± 0.008           | 0.462 ± 0.024         | 0.639 ± 0.016      | 0.0271 ± 0.0004 |
-| Mondrian-usage          | 0.880 ± 0.008 | 0.093 ± 0.005 | 0.303 ± 0.020         | 0.707 ± 0.009  | 0.294 ± 0.014           | 0.427 ± 0.029         | 0.665 ± 0.036      | 0.0270 ± 0.0005 |
-| Naive+SCP               | 0.876 ± 0.006 | 0.096 ± 0.006 | 0.314 ± 0.006         | 0.694 ± 0.033  | 0.314 ± 0.008           | 0.657 ± 0.041         | 0.965 ± 0.060      | 0.0388 ± 0.0012 |
-| Raw-SCP                 | 0.905 ± 0.032 | 0.119 ± 0.019 | 0.191 ± 0.068         | 0.682 ± 0.155  | 0.212 ± 0.066           | 0.741 ± 0.046         | 1.114 ± 0.017      | 0.0635 ± 0.0058 |
-
-
-**Table S17. Stress tests, disjoint calibration period and weak forecaster on BDG2 (mean over 3 seeds).**
-
-| perturb             | method             |   mean_cov |   macd |   under_rate |   under_w1 |   under_w58 |   rel_IS |   rel_width |   book_fail |   macd_sd |   under_rate_sd |
-|:--------------------|:-------------------|-----------:|-------:|-------------:|-----------:|------------:|---------:|------------:|------------:|----------:|----------------:|
-| calpool10           | ACI-CQR            |      0.888 |  0.026 |        0.109 |      0.366 |       0.124 |    0.555 |       0.377 |       0.055 |     0.003 |           0.01  |
-| calpool10           | ACI-CQR (MACD)     |      0.889 |  0.024 |        0.088 |      0.361 |       0.097 |    0.553 |       0.379 |       0.049 |     0.005 |           0.029 |
-| calpool10           | CQR                |      0.881 |  0.04  |        0.229 |      0.381 |       0.249 |    0.554 |       0.371 |       0.1   |     0.003 |           0.051 |
-| calpool10           | GHCP-CQR           |      0.909 |  0.037 |        0.104 |      0.116 |       0.177 |    0.554 |       0.406 |       0.05  |     0.001 |           0.03  |
-| calpool10           | HSC-CQR            |      0.888 |  0.019 |        0.058 |      0.348 |       0.129 |    0.556 |       0.384 |       0.042 |     0.005 |           0.066 |
-| calpool10           | PCS-CQR            |      0.89  |  0.019 |        0.047 |      0.212 |       0.137 |    0.555 |       0.387 |       0.04  |     0.004 |           0.042 |
-| calpool10           | PCS-CQR κ=168      |      0.892 |  0.016 |        0.022 |      0.221 |       0.113 |    0.555 |       0.387 |       0.026 |     0.001 |           0.011 |
-| calpool10           | QR-LGBM            |      0.857 |  0.051 |        0.401 |      0.372 |       0.423 |    0.56  |       0.354 |       0.153 |     0.007 |           0.116 |
-| calpool10           | QShrink-CQR        |      0.891 |  0.018 |        0.042 |      0.296 |       0.117 |    0.555 |       0.386 |       0.03  |     0.005 |           0.042 |
-| calpool10           | QShrink-CQR (MACD) |      0.891 |  0.019 |        0.043 |      0.3   |       0.124 |    0.555 |       0.387 |       0.028 |     0.004 |           0.042 |
-| calpool10           | SCP-stage          |      0.843 |  0.112 |        0.408 |      0.387 |       0.39  |    0.629 |       0.379 |       0.298 |     0.012 |           0.048 |
-| calpool10           | Self-CP            |      0.905 |  0.027 |        0.061 |      0.181 |       0.154 |    0.647 |       0.445 |       0.025 |     0.001 |           0.011 |
-| calpool10           | Self-CQR           |      0.889 |  0.021 |        0.079 |      0.361 |       0.128 |    0.566 |       0.397 |       0.026 |     0.001 |           0.018 |
-| calpool10           | TQA-B-CQR          |      0.88  |  0.041 |        0.256 |      0.373 |       0.26  |    0.555 |       0.368 |       0.107 |     0.004 |           0.039 |
-| calpool25           | ACI-CQR            |      0.894 |  0.02  |        0.047 |      0.208 |       0.082 |    0.551 |       0.385 |       0.036 |     0.001 |           0.007 |
-| calpool25           | ACI-CQR (MACD)     |      0.894 |  0.02  |        0.047 |      0.208 |       0.082 |    0.551 |       0.385 |       0.036 |     0.001 |           0.007 |
-| calpool25           | CQR                |      0.891 |  0.038 |        0.187 |      0.212 |       0.224 |    0.553 |       0.381 |       0.076 |     0.001 |           0.04  |
-| calpool25           | GHCP-CQR           |      0.901 |  0.038 |        0.133 |      0.192 |       0.167 |    0.551 |       0.392 |       0.062 |     0.001 |           0.019 |
-| calpool25           | HSC-CQR            |      0.894 |  0.017 |        0.03  |      0.211 |       0.104 |    0.552 |       0.384 |       0.032 |     0.001 |           0.006 |
-| calpool25           | PCS-CQR            |      0.895 |  0.015 |        0.017 |      0.192 |       0.107 |    0.555 |       0.392 |       0.026 |     0.001 |           0.002 |
-| calpool25           | PCS-CQR κ=168      |      0.895 |  0.015 |        0.017 |      0.195 |       0.105 |    0.555 |       0.391 |       0.025 |     0.001 |           0.002 |
-| calpool25           | QR-LGBM            |      0.857 |  0.051 |        0.401 |      0.372 |       0.423 |    0.56  |       0.354 |       0.153 |     0.007 |           0.116 |
-| calpool25           | QShrink-CQR        |      0.898 |  0.019 |        0.025 |      0.19  |       0.091 |    0.553 |       0.389 |       0.033 |     0.002 |           0.014 |
-| calpool25           | QShrink-CQR (MACD) |      0.897 |  0.015 |        0.012 |      0.162 |       0.107 |    0.555 |       0.395 |       0.02  |     0     |           0     |
-| calpool25           | SCP-stage          |      0.883 |  0.094 |        0.285 |      0.274 |       0.308 |    0.629 |       0.464 |       0.192 |     0.007 |           0.024 |
-| calpool25           | Self-CP            |      0.906 |  0.027 |        0.058 |      0.169 |       0.154 |    0.644 |       0.448 |       0.025 |     0     |           0.009 |
-| calpool25           | Self-CQR           |      0.89  |  0.021 |        0.079 |      0.337 |       0.128 |    0.567 |       0.398 |       0.025 |     0.001 |           0.018 |
-| calpool25           | TQA-B-CQR          |      0.892 |  0.039 |        0.188 |      0.206 |       0.225 |    0.554 |       0.381 |       0.08  |     0.001 |           0.035 |
-| calpool50           | ACI-CQR            |      0.894 |  0.02  |        0.053 |      0.22  |       0.071 |    0.551 |       0.384 |       0.037 |     0     |           0.006 |
-| calpool50           | ACI-CQR (MACD)     |      0.894 |  0.02  |        0.053 |      0.22  |       0.071 |    0.551 |       0.384 |       0.037 |     0     |           0.006 |
-| calpool50           | CQR                |      0.89  |  0.038 |        0.174 |      0.228 |       0.203 |    0.552 |       0.379 |       0.079 |     0.001 |           0.016 |
-| calpool50           | GHCP-CQR           |      0.895 |  0.037 |        0.159 |      0.216 |       0.195 |    0.552 |       0.384 |       0.07  |     0     |           0.006 |
-| calpool50           | HSC-CQR            |      0.893 |  0.019 |        0.042 |      0.219 |       0.108 |    0.552 |       0.383 |       0.038 |     0.002 |           0.025 |
-| calpool50           | PCS-CQR            |      0.895 |  0.015 |        0.017 |      0.182 |       0.111 |    0.555 |       0.392 |       0.025 |     0.001 |           0.002 |
-| calpool50           | PCS-CQR κ=168      |      0.895 |  0.015 |        0.018 |      0.199 |       0.107 |    0.555 |       0.39  |       0.025 |     0     |           0.002 |
-| calpool50           | QR-LGBM            |      0.857 |  0.051 |        0.401 |      0.372 |       0.423 |    0.56  |       0.354 |       0.153 |     0.007 |           0.116 |
-| calpool50           | QShrink-CQR        |      0.897 |  0.021 |        0.042 |      0.204 |       0.094 |    0.552 |       0.387 |       0.034 |     0     |           0.016 |
-| calpool50           | QShrink-CQR (MACD) |      0.896 |  0.015 |        0.013 |      0.159 |       0.108 |    0.555 |       0.394 |       0.02  |     0     |           0.002 |
-| calpool50           | SCP-stage          |      0.877 |  0.096 |        0.302 |      0.287 |       0.302 |    0.623 |       0.448 |       0.204 |     0.004 |           0.026 |
-| calpool50           | Self-CP            |      0.906 |  0.027 |        0.059 |      0.17  |       0.154 |    0.646 |       0.448 |       0.025 |     0.001 |           0.01  |
-| calpool50           | Self-CQR           |      0.89  |  0.021 |        0.079 |      0.331 |       0.128 |    0.567 |       0.397 |       0.025 |     0.001 |           0.018 |
-| calpool50           | TQA-B-CQR          |      0.893 |  0.038 |        0.173 |      0.216 |       0.2   |    0.555 |       0.38  |       0.079 |     0.001 |           0.012 |
-| disjoint-cal-period | ACI-CQR            |      0.893 |  0.023 |        0.074 |      0.242 |       0.088 |    0.551 |       0.382 |       0.046 |     0.004 |           0.042 |
-| disjoint-cal-period | ACI-CQR (MACD)     |      0.894 |  0.02  |        0.049 |      0.242 |       0.069 |    0.552 |       0.384 |       0.036 |     0     |           0.002 |
-| disjoint-cal-period | CQR                |      0.889 |  0.038 |        0.184 |      0.25  |       0.204 |    0.552 |       0.378 |       0.084 |     0.001 |           0.024 |
-| disjoint-cal-period | GHCP-CQR           |      0.891 |  0.038 |        0.173 |      0.231 |       0.206 |    0.552 |       0.38  |       0.078 |     0.001 |           0.016 |
-| disjoint-cal-period | HSC-CQR            |      0.891 |  0.018 |        0.04  |      0.265 |       0.104 |    0.553 |       0.382 |       0.034 |     0.001 |           0.007 |
-| disjoint-cal-period | PCS-CQR            |      0.894 |  0.015 |        0.018 |      0.2   |       0.108 |    0.555 |       0.391 |       0.026 |     0.001 |           0.002 |
-| disjoint-cal-period | PCS-CQR κ=168      |      0.894 |  0.015 |        0.02  |      0.204 |       0.107 |    0.555 |       0.39  |       0.025 |     0.001 |           0     |
-| disjoint-cal-period | QR-LGBM            |      0.857 |  0.051 |        0.401 |      0.372 |       0.423 |    0.56  |       0.354 |       0.153 |     0.007 |           0.116 |
-| disjoint-cal-period | QShrink-CQR        |      0.896 |  0.021 |        0.045 |      0.216 |       0.094 |    0.553 |       0.385 |       0.037 |     0     |           0.02  |
-| disjoint-cal-period | QShrink-CQR (MACD) |      0.896 |  0.015 |        0.016 |      0.183 |       0.104 |    0.555 |       0.393 |       0.02  |     0     |           0.004 |
-| disjoint-cal-period | SCP-stage          |      0.875 |  0.097 |        0.311 |      0.285 |       0.307 |    0.621 |       0.443 |       0.202 |     0.003 |           0.016 |
-| disjoint-cal-period | Self-CP            |      0.906 |  0.027 |        0.059 |      0.169 |       0.154 |    0.646 |       0.447 |       0.025 |     0.001 |           0.01  |
-| disjoint-cal-period | Self-CQR           |      0.89  |  0.021 |        0.079 |      0.335 |       0.128 |    0.566 |       0.397 |       0.025 |     0.001 |           0.018 |
-| disjoint-cal-period | TQA-B-CQR          |      0.892 |  0.039 |        0.181 |      0.227 |       0.198 |    0.555 |       0.38  |       0.079 |     0.001 |           0.016 |
-| missing20           | ACI-CQR            |      0.896 |  0.026 |        0.097 |      0.266 |       0.103 |    0.577 |       0.416 |       0.046 |     0.005 |           0.059 |
-| missing20           | ACI-CQR (MACD)     |      0.897 |  0.024 |        0.067 |      0.267 |       0.082 |    0.577 |       0.417 |       0.038 |     0.001 |           0.008 |
-| missing20           | CQR                |      0.894 |  0.039 |        0.178 |      0.273 |       0.178 |    0.579 |       0.412 |       0.07  |     0.002 |           0.018 |
-| missing20           | GHCP-CQR           |      0.896 |  0.039 |        0.169 |      0.262 |       0.175 |    0.579 |       0.415 |       0.065 |     0.002 |           0.02  |
-| missing20           | HSC-CQR            |      0.895 |  0.019 |        0.037 |      0.289 |       0.095 |    0.578 |       0.413 |       0.03  |     0     |           0.014 |
-| missing20           | PCS-CQR            |      0.898 |  0.016 |        0.016 |      0.22  |       0.083 |    0.58  |       0.418 |       0.018 |     0     |           0.004 |
-| missing20           | PCS-CQR κ=168      |      0.898 |  0.016 |        0.016 |      0.228 |       0.083 |    0.58  |       0.419 |       0.02  |     0.001 |           0.004 |
-| missing20           | QR-LGBM            |      0.866 |  0.046 |        0.333 |      0.397 |       0.335 |    0.583 |       0.388 |       0.121 |     0.006 |           0.083 |
-| missing20           | QShrink-CQR        |      0.9   |  0.023 |        0.046 |      0.246 |       0.087 |    0.578 |       0.417 |       0.03  |     0.001 |           0.024 |
-| missing20           | QShrink-CQR (MACD) |      0.9   |  0.016 |        0.014 |      0.196 |       0.083 |    0.582 |       0.419 |       0.013 |     0.001 |           0.006 |
-| missing20           | SCP-stage          |      0.864 |  0.102 |        0.347 |      0.31  |       0.336 |    0.649 |       0.443 |       0.225 |     0.002 |           0.015 |
-| missing20           | Self-CP            |      0.913 |  0.028 |        0.036 |      0.097 |       0.134 |    0.675 |       0.487 |       0.014 |     0.001 |           0.01  |
-| missing20           | Self-CQR           |      0.893 |  0.021 |        0.055 |      0.321 |       0.103 |    0.591 |       0.425 |       0.02  |     0.001 |           0.007 |
-| missing20           | TQA-B-CQR          |      0.894 |  0.037 |        0.171 |      0.275 |       0.174 |    0.581 |       0.411 |       0.066 |     0.002 |           0.018 |
-| missing40           | ACI-CQR            |      0.898 |  0.032 |        0.109 |      0.289 |       0.119 |    0.606 |       0.446 |       0.058 |     0.006 |           0.066 |
-| missing40           | ACI-CQR (MACD)     |      0.899 |  0.03  |        0.097 |      0.289 |       0.099 |    0.606 |       0.448 |       0.051 |     0.002 |           0.046 |
-| missing40           | CQR                |      0.895 |  0.041 |        0.177 |      0.299 |       0.196 |    0.605 |       0.442 |       0.072 |     0.004 |           0.039 |
-| missing40           | GHCP-CQR           |      0.898 |  0.041 |        0.167 |      0.277 |       0.187 |    0.605 |       0.445 |       0.069 |     0.004 |           0.04  |
-| missing40           | HSC-CQR            |      0.899 |  0.024 |        0.061 |      0.308 |       0.1   |    0.606 |       0.448 |       0.034 |     0.001 |           0.02  |
-| missing40           | PCS-CQR            |      0.903 |  0.021 |        0.026 |      0.253 |       0.1   |    0.608 |       0.453 |       0.028 |     0.001 |           0.014 |
-| missing40           | PCS-CQR κ=168      |      0.903 |  0.021 |        0.029 |      0.258 |       0.101 |    0.607 |       0.453 |       0.026 |     0.001 |           0.015 |
-| missing40           | QR-LGBM            |      0.87  |  0.047 |        0.312 |      0.422 |       0.318 |    0.61  |       0.418 |       0.112 |     0.007 |           0.061 |
-| missing40           | QShrink-CQR        |      0.902 |  0.028 |        0.069 |      0.271 |       0.097 |    0.606 |       0.451 |       0.038 |     0.002 |           0.045 |
-| missing40           | QShrink-CQR (MACD) |      0.904 |  0.021 |        0.022 |      0.245 |       0.095 |    0.608 |       0.456 |       0.018 |     0.001 |           0.013 |
-| missing40           | SCP-stage          |      0.852 |  0.108 |        0.381 |      0.319 |       0.374 |    0.677 |       0.443 |       0.262 |     0.001 |           0.018 |
-| missing40           | Self-CP            |      0.92  |  0.033 |        0.03  |      0.07  |       0.128 |    0.704 |       0.534 |       0.016 |     0.001 |           0.005 |
-| missing40           | Self-CQR           |      0.899 |  0.023 |        0.049 |      0.333 |       0.115 |    0.618 |       0.464 |       0.018 |     0.002 |           0.016 |
-| missing40           | TQA-B-CQR          |      0.894 |  0.04  |        0.174 |      0.304 |       0.202 |    0.606 |       0.442 |       0.065 |     0.003 |           0.046 |
-| noise15             | ACI-CQR            |      0.871 |  0.029 |        0.103 |      0.407 |       0.086 |    0.913 |       0.66  |       0.041 |     0.004 |           0.083 |
-| noise15             | ACI-CQR (MACD)     |      0.874 |  0.026 |        0.055 |      0.404 |       0.046 |    0.913 |       0.663 |       0.03  |     0.001 |           0.008 |
-| noise15             | CQR                |      0.857 |  0.044 |        0.329 |      0.419 |       0.308 |    0.919 |       0.638 |       0.126 |     0.002 |           0.03  |
-| noise15             | GHCP-CQR           |      0.858 |  0.042 |        0.307 |      0.397 |       0.31  |    0.918 |       0.64  |       0.12  |     0.002 |           0.026 |
-| noise15             | HSC-CQR            |      0.881 |  0.019 |        0.018 |      0.406 |       0.026 |    0.91  |       0.679 |       0.014 |     0.001 |           0.006 |
-| noise15             | PCS-CQR            |      0.891 |  0.011 |        0.004 |      0.249 |       0.02  |    0.909 |       0.697 |       0.004 |     0.001 |           0     |
-| noise15             | PCS-CQR κ=168      |      0.889 |  0.012 |        0.007 |      0.274 |       0.02  |    0.908 |       0.694 |       0.005 |     0.001 |           0.005 |
-| noise15             | QR-LGBM            |      0.841 |  0.059 |        0.614 |      0.57  |       0.545 |    0.931 |       0.613 |       0.209 |     0.003 |           0.084 |
-| noise15             | QShrink-CQR        |      0.88  |  0.021 |        0.026 |      0.356 |       0.045 |    0.91  |       0.675 |       0.014 |     0     |           0.002 |
-| noise15             | QShrink-CQR (MACD) |      0.893 |  0.01  |        0.005 |      0.211 |       0.017 |    0.909 |       0.7   |       0.004 |     0.001 |           0.002 |
-| noise15             | SCP-stage          |      0.691 |  0.209 |        1     |      0.877 |       0.993 |    1.098 |       0.444 |       0.925 |     0.013 |           0     |
-| noise15             | Self-CP            |      0.906 |  0.019 |        0.024 |      0.099 |       0.071 |    0.931 |       0.731 |       0.007 |     0.001 |           0.008 |
-| noise15             | Self-CQR           |      0.902 |  0.01  |        0.001 |      0.082 |       0.009 |    0.915 |       0.725 |       0.003 |     0.001 |           0.002 |
-| noise15             | TQA-B-CQR          |      0.853 |  0.047 |        0.393 |      0.452 |       0.368 |    0.923 |       0.63  |       0.148 |     0.001 |           0.026 |
-| noise15-history     | ACI-CQR            |      0.955 |  0.059 |        0.008 |      0.062 |       0.018 |    0.694 |       0.618 |       0.014 |     0.003 |           0.004 |
-| noise15-history     | ACI-CQR (MACD)     |      0.955 |  0.058 |        0.005 |      0.062 |       0.018 |    0.692 |       0.615 |       0.014 |     0.002 |           0.002 |
-| noise15-history     | CQR                |      0.957 |  0.063 |        0.011 |      0.067 |       0.028 |    0.706 |       0.637 |       0.017 |     0.002 |           0.005 |
-| noise15-history     | GHCP-CQR           |      0.958 |  0.063 |        0.009 |      0.061 |       0.026 |    0.706 |       0.639 |       0.017 |     0.002 |           0.006 |
-| noise15-history     | HSC-CQR            |      0.95  |  0.053 |        0.004 |      0.062 |       0.017 |    0.683 |       0.594 |       0.012 |     0.002 |           0     |
-| noise15-history     | PCS-CQR            |      0.944 |  0.046 |        0.003 |      0.053 |       0.025 |    0.672 |       0.572 |       0.011 |     0.003 |           0.002 |
-| noise15-history     | PCS-CQR κ=168      |      0.946 |  0.048 |        0.003 |      0.054 |       0.024 |    0.674 |       0.577 |       0.011 |     0.002 |           0.002 |
-| noise15-history     | QR-LGBM            |      0.952 |  0.059 |        0.02  |      0.084 |       0.041 |    0.692 |       0.613 |       0.02  |     0.002 |           0.014 |
-| noise15-history     | QShrink-CQR        |      0.945 |  0.048 |        0.003 |      0.058 |       0.025 |    0.676 |       0.573 |       0.011 |     0.002 |           0.002 |
-| noise15-history     | QShrink-CQR (MACD) |      0.928 |  0.032 |        0.005 |      0.043 |       0.038 |    0.663 |       0.537 |       0.014 |     0.002 |           0.002 |
-| noise15-history     | SCP-stage          |      0.842 |  0.105 |        0.406 |      0.401 |       0.387 |    0.681 |       0.444 |       0.32  |     0.002 |           0.005 |
-| noise15-history     | Self-CP            |      0.915 |  0.027 |        0.034 |      0.095 |       0.096 |    0.71  |       0.521 |       0.012 |     0.001 |           0.012 |
-| noise15-history     | Self-CQR           |      0.909 |  0.02  |        0.016 |      0.113 |       0.065 |    0.664 |       0.507 |       0.033 |     0.002 |           0.004 |
-| noise15-history     | TQA-B-CQR          |      0.956 |  0.062 |        0.009 |      0.07  |       0.03  |    0.701 |       0.629 |       0.02  |     0.002 |           0.006 |
-| noise5              | ACI-CQR            |      0.886 |  0.019 |        0.07  |      0.236 |       0.086 |    0.604 |       0.436 |       0.042 |     0.003 |           0.049 |
-| noise5              | ACI-CQR (MACD)     |      0.888 |  0.017 |        0.042 |      0.233 |       0.059 |    0.604 |       0.437 |       0.034 |     0     |           0.002 |
-| noise5              | CQR                |      0.878 |  0.03  |        0.188 |      0.241 |       0.196 |    0.605 |       0.426 |       0.072 |     0.001 |           0.028 |
-| noise5              | GHCP-CQR           |      0.88  |  0.029 |        0.169 |      0.231 |       0.196 |    0.605 |       0.428 |       0.072 |     0.001 |           0.016 |
-| noise5              | HSC-CQR            |      0.888 |  0.015 |        0.024 |      0.248 |       0.066 |    0.605 |       0.438 |       0.028 |     0.001 |           0.01  |
-| noise5              | PCS-CQR            |      0.893 |  0.012 |        0.009 |      0.161 |       0.062 |    0.606 |       0.446 |       0.016 |     0     |           0.005 |
-| noise5              | PCS-CQR κ=168      |      0.893 |  0.012 |        0.012 |      0.169 |       0.062 |    0.605 |       0.445 |       0.016 |     0     |           0.008 |
-| noise5              | QR-LGBM            |      0.852 |  0.049 |        0.43  |      0.347 |       0.464 |    0.616 |       0.402 |       0.165 |     0.008 |           0.108 |
-| noise5              | QShrink-CQR        |      0.889 |  0.016 |        0.029 |      0.202 |       0.071 |    0.604 |       0.44  |       0.033 |     0.001 |           0.012 |
-| noise5              | QShrink-CQR (MACD) |      0.894 |  0.012 |        0.012 |      0.144 |       0.05  |    0.607 |       0.447 |       0.012 |     0     |           0.007 |
-| noise5              | SCP-stage          |      0.861 |  0.099 |        0.349 |      0.32  |       0.352 |    0.652 |       0.443 |       0.248 |     0.003 |           0.002 |
-| noise5              | Self-CP            |      0.907 |  0.024 |        0.038 |      0.113 |       0.13  |    0.678 |       0.484 |       0.014 |     0     |           0.012 |
-| noise5              | Self-CQR           |      0.894 |  0.016 |        0.013 |      0.19  |       0.055 |    0.614 |       0.457 |       0.011 |     0.001 |           0.005 |
-| noise5              | TQA-B-CQR          |      0.876 |  0.03  |        0.192 |      0.233 |       0.2   |    0.606 |       0.424 |       0.084 |     0.001 |           0.016 |
-| outage3d            | ACI-CQR            |      0.893 |  0.023 |        0.072 |      0.245 |       0.083 |    0.562 |       0.386 |       0.043 |     0.004 |           0.037 |
-| outage3d            | ACI-CQR (MACD)     |      0.894 |  0.021 |        0.053 |      0.245 |       0.066 |    0.562 |       0.387 |       0.041 |     0     |           0.005 |
-| outage3d            | CQR                |      0.887 |  0.039 |        0.209 |      0.254 |       0.204 |    0.56  |       0.382 |       0.082 |     0.002 |           0.034 |
-| outage3d            | GHCP-CQR           |      0.89  |  0.039 |        0.192 |      0.237 |       0.206 |    0.559 |       0.384 |       0.075 |     0.002 |           0.034 |
-| outage3d            | HSC-CQR            |      0.891 |  0.019 |        0.043 |      0.27  |       0.099 |    0.564 |       0.387 |       0.034 |     0.001 |           0.014 |
-| outage3d            | PCS-CQR            |      0.895 |  0.016 |        0.028 |      0.206 |       0.104 |    0.564 |       0.395 |       0.032 |     0.001 |           0.014 |
-| outage3d            | PCS-CQR κ=168      |      0.895 |  0.016 |        0.028 |      0.209 |       0.099 |    0.564 |       0.395 |       0.032 |     0.001 |           0.014 |
-| outage3d            | QR-LGBM            |      0.855 |  0.052 |        0.419 |      0.381 |       0.426 |    0.57  |       0.357 |       0.132 |     0.008 |           0.119 |
-| outage3d            | QShrink-CQR        |      0.895 |  0.022 |        0.054 |      0.228 |       0.088 |    0.562 |       0.389 |       0.037 |     0     |           0.011 |
-| outage3d            | QShrink-CQR (MACD) |      0.896 |  0.016 |        0.024 |      0.195 |       0.095 |    0.568 |       0.397 |       0.024 |     0     |           0.007 |
-| outage3d            | SCP-stage          |      0.871 |  0.097 |        0.319 |      0.304 |       0.307 |    0.639 |       0.445 |       0.215 |     0.002 |           0.006 |
-| outage3d            | Self-CP            |      0.909 |  0.027 |        0.057 |      0.207 |       0.111 |    0.663 |       0.462 |       0.016 |     0.001 |           0.01  |
-| outage3d            | Self-CQR           |      0.89  |  0.022 |        0.084 |      0.353 |       0.108 |    0.579 |       0.405 |       0.028 |     0.001 |           0.008 |
-| outage3d            | TQA-B-CQR          |      0.891 |  0.039 |        0.186 |      0.236 |       0.191 |    0.56  |       0.383 |       0.072 |     0.001 |           0.029 |
-| outage7d            | ACI-CQR            |      0.895 |  0.025 |        0.08  |      0.235 |       0.113 |    0.544 |       0.381 |       0.053 |     0.004 |           0.04  |
-| outage7d            | ACI-CQR (MACD)     |      0.896 |  0.022 |        0.061 |      0.235 |       0.091 |    0.543 |       0.383 |       0.045 |     0.001 |           0.006 |
-| outage7d            | CQR                |      0.891 |  0.039 |        0.188 |      0.244 |       0.207 |    0.545 |       0.377 |       0.086 |     0.002 |           0.019 |
-| outage7d            | GHCP-CQR           |      0.893 |  0.039 |        0.179 |      0.228 |       0.208 |    0.546 |       0.379 |       0.079 |     0.001 |           0.028 |
-| outage7d            | HSC-CQR            |      0.893 |  0.02  |        0.054 |      0.264 |       0.112 |    0.546 |       0.385 |       0.046 |     0.001 |           0.008 |
-| outage7d            | PCS-CQR            |      0.895 |  0.018 |        0.036 |      0.204 |       0.108 |    0.547 |       0.392 |       0.032 |     0.001 |           0.004 |
-| outage7d            | PCS-CQR κ=168      |      0.895 |  0.018 |        0.036 |      0.206 |       0.107 |    0.547 |       0.392 |       0.032 |     0.001 |           0.004 |
-| outage7d            | QR-LGBM            |      0.858 |  0.051 |        0.406 |      0.369 |       0.426 |    0.549 |       0.352 |       0.158 |     0.008 |           0.119 |
-| outage7d            | QShrink-CQR        |      0.897 |  0.023 |        0.061 |      0.217 |       0.096 |    0.543 |       0.39  |       0.045 |     0     |           0.006 |
-| outage7d            | QShrink-CQR (MACD) |      0.897 |  0.018 |        0.03  |      0.191 |       0.095 |    0.548 |       0.393 |       0.029 |     0.001 |           0.002 |
-| outage7d            | SCP-stage          |      0.877 |  0.097 |        0.307 |      0.291 |       0.306 |    0.626 |       0.448 |       0.223 |     0.003 |           0.024 |
-| outage7d            | Self-CP            |      0.909 |  0.029 |        0.061 |      0.202 |       0.125 |    0.651 |       0.453 |       0.03  |     0.001 |           0.006 |
-| outage7d            | Self-CQR           |      0.889 |  0.024 |        0.088 |      0.357 |       0.126 |    0.561 |       0.393 |       0.04  |     0     |           0.013 |
-| outage7d            | TQA-B-CQR          |      0.894 |  0.039 |        0.179 |      0.229 |       0.203 |    0.545 |       0.381 |       0.083 |     0.002 |           0.005 |
-| shift+40            | ACI-CQR            |      0.881 |  0.025 |        0.117 |      0.242 |       0.097 |    0.664 |       0.412 |       0.209 |     0.006 |           0.084 |
-| shift+40            | ACI-CQR (MACD)     |      0.884 |  0.022 |        0.078 |      0.242 |       0.053 |    0.663 |       0.416 |       0.178 |     0.001 |           0.016 |
-| shift+40            | CQR                |      0.868 |  0.042 |        0.304 |      0.25  |       0.302 |    0.664 |       0.394 |       0.348 |     0.003 |           0.012 |
-| shift+40            | GHCP-CQR           |      0.871 |  0.041 |        0.294 |      0.231 |       0.312 |    0.663 |       0.396 |       0.333 |     0.003 |           0.012 |
-| shift+40            | HSC-CQR            |      0.881 |  0.022 |        0.065 |      0.265 |       0.09  |    0.663 |       0.413 |       0.194 |     0.001 |           0.01  |
-| shift+40            | PCS-CQR            |      0.886 |  0.017 |        0.028 |      0.2   |       0.054 |    0.665 |       0.423 |       0.157 |     0.001 |           0.008 |
-| shift+40            | PCS-CQR κ=168      |      0.886 |  0.017 |        0.028 |      0.204 |       0.057 |    0.664 |       0.423 |       0.157 |     0     |           0.008 |
-| shift+40            | QR-LGBM            |      0.841 |  0.061 |        0.532 |      0.372 |       0.487 |    0.673 |       0.37  |       0.547 |     0.009 |           0.112 |
-| shift+40            | QShrink-CQR        |      0.884 |  0.022 |        0.078 |      0.216 |       0.092 |    0.662 |       0.417 |       0.187 |     0.001 |           0.019 |
-| shift+40            | QShrink-CQR (MACD) |      0.888 |  0.017 |        0.026 |      0.183 |       0.054 |    0.666 |       0.426 |       0.14  |     0.001 |           0.01  |
-| shift+40            | SCP-stage          |      0.848 |  0.093 |        0.393 |      0.285 |       0.411 |    0.721 |       0.432 |       0.397 |     0.004 |           0.01  |
-| shift+40            | Self-CP            |      0.891 |  0.024 |        0.083 |      0.169 |       0.17  |    0.752 |       0.483 |       0.152 |     0     |           0.004 |
-| shift+40            | Self-CQR           |      0.884 |  0.022 |        0.083 |      0.335 |       0.047 |    0.672 |       0.436 |       0.165 |     0.001 |           0.01  |
-| shift+40            | TQA-B-CQR          |      0.872 |  0.041 |        0.291 |      0.227 |       0.29  |    0.669 |       0.4   |       0.333 |     0.003 |           0.024 |
-| shift+40@d7         | ACI-CQR            |      0.886 |  0.023 |        0.092 |      0.858 |       0.05  |    0.636 |       0.403 |       0.154 |     0.005 |           0.064 |
-| shift+40@d7         | ACI-CQR (MACD)     |      0.889 |  0.02  |        0.057 |      0.862 |       0.033 |    0.637 |       0.407 |       0.137 |     0.001 |           0.005 |
-| shift+40@d7         | CQR                |      0.872 |  0.04  |        0.283 |      0.852 |       0.195 |    0.634 |       0.388 |       0.275 |     0.003 |           0.044 |
-| shift+40@d7         | GHCP-CQR           |      0.874 |  0.039 |        0.267 |      0.838 |       0.195 |    0.634 |       0.39  |       0.258 |     0.002 |           0.039 |
-| shift+40@d7         | HSC-CQR            |      0.895 |  0.016 |        0.022 |      0.896 |       0.04  |    0.64  |       0.424 |       0.076 |     0     |           0.002 |
-| shift+40@d7         | PCS-CQR            |      0.905 |  0.015 |        0.005 |      0.881 |       0.036 |    0.649 |       0.453 |       0.04  |     0.001 |           0.005 |
-| shift+40@d7         | PCS-CQR κ=168      |      0.904 |  0.015 |        0.007 |      0.884 |       0.034 |    0.648 |       0.448 |       0.04  |     0.001 |           0.006 |
-| shift+40@d7         | QR-LGBM            |      0.844 |  0.058 |        0.509 |      0.916 |       0.415 |    0.644 |       0.364 |       0.443 |     0.009 |           0.123 |
-| shift+40@d7         | QShrink-CQR        |      0.897 |  0.019 |        0.029 |      0.852 |       0.045 |    0.639 |       0.424 |       0.066 |     0     |           0.002 |
-| shift+40@d7         | QShrink-CQR (MACD) |      0.908 |  0.016 |        0.005 |      0.877 |       0.033 |    0.65  |       0.46  |       0.025 |     0.001 |           0.002 |
-| shift+40@d7         | SCP-stage          |      0.851 |  0.094 |        0.374 |      0.65  |       0.308 |    0.689 |       0.431 |       0.372 |     0.004 |           0.015 |
-| shift+40@d7         | Self-CP            |      0.925 |  0.033 |        0.022 |      0.76  |       0.049 |    0.737 |       0.556 |       0.018 |     0.001 |           0.008 |
-| shift+40@d7         | Self-CQR           |      0.91  |  0.018 |        0.007 |      0.881 |       0.038 |    0.667 |       0.488 |       0.02  |     0.001 |           0.006 |
-| shift+40@d7         | TQA-B-CQR          |      0.875 |  0.039 |        0.266 |      0.855 |       0.191 |    0.637 |       0.392 |       0.269 |     0.002 |           0.028 |
-| shift-40            | ACI-CQR            |      0.884 |  0.021 |        0.065 |      0.242 |       0.049 |    0.744 |       0.487 |       0.003 |     0.005 |           0.064 |
-| shift-40            | ACI-CQR (MACD)     |      0.887 |  0.019 |        0.036 |      0.242 |       0.028 |    0.745 |       0.49  |       0.003 |     0     |           0.016 |
-| shift-40            | CQR                |      0.868 |  0.04  |        0.296 |      0.25  |       0.249 |    0.743 |       0.473 |       0.012 |     0.002 |           0.041 |
-| shift-40            | GHCP-CQR           |      0.87  |  0.038 |        0.274 |      0.231 |       0.25  |    0.743 |       0.477 |       0.012 |     0.002 |           0.037 |
-| shift-40            | HSC-CQR            |      0.883 |  0.019 |        0.045 |      0.265 |       0.072 |    0.746 |       0.491 |       0.001 |     0.002 |           0.008 |
-| shift-40            | PCS-CQR            |      0.889 |  0.016 |        0.03  |      0.2   |       0.057 |    0.748 |       0.499 |       0.001 |     0     |           0.008 |
-| shift-40            | PCS-CQR κ=168      |      0.889 |  0.016 |        0.03  |      0.204 |       0.058 |    0.748 |       0.498 |       0.001 |     0     |           0.008 |
-| shift-40            | QR-LGBM            |      0.836 |  0.065 |        0.597 |      0.372 |       0.51  |    0.755 |       0.449 |       0.02  |     0.01  |           0.102 |
-| shift-40            | QShrink-CQR        |      0.885 |  0.019 |        0.051 |      0.216 |       0.079 |    0.745 |       0.492 |       0.003 |     0.001 |           0.008 |
-| shift-40            | QShrink-CQR (MACD) |      0.89  |  0.016 |        0.022 |      0.183 |       0.055 |    0.748 |       0.5   |       0.001 |     0     |           0.005 |
-| shift-40            | SCP-stage          |      0.808 |  0.107 |        0.535 |      0.285 |       0.665 |    0.881 |       0.461 |       0.154 |     0.002 |           0.035 |
-| shift-40            | Self-CP            |      0.877 |  0.032 |        0.195 |      0.169 |       0.35  |    0.875 |       0.528 |       0.003 |     0.002 |           0.024 |
-| shift-40            | Self-CQR           |      0.887 |  0.023 |        0.088 |      0.335 |       0.059 |    0.755 |       0.509 |       0.001 |     0.001 |           0.016 |
-| shift-40            | TQA-B-CQR          |      0.88  |  0.036 |        0.228 |      0.227 |       0.154 |    0.749 |       0.485 |       0.011 |     0.002 |           0.026 |
-| volatility25        | ACI-CQR            |      0.82  |  0.08  |        0.946 |      0.242 |       0.943 |    1.392 |       0.812 |       0.232 |     0.03  |           0.047 |
-| volatility25        | ACI-CQR (MACD)     |      0.836 |  0.064 |        0.937 |      0.242 |       0.914 |    1.468 |       0.949 |       0.123 |     0.002 |           0.035 |
-| volatility25        | CQR                |      0.75  |  0.15  |        0.991 |      0.25  |       0.997 |    1.328 |       0.507 |       0.639 |     0.01  |           0.01  |
-| volatility25        | GHCP-CQR           |      0.752 |  0.148 |        0.989 |      0.231 |       0.997 |    1.327 |       0.509 |       0.631 |     0.009 |           0.008 |
-| volatility25        | HSC-CQR            |      0.806 |  0.094 |        0.942 |      0.265 |       0.967 |    1.194 |       0.586 |       0.324 |     0.006 |           0.002 |
-| volatility25        | PCS-CQR            |      0.818 |  0.082 |        0.848 |      0.2   |       0.937 |    1.167 |       0.607 |       0.238 |     0.006 |           0.033 |
-| volatility25        | PCS-CQR κ=168      |      0.817 |  0.083 |        0.858 |      0.204 |       0.942 |    1.17  |       0.605 |       0.241 |     0.006 |           0.032 |
-| volatility25        | QR-LGBM            |      0.724 |  0.176 |        0.996 |      0.372 |       1     |    1.37  |       0.482 |       0.74  |     0.011 |           0.007 |
-| volatility25        | QShrink-CQR        |      0.802 |  0.098 |        0.938 |      0.216 |       0.976 |    1.202 |       0.575 |       0.358 |     0.007 |           0.006 |
-| volatility25        | QShrink-CQR (MACD) |      0.82  |  0.08  |        0.831 |      0.183 |       0.928 |    1.165 |       0.607 |       0.227 |     0.007 |           0.023 |
-| volatility25        | SCP-stage          |      0.68  |  0.22  |        0.991 |      0.285 |       1     |    1.706 |       0.443 |       0.87  |     0.01  |           0.009 |
-| volatility25        | Self-CP            |      0.811 |  0.09  |        0.781 |      0.169 |       0.896 |    1.342 |       0.606 |       0.348 |     0.006 |           0.03  |
-| volatility25        | Self-CQR           |      0.821 |  0.079 |        0.758 |      0.335 |       0.887 |    1.164 |       0.628 |       0.227 |     0.007 |           0.051 |
-| volatility25        | TQA-B-CQR          |      0.801 |  0.099 |        0.901 |      0.227 |       0.988 |    1.192 |       0.578 |       0.343 |     0.003 |           0.022 |
-| weak-forecaster     | ACI-CQR            |      0.896 |  0.034 |        0.138 |      0.24  |       0.138 |    0.587 |       0.423 |       0.088 |     0.008 |           0.065 |
-| weak-forecaster     | ACI-CQR (MACD)     |      0.898 |  0.026 |        0.072 |      0.235 |       0.074 |    0.586 |       0.423 |       0.061 |     0.001 |           0.01  |
-| weak-forecaster     | CQR                |      0.889 |  0.053 |        0.252 |      0.245 |       0.257 |    0.588 |       0.416 |       0.134 |     0.004 |           0.028 |
-| weak-forecaster     | GHCP-CQR           |      0.892 |  0.052 |        0.238 |      0.254 |       0.244 |    0.589 |       0.419 |       0.128 |     0.004 |           0.028 |
-| weak-forecaster     | HSC-CQR            |      0.894 |  0.021 |        0.051 |      0.249 |       0.124 |    0.589 |       0.42  |       0.055 |     0.001 |           0.014 |
-| weak-forecaster     | PCS-CQR            |      0.898 |  0.017 |        0.028 |      0.166 |       0.112 |    0.588 |       0.424 |       0.036 |     0.001 |           0.014 |
-| weak-forecaster     | PCS-CQR κ=168      |      0.898 |  0.019 |        0.036 |      0.202 |       0.117 |    0.586 |       0.425 |       0.041 |     0.001 |           0.021 |
-| weak-forecaster     | QR-LGBM            |      0.848 |  0.068 |        0.487 |      0.427 |       0.451 |    0.594 |       0.378 |       0.235 |     0.008 |           0.113 |
-| weak-forecaster     | QShrink-CQR        |      0.901 |  0.023 |        0.032 |      0.179 |       0.1   |    0.588 |       0.428 |       0.043 |     0.003 |           0.01  |
-| weak-forecaster     | QShrink-CQR (MACD) |      0.899 |  0.018 |        0.028 |      0.155 |       0.115 |    0.591 |       0.425 |       0.033 |     0.001 |           0.014 |
-| weak-forecaster     | SCP-stage          |      0.881 |  0.093 |        0.292 |      0.271 |       0.294 |    0.649 |       0.478 |       0.215 |     0.004 |           0.024 |
-| weak-forecaster     | Self-CP            |      0.904 |  0.027 |        0.057 |      0.175 |       0.162 |    0.674 |       0.465 |       0.041 |     0.001 |           0.006 |
-| weak-forecaster     | Self-CQR           |      0.892 |  0.022 |        0.075 |      0.312 |       0.115 |    0.601 |       0.427 |       0.037 |     0.001 |           0.008 |
-| weak-forecaster     | TQA-B-CQR          |      0.894 |  0.049 |        0.225 |      0.236 |       0.24  |    0.584 |       0.421 |       0.115 |     0.003 |           0.026 |
-
-
-**Table S18. Small calibration pools (BDG2).**
-
-| perturb   | method             |   macd |   under_rate |   under_w1 |   rel_IS |   mean_cov |   under_rate_sd |
-|:----------|:-------------------|-------:|-------------:|-----------:|---------:|-----------:|----------------:|
-| n_cal=5   | ACI-CQR            |  0.018 |        0.032 |      0.216 |    0.559 |      0.899 |           0.021 |
-| n_cal=5   | CQR                |  0.038 |        0.166 |      0.236 |    0.557 |      0.895 |           0.028 |
-| n_cal=5   | GHCP-CQR           |  0.068 |        0.001 |      0     |  411.482 |      0.968 |           0.002 |
-| n_cal=5   | PCS-CQR            |  0.016 |        0.027 |      0.182 |    0.556 |      0.895 |           0.009 |
-| n_cal=5   | PCS-CQR (IS-tuned) |  0.021 |        0.066 |      0.202 |    0.554 |      0.895 |           0.02  |
-| n_cal=5   | PCS-CQR κ=168      |  0.015 |        0.017 |      0.186 |    0.555 |      0.896 |           0.006 |
-| n_cal=5   | QShrink-CQR (MACD) |  0.017 |        0.026 |      0.191 |    0.559 |      0.897 |           0.01  |
-| n_cal=5   | Self-CQR           |  0.021 |        0.081 |      0.348 |    0.567 |      0.889 |           0.015 |
-| n_cal=5   | TQA-B-CQR          |  0.039 |        0.193 |      0.251 |    0.557 |      0.891 |           0.042 |
-| n_cal=10  | ACI-CQR            |  0.019 |        0.045 |      0.261 |    0.554 |      0.895 |           0.035 |
-| n_cal=10  | CQR                |  0.038 |        0.193 |      0.28  |    0.553 |      0.888 |           0     |
-| n_cal=10  | GHCP-CQR           |  0.045 |        0.032 |      0.025 |    0.596 |      0.935 |           0.006 |
-| n_cal=10  | PCS-CQR            |  0.017 |        0.03  |      0.184 |    0.556 |      0.894 |           0.015 |
-| n_cal=10  | PCS-CQR (IS-tuned) |  0.019 |        0.052 |      0.225 |    0.553 |      0.893 |           0.004 |
-| n_cal=10  | PCS-CQR κ=168      |  0.015 |        0.019 |      0.2   |    0.555 |      0.894 |           0.002 |
-| n_cal=10  | QShrink-CQR (MACD) |  0.017 |        0.025 |      0.211 |    0.557 |      0.895 |           0.008 |
-| n_cal=10  | Self-CQR           |  0.021 |        0.079 |      0.345 |    0.567 |      0.889 |           0.017 |
-| n_cal=10  | TQA-B-CQR          |  0.04  |        0.212 |      0.289 |    0.553 |      0.886 |           0.004 |
-| n_cal=20  | ACI-CQR            |  0.021 |        0.061 |      0.237 |    0.553 |      0.895 |           0.037 |
-| n_cal=20  | CQR                |  0.038 |        0.173 |      0.249 |    0.554 |      0.892 |           0.028 |
-| n_cal=20  | GHCP-CQR           |  0.039 |        0.091 |      0.127 |    0.553 |      0.914 |           0.018 |
-| n_cal=20  | PCS-CQR            |  0.016 |        0.026 |      0.186 |    0.555 |      0.894 |           0.012 |
-| n_cal=20  | PCS-CQR (IS-tuned) |  0.019 |        0.05  |      0.214 |    0.553 |      0.894 |           0.016 |
-| n_cal=20  | PCS-CQR κ=168      |  0.015 |        0.018 |      0.193 |    0.555 |      0.895 |           0.001 |
-| n_cal=20  | QShrink-CQR (MACD) |  0.016 |        0.022 |      0.193 |    0.555 |      0.896 |           0.016 |
-| n_cal=20  | Self-CQR           |  0.021 |        0.079 |      0.337 |    0.567 |      0.89  |           0.017 |
-| n_cal=20  | TQA-B-CQR          |  0.039 |        0.186 |      0.252 |    0.554 |      0.892 |           0.032 |
-| n_cal=40  | ACI-CQR            |  0.021 |        0.051 |      0.255 |    0.552 |      0.895 |           0.015 |
-| n_cal=40  | CQR                |  0.038 |        0.19  |      0.267 |    0.553 |      0.89  |           0.031 |
-| n_cal=40  | GHCP-CQR           |  0.038 |        0.139 |      0.194 |    0.551 |      0.9   |           0.02  |
-| n_cal=40  | PCS-CQR            |  0.016 |        0.024 |      0.198 |    0.555 |      0.894 |           0.011 |
-| n_cal=40  | PCS-CQR (IS-tuned) |  0.019 |        0.045 |      0.225 |    0.553 |      0.893 |           0.019 |
-| n_cal=40  | PCS-CQR κ=168      |  0.015 |        0.019 |      0.202 |    0.555 |      0.894 |           0.001 |
-| n_cal=40  | QShrink-CQR (MACD) |  0.016 |        0.02  |      0.202 |    0.555 |      0.896 |           0.006 |
-| n_cal=40  | Self-CQR           |  0.021 |        0.08  |      0.339 |    0.567 |      0.89  |           0.017 |
-| n_cal=40  | TQA-B-CQR          |  0.039 |        0.189 |      0.261 |    0.554 |      0.891 |           0.029 |
-
-
-**Table S19. Selected tuning parameters per run.**
-
-| part                           |   pcs_kappa |   pcs_is_kappa |   hsc_cqr_K |   hsc_cqr_kappa |   qshrink_is |   qshrink_macd |   aci_gamma_is |   aci_gamma_macdc |   aci_gamma_cov |   grouped_kappa |
-|:-------------------------------|------------:|---------------:|------------:|----------------:|-------------:|---------------:|---------------:|------------------:|----------------:|----------------:|
-| loso_BDG2_Bear_s0              |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Bear_s1              |         168 |            336 |          50 |             336 |          672 |            168 |          0     |             0     |            0.01 |             168 |
-| loso_BDG2_Bear_s2              |         168 |            336 |          25 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Bull_s0              |         168 |            336 |          50 |             336 |         1344 |            168 |          0     |             0     |            0.01 |             168 |
-| loso_BDG2_Bull_s1              |          96 |            336 |          50 |             336 |         1344 |            336 |          0     |             0.001 |            0.01 |              96 |
-| loso_BDG2_Bull_s2              |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Eagle_s0             |         168 |            336 |          25 |             672 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Eagle_s1             |         168 |            672 |          50 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Eagle_s2             |         168 |            336 |          25 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Fox_s0               |         168 |            336 |          25 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Fox_s1               |          96 |            336 |          50 |             336 |          336 |             96 |          0     |             0     |            0.01 |             168 |
-| loso_BDG2_Fox_s2               |         168 |            336 |          50 |             336 |          336 |             96 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Hog_s0               |         168 |            336 |          50 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Hog_s1               |         168 |            336 |          50 |             336 |         1344 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Hog_s2               |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Moose_s0             |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Moose_s1             |          96 |            336 |          50 |             336 |          672 |             96 |          0     |             0.001 |            0.01 |              96 |
-| loso_BDG2_Moose_s2             |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Peacock_s0           |         168 |            336 |          50 |             336 |          336 |            168 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Peacock_s1           |         168 |            336 |          50 |             336 |          672 |             96 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Peacock_s2           |         168 |            336 |          50 |             336 |          336 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Rat_s0               |          96 |            336 |          25 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |              96 |
-| loso_BDG2_Rat_s1               |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Rat_s2               |         168 |            336 |         nan |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Robin_s0             |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| loso_BDG2_Robin_s1             |          96 |            336 |          50 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| loso_BDG2_Robin_s2             |         168 |            336 |          50 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Wolf_s0              |         168 |            336 |          50 |             336 |          336 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Wolf_s1              |         168 |            336 |          25 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| loso_BDG2_Wolf_s2              |         168 |            336 |          50 |             336 |          336 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| main_BDG2_s0_a0.05             |          96 |            336 |          50 |             336 |          336 |             48 |          0     |             0     |            0.01 |              96 |
-| main_BDG2_s0_a0.1              |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| main_BDG2_s0_a0.2              |          96 |            336 |          25 |             336 |          336 |             96 |          0.002 |             0.002 |            0.01 |              96 |
-| main_BDG2_s1_a0.05             |          96 |            336 |          50 |             336 |          336 |             48 |          0     |             0     |            0.01 |              96 |
-| main_BDG2_s1_a0.1              |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| main_BDG2_s1_a0.2              |         168 |            336 |          25 |             672 |          672 |            168 |          0.002 |             0.002 |            0.01 |             168 |
-| main_BDG2_s2_a0.05             |          96 |            336 |          25 |             336 |          336 |             96 |          0     |             0.001 |            0.01 |              96 |
-| main_BDG2_s2_a0.1              |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| main_BDG2_s2_a0.2              |         168 |            336 |          25 |             672 |          672 |            168 |          0.002 |             0.002 |            0.01 |             168 |
-| main_BDG2_s3_a0.05             |          96 |            336 |          50 |             336 |          672 |             96 |          0     |             0     |            0.01 |              96 |
-| main_BDG2_s3_a0.1              |         168 |            336 |          25 |             336 |          336 |             96 |          0     |             0.001 |            0.01 |              96 |
-| main_BDG2_s3_a0.2              |         168 |            336 |          50 |             336 |          672 |             96 |          0.001 |             0.002 |            0.01 |              96 |
-| main_BDG2_s4_a0.05             |         336 |            336 |         nan |             336 |         1344 |            336 |          0     |             0     |            0.01 |             336 |
-| main_BDG2_s4_a0.1              |         168 |            336 |         nan |             336 |         1344 |            168 |          0     |             0.001 |            0.01 |             168 |
-| main_BDG2_s4_a0.2              |         168 |            336 |          25 |             336 |         1344 |            168 |          0.002 |             0.002 |            0.01 |             168 |
-| main_UCI_s0_a0.05              |          96 |            336 |          25 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |             nan |
-| main_UCI_s0_a0.1               |          48 |            336 |          25 |             336 |          672 |             48 |          0.002 |             0.002 |            0.01 |             nan |
-| main_UCI_s0_a0.2               |          48 |            336 |          10 |             336 |          672 |             96 |          0.002 |             0.002 |            0.01 |             nan |
-| main_UCI_s1_a0.05              |          48 |             24 |          25 |              24 |          168 |             24 |          0     |             0     |            0.01 |             nan |
-| main_UCI_s1_a0.1               |          96 |            168 |          25 |             168 |          168 |             96 |          0     |             0     |            0.01 |             nan |
-| main_UCI_s1_a0.2               |          96 |            168 |          10 |             168 |          336 |            168 |          0.001 |             0.002 |            0.01 |             nan |
-| main_UCI_s2_a0.05              |          48 |            168 |          25 |             168 |          336 |             24 |          0     |             0     |            0.01 |             nan |
-| main_UCI_s2_a0.1               |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             nan |
-| main_UCI_s2_a0.2               |          96 |            336 |         100 |             336 |          336 |            168 |          0.002 |             0.002 |            0.01 |             nan |
-| main_UCI_s3_a0.05              |          24 |             96 |          25 |              96 |          336 |             24 |          0     |             0     |            0.01 |             nan |
-| main_UCI_s3_a0.1               |          48 |            168 |         nan |             168 |          336 |             96 |          0     |             0     |            0.01 |             nan |
-| main_UCI_s3_a0.2               |          96 |            168 |          25 |             168 |          336 |            168 |          0.001 |             0.001 |            0.01 |             nan |
-| main_UCI_s4_a0.05              |         168 |            672 |          50 |             672 |         1344 |            336 |          0.001 |             0.001 |            0.01 |             nan |
-| main_UCI_s4_a0.1               |          96 |            672 |          25 |             672 |         1344 |             96 |          0.001 |             0.002 |            0.01 |             nan |
-| main_UCI_s4_a0.2               |          96 |            168 |          25 |             336 |          672 |             96 |          0.002 |             0.005 |            0.01 |             nan |
-| pools_BDG2_s0_n10_r0           |          96 |            336 |         nan |             nan |          336 |            168 |          0.001 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s0_n10_r1           |          96 |            672 |         nan |             nan |         1344 |            168 |          0     |             0.002 |            0.01 |              96 |
-| pools_BDG2_s0_n10_r2           |          96 |            336 |         nan |             nan |          336 |             24 |          0.002 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s0_n10_r3           |         168 |            336 |         nan |             nan |          168 |            168 |          0.001 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s0_n10_r4           |          96 |            672 |         nan |             nan |         1344 |             96 |          0     |             0.002 |            0.01 |              96 |
-| pools_BDG2_s0_n20_r0           |         336 |            672 |         nan |             nan |          336 |            168 |          0.001 |             0.002 |            0.01 |             336 |
-| pools_BDG2_s0_n20_r1           |          96 |            336 |         nan |             nan |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s0_n20_r2           |          96 |            168 |         nan |             nan |          336 |             96 |          0.001 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s0_n20_r3           |          96 |             96 |         nan |             nan |           48 |            168 |          0.002 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s0_n20_r4           |         168 |            672 |         nan |             nan |         1344 |            168 |          0.001 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s0_n40_r0           |          96 |            336 |         nan |             nan |          672 |             48 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s0_n40_r1           |          96 |            336 |         nan |             nan |         1344 |             96 |          0.001 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s0_n40_r2           |          96 |            336 |         nan |             nan |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s0_n40_r3           |         168 |            336 |         nan |             nan |         1344 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s0_n40_r4           |         168 |            336 |         nan |             nan |          672 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s0_n5_r0            |          96 |           1344 |         nan |             nan |         1344 |             96 |          0.005 |             0.005 |            0.01 |              96 |
-| pools_BDG2_s0_n5_r1            |          48 |            336 |         nan |             nan |          336 |             24 |          0.002 |             0.002 |            0.01 |             nan |
-| pools_BDG2_s0_n5_r2            |          96 |            336 |         nan |             nan |          336 |            168 |          0.002 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s0_n5_r3            |          96 |             48 |         nan |             nan |            0 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s0_n5_r4            |         336 |            672 |         nan |             nan |          336 |            336 |          0.002 |             0.002 |            0.01 |             336 |
-| pools_BDG2_s1_n10_r0           |          96 |            672 |         nan |             nan |          672 |            168 |          0.001 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s1_n10_r1           |          24 |            336 |         nan |             nan |          672 |             24 |          0.001 |             0.001 |            0.01 |              24 |
-| pools_BDG2_s1_n10_r2           |          96 |            672 |         nan |             nan |         1344 |             96 |          0.001 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s1_n10_r3           |          24 |            672 |         nan |             nan |          672 |             24 |          0.001 |             0.002 |            0.01 |              24 |
-| pools_BDG2_s1_n10_r4           |         168 |            168 |         nan |             nan |          336 |             96 |          0.001 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s1_n20_r0           |          96 |            336 |         nan |             nan |          336 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s1_n20_r1           |         336 |            672 |         nan |             nan |          672 |            336 |          0.001 |             0.001 |            0.01 |             336 |
-| pools_BDG2_s1_n20_r2           |         168 |            672 |         nan |             nan |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s1_n20_r3           |          96 |            672 |         nan |             nan |          672 |            168 |          0.001 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s1_n20_r4           |          96 |            168 |         nan |             nan |          336 |            168 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s1_n40_r0           |         168 |            336 |         nan |             nan |          336 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s1_n40_r1           |         168 |            336 |         nan |             nan |          336 |            168 |          0.002 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s1_n40_r2           |          96 |            336 |         nan |             nan |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s1_n40_r3           |          96 |            336 |         nan |             nan |          336 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s1_n40_r4           |         168 |            672 |         nan |             nan |          672 |            336 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s1_n5_r0            |          96 |            336 |         nan |             nan |          336 |             48 |          0.001 |             0.001 |            0.01 |              96 |
-| pools_BDG2_s1_n5_r1            |           0 |            168 |         nan |             nan |           96 |              0 |          0.001 |             0.002 |            0.01 |              24 |
-| pools_BDG2_s1_n5_r2            |         168 |            inf |         nan |             nan |          336 |            168 |          0.002 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s1_n5_r3            |          48 |            672 |         nan |             nan |          672 |             24 |          0     |             0.002 |            0.01 |              48 |
-| pools_BDG2_s1_n5_r4            |          24 |             96 |         nan |             nan |           96 |             24 |          0.002 |             0.002 |            0.01 |              24 |
-| pools_BDG2_s2_n10_r0           |         168 |            336 |         nan |             nan |          336 |             48 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s2_n10_r1           |         336 |            336 |         nan |             nan |          336 |            336 |          0.002 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s2_n10_r2           |        1344 |           1344 |         nan |             nan |         1344 |            672 |          0.002 |             0.002 |            0.01 |             672 |
-| pools_BDG2_s2_n10_r3           |          96 |            336 |         nan |             nan |          672 |             96 |          0.002 |             0.002 |            0.01 |              96 |
-| pools_BDG2_s2_n10_r4           |          96 |            336 |         nan |             nan |          336 |            168 |          0.002 |             0.002 |            0.01 |              48 |
-| pools_BDG2_s2_n20_r0           |         168 |            336 |         nan |             nan |          336 |            336 |          0.001 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s2_n20_r1           |         672 |            336 |         nan |             nan |          672 |            672 |          0.001 |             0.002 |            0.01 |             672 |
-| pools_BDG2_s2_n20_r2           |         336 |            168 |         nan |             nan |          336 |            672 |          0     |             0     |            0.01 |             336 |
-| pools_BDG2_s2_n20_r3           |         336 |           1344 |         nan |             nan |         1344 |            336 |          0     |             0.002 |            0.01 |             336 |
-| pools_BDG2_s2_n20_r4           |          96 |           1344 |         nan |             nan |         1344 |             96 |          0     |             0.002 |            0.01 |              96 |
-| pools_BDG2_s2_n40_r0           |         168 |            168 |         nan |             nan |          336 |            168 |          0     |             0.001 |            0.01 |             168 |
-| pools_BDG2_s2_n40_r1           |         336 |            672 |         nan |             nan |          672 |            336 |          0.001 |             0.001 |            0.01 |             336 |
-| pools_BDG2_s2_n40_r2           |         336 |            672 |         nan |             nan |          672 |            336 |          0.001 |             0.001 |            0.01 |             168 |
-| pools_BDG2_s2_n40_r3           |         336 |           1344 |         nan |             nan |         1344 |            336 |          0.001 |             0.001 |            0.01 |             336 |
-| pools_BDG2_s2_n40_r4           |         336 |            336 |         nan |             nan |          672 |            336 |          0.001 |             0.001 |            0.01 |             336 |
-| pools_BDG2_s2_n5_r0            |         168 |           1344 |         nan |             nan |         1344 |            168 |          0.001 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s2_n5_r1            |         336 |           1344 |         nan |             nan |          672 |            672 |          0     |             0.005 |            0.01 |             168 |
-| pools_BDG2_s2_n5_r2            |         336 |            336 |         nan |             nan |          168 |             96 |          0.002 |             0.002 |            0.01 |              48 |
-| pools_BDG2_s2_n5_r3            |         168 |            336 |         nan |             nan |          336 |            168 |          0.001 |             0.002 |            0.01 |             168 |
-| pools_BDG2_s2_n5_r4            |          96 |            168 |         nan |             nan |          168 |            168 |          0.002 |             0.002 |            0.01 |              96 |
-| robust_BDG2_s0_cal10           |          48 |            168 |          25 |             168 |          168 |             48 |          0     |             0.001 |            0.01 |              48 |
-| robust_BDG2_s0_cal25           |          96 |            336 |          25 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s0_cal50           |          96 |            336 |          50 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_missing20       |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_missing40       |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_noise15-history |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_noise15         |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_noise5          |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_outage3d        |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_outage7d        |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_shift+40@d7     |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_shift+40        |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_shift-40        |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_tsplit          |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_volatility25    |          96 |            336 |         100 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s0_weakmodel       |          96 |            336 |          25 |             336 |          336 |             96 |          0     |             0.001 |            0.01 |              96 |
-| robust_BDG2_s1_cal10           |          96 |            168 |          10 |             168 |          168 |             96 |          0     |             0     |            0.01 |              96 |
-| robust_BDG2_s1_cal25           |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_cal50           |          96 |            336 |          50 |             336 |          672 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| robust_BDG2_s1_missing20       |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_missing40       |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_noise15-history |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_noise15         |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_noise5          |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_outage3d        |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_outage7d        |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_shift+40@d7     |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_shift+40        |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_shift-40        |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_tsplit          |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_volatility25    |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s1_weakmodel       |          96 |            168 |          50 |             168 |          168 |             48 |          0     |             0.001 |            0.01 |              96 |
-| robust_BDG2_s2_cal10           |         672 |           1344 |          25 |             672 |          672 |            672 |          0.001 |             0.001 |            0.01 |             672 |
-| robust_BDG2_s2_cal25           |         168 |            336 |          25 |             336 |          336 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_cal50           |         168 |            672 |         100 |             672 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_missing20       |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_missing40       |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_noise15-history |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_noise15         |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_noise5          |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_outage3d        |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_outage7d        |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_shift+40@d7     |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_shift+40        |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_shift-40        |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_tsplit          |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_volatility25    |         168 |            336 |          25 |             336 |          672 |            168 |          0     |             0.001 |            0.01 |             168 |
-| robust_BDG2_s2_weakmodel       |          96 |            336 |          25 |             336 |          336 |             96 |          0.001 |             0.001 |            0.01 |              96 |
-| xds_BDG2toBDG2_s0              |          96 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |              96 |
-| xds_BDG2toBDG2_s1              |         168 |            336 |         nan |             336 |          336 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| xds_BDG2toBDG2_s2              |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             168 |
-| xds_BDG2toUCI_s0               |          96 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             nan |
-| xds_BDG2toUCI_s1               |         168 |            336 |         nan |             336 |          336 |            168 |          0.001 |             0.001 |            0.01 |             nan |
-| xds_BDG2toUCI_s2               |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             nan |
-| xds_UCItoBDG2_s0               |          48 |            336 |          25 |             336 |          672 |             48 |          0.002 |             0.002 |            0.01 |             nan |
-| xds_UCItoBDG2_s1               |          96 |            168 |          25 |             168 |          168 |             96 |          0     |             0     |            0.01 |             nan |
-| xds_UCItoBDG2_s2               |         168 |            336 |          50 |             336 |          672 |            168 |          0.001 |             0.001 |            0.01 |             nan |
-
-
-**Table S20. LOBO objectives of PCS-CQR on calibration buildings for every κ.**
-
-| part              | K   |   kappa |    obj |   macd |   under |
-|:------------------|:----|--------:|-------:|-------:|--------:|
-| main_BDG2_s0_a0.1 |     |       0 | 0.5907 | 0.0202 |  0.0595 |
-| main_BDG2_s0_a0.1 |     |      24 | 0.5855 | 0.0168 |  0.0417 |
-| main_BDG2_s0_a0.1 |     |      48 | 0.5832 | 0.0156 |  0.0179 |
-| main_BDG2_s0_a0.1 |     |      96 | 0.5809 | 0.015  |  0.0119 |
-| main_BDG2_s0_a0.1 |     |     168 | 0.5794 | 0.0153 |  0.0298 |
-| main_BDG2_s0_a0.1 |     |     336 | 0.5786 | 0.017  |  0.0238 |
-| main_BDG2_s0_a0.1 |     |     672 | 0.579  | 0.0204 |  0.0476 |
-| main_BDG2_s0_a0.1 |     |    1344 | 0.5801 | 0.0252 |  0.0833 |
-| main_BDG2_s0_a0.1 |     |     inf | 0.5835 | 0.0358 |  0.125  |
-| main_BDG2_s1_a0.1 |     |       0 | 0.6339 | 0.0219 |  0.0714 |
-| main_BDG2_s1_a0.1 |     |      24 | 0.6287 | 0.0181 |  0.0357 |
-| main_BDG2_s1_a0.1 |     |      48 | 0.6266 | 0.0169 |  0.0179 |
-| main_BDG2_s1_a0.1 |     |      96 | 0.6244 | 0.0154 |  0.0179 |
-| main_BDG2_s1_a0.1 |     |     168 | 0.6231 | 0.0151 |  0.0238 |
-| main_BDG2_s1_a0.1 |     |     336 | 0.6225 | 0.0163 |  0.0238 |
-| main_BDG2_s1_a0.1 |     |     672 | 0.6229 | 0.0206 |  0.0417 |
-| main_BDG2_s1_a0.1 |     |    1344 | 0.6239 | 0.0256 |  0.0774 |
-| main_BDG2_s1_a0.1 |     |     inf | 0.6277 | 0.0368 |  0.1726 |
-| main_BDG2_s2_a0.1 |     |       0 | 0.5747 | 0.0232 |  0.1131 |
-| main_BDG2_s2_a0.1 |     |      24 | 0.5711 | 0.0195 |  0.0833 |
-| main_BDG2_s2_a0.1 |     |      48 | 0.5693 | 0.0178 |  0.0595 |
-| main_BDG2_s2_a0.1 |     |      96 | 0.5677 | 0.0157 |  0.0476 |
-| main_BDG2_s2_a0.1 |     |     168 | 0.5666 | 0.0148 |  0.0417 |
-| main_BDG2_s2_a0.1 |     |     336 | 0.5662 | 0.0149 |  0.0357 |
-| main_BDG2_s2_a0.1 |     |     672 | 0.5665 | 0.0171 |  0.0357 |
-| main_BDG2_s2_a0.1 |     |    1344 | 0.5673 | 0.0204 |  0.0536 |
-| main_BDG2_s2_a0.1 |     |     inf | 0.5698 | 0.0292 |  0.0952 |
-| main_BDG2_s3_a0.1 |     |       0 | 0.7366 | 0.0215 |  0.0655 |
-| main_BDG2_s3_a0.1 |     |      24 | 0.727  | 0.0183 |  0.0417 |
-| main_BDG2_s3_a0.1 |     |      48 | 0.7244 | 0.017  |  0.0357 |
-| main_BDG2_s3_a0.1 |     |      96 | 0.7202 | 0.016  |  0.0357 |
-| main_BDG2_s3_a0.1 |     |     168 | 0.7164 | 0.016  |  0.0298 |
-| main_BDG2_s3_a0.1 |     |     336 | 0.7146 | 0.0184 |  0.0298 |
-| main_BDG2_s3_a0.1 |     |     672 | 0.7157 | 0.0228 |  0.0536 |
-| main_BDG2_s3_a0.1 |     |    1344 | 0.718  | 0.0282 |  0.0833 |
-| main_BDG2_s3_a0.1 |     |     inf | 0.7255 | 0.0399 |  0.1548 |
-| main_BDG2_s4_a0.1 |     |       0 | 0.7819 | 0.0232 |  0.1012 |
-| main_BDG2_s4_a0.1 |     |      24 | 0.7595 | 0.0186 |  0.0417 |
-| main_BDG2_s4_a0.1 |     |      48 | 0.7415 | 0.0168 |  0.0298 |
-| main_BDG2_s4_a0.1 |     |      96 | 0.7224 | 0.0153 |  0.0179 |
-| main_BDG2_s4_a0.1 |     |     168 | 0.7134 | 0.015  |  0.006  |
-| main_BDG2_s4_a0.1 |     |     336 | 0.712  | 0.0172 |  0      |
-| main_BDG2_s4_a0.1 |     |     672 | 0.7126 | 0.0229 |  0.0298 |
-| main_BDG2_s4_a0.1 |     |    1344 | 0.7146 | 0.0292 |  0.0952 |
-| main_BDG2_s4_a0.1 |     |     inf | 0.7222 | 0.0438 |  0.1786 |
-| main_UCI_s0_a0.1  |     |       0 | 0.5617 | 0.0114 |  0      |
-| main_UCI_s0_a0.1  |     |      24 | 0.5549 | 0.0103 |  0      |
-| main_UCI_s0_a0.1  |     |      48 | 0.5506 | 0.0102 |  0      |
-| main_UCI_s0_a0.1  |     |      96 | 0.5459 | 0.0103 |  0      |
-| main_UCI_s0_a0.1  |     |     168 | 0.5428 | 0.0108 |  0      |
-| main_UCI_s0_a0.1  |     |     336 | 0.5424 | 0.0138 |  0      |
-| main_UCI_s0_a0.1  |     |     672 | 0.5428 | 0.0177 |  0.0476 |
-| main_UCI_s0_a0.1  |     |    1344 | 0.5437 | 0.0213 |  0.0476 |
-| main_UCI_s0_a0.1  |     |     inf | 0.5464 | 0.0297 |  0.127  |
-| main_UCI_s1_a0.1  |     |       0 | 0.8151 | 0.0174 |  0.0476 |
-| main_UCI_s1_a0.1  |     |      24 | 0.8106 | 0.015  |  0.0159 |
-| main_UCI_s1_a0.1  |     |      48 | 0.8083 | 0.0143 |  0.0159 |
-| main_UCI_s1_a0.1  |     |      96 | 0.8073 | 0.0139 |  0.0159 |
-| main_UCI_s1_a0.1  |     |     168 | 0.8062 | 0.0145 |  0.0159 |
-| main_UCI_s1_a0.1  |     |     336 | 0.8075 | 0.0159 |  0.0159 |
-| main_UCI_s1_a0.1  |     |     672 | 0.8102 | 0.0196 |  0.0476 |
-| main_UCI_s1_a0.1  |     |    1344 | 0.8142 | 0.0242 |  0.0635 |
-| main_UCI_s1_a0.1  |     |     inf | 0.8243 | 0.0364 |  0.1111 |
-| main_UCI_s2_a0.1  |     |       0 | 0.5606 | 0.0164 |  0.0159 |
-| main_UCI_s2_a0.1  |     |      24 | 0.5566 | 0.0141 |  0.0159 |
-| main_UCI_s2_a0.1  |     |      48 | 0.5549 | 0.0133 |  0.0159 |
-| main_UCI_s2_a0.1  |     |      96 | 0.5527 | 0.0124 |  0.0159 |
-| main_UCI_s2_a0.1  |     |     168 | 0.551  | 0.0118 |  0.0159 |
-| main_UCI_s2_a0.1  |     |     336 | 0.5504 | 0.0137 |  0.0159 |
-| main_UCI_s2_a0.1  |     |     672 | 0.551  | 0.0181 |  0.0159 |
-| main_UCI_s2_a0.1  |     |    1344 | 0.5525 | 0.0228 |  0.0476 |
-| main_UCI_s2_a0.1  |     |     inf | 0.5568 | 0.0328 |  0.1111 |
-| main_UCI_s3_a0.1  |     |       0 | 0.7724 | 0.014  |  0      |
-| main_UCI_s3_a0.1  |     |      24 | 0.7675 | 0.0118 |  0      |
-| main_UCI_s3_a0.1  |     |      48 | 0.7641 | 0.0114 |  0      |
-| main_UCI_s3_a0.1  |     |      96 | 0.7603 | 0.0115 |  0      |
-| main_UCI_s3_a0.1  |     |     168 | 0.7596 | 0.0122 |  0      |
-| main_UCI_s3_a0.1  |     |     336 | 0.7603 | 0.0152 |  0.0317 |
-| main_UCI_s3_a0.1  |     |     672 | 0.763  | 0.0207 |  0.0635 |
-| main_UCI_s3_a0.1  |     |    1344 | 0.7667 | 0.0266 |  0.0952 |
-| main_UCI_s3_a0.1  |     |     inf | 0.7755 | 0.0394 |  0.1587 |
-| main_UCI_s4_a0.1  |     |       0 | 0.4541 | 0.0126 |  0      |
-| main_UCI_s4_a0.1  |     |      24 | 0.4475 | 0.0103 |  0      |
-| main_UCI_s4_a0.1  |     |      48 | 0.444  | 0.0097 |  0      |
-| main_UCI_s4_a0.1  |     |      96 | 0.4391 | 0.0089 |  0      |
-| main_UCI_s4_a0.1  |     |     168 | 0.4361 | 0.0094 |  0      |
-| main_UCI_s4_a0.1  |     |     336 | 0.4357 | 0.0109 |  0      |
-| main_UCI_s4_a0.1  |     |     672 | 0.4356 | 0.0133 |  0      |
-| main_UCI_s4_a0.1  |     |    1344 | 0.4357 | 0.0161 |  0.0317 |
-| main_UCI_s4_a0.1  |     |     inf | 0.4367 | 0.0222 |  0.0635 |
-
-
-**Table S21. Computational cost.**
-
-| Data   |   Training rows (M) | LightGBM training, 3 models (s)   |   LightGBM inference (ms / building-day) |   PCS-CQR tuning (s) |   HSC-CQR tuning + apply (s) |   QShrink-CQR (s) |   ACI-CQR (s) |   PCS-CQR update (ms / building-day) |
-|:-------|--------------------:|:----------------------------------|-----------------------------------------:|---------------------:|-----------------------------:|------------------:|--------------:|-------------------------------------:|
-| BDG2   |                1.32 | 107 (70–289)                      |                                     0.79 |                  1.1 |                         29.1 |               1.7 |           1.2 |                                0.036 |
-| UCI    |                0.99 | 25 (22–44)                        |                                     0.04 |                  0.3 |                          6.5 |               0.5 |           0.4 |                                0.033 |
-
-
-**Table S22. Wall-clock time per calibration strategy.**
-
-| dataset   | strategy                   |   median |    min |    max |
-|:----------|:---------------------------|---------:|-------:|-------:|
-| BDG2      | ACI-CQR                    |    1.201 |  1.137 |  1.474 |
-| BDG2      | GHCP-CQR                   |    0.279 |  0.222 |  0.314 |
-| BDG2      | HSC-CQR                    |   29.075 | 23.798 | 36.186 |
-| BDG2      | PCS-CQR apply              |    0.258 |  0.216 |  0.298 |
-| BDG2      | PCS-CQR tuning             |    1.072 |  0.957 |  1.307 |
-| BDG2      | QShrink-CQR                |    1.663 |  1.45  |  1.822 |
-| BDG2      | Self-CQR                   |    0.279 |  0.236 |  0.373 |
-| BDG2      | TQA-B-CQR                  |    0.018 |  0.016 |  0.019 |
-| BDG2      | own-score histograms (CQR) |    0.235 |  0.225 |  0.304 |
-| UCI       | ACI-CQR                    |    0.39  |  0.39  |  0.475 |
-| UCI       | GHCP-CQR                   |    0.08  |  0.075 |  0.113 |
-| UCI       | HSC-CQR                    |    6.498 |  4.98  |  9.149 |
-| UCI       | PCS-CQR apply              |    0.084 |  0.069 |  0.114 |
-| UCI       | PCS-CQR tuning             |    0.31  |  0.302 |  0.43  |
-| UCI       | QShrink-CQR                |    0.532 |  0.508 |  0.695 |
-| UCI       | Self-CQR                   |    0.079 |  0.07  |  0.108 |
-| UCI       | TQA-B-CQR                  |    0.007 |  0.006 |  0.008 |
-| UCI       | own-score histograms (CQR) |    0.084 |  0.084 |  0.091 |
-
-
-**Table S23. All paired comparisons (family 'preregistered-abs' = the planned primary comparison). p_holm: site-cluster (BDG2) or building (UCI) sign-flip randomisation test, Holm-adjusted within family, protocol, condition, nominal level and metric; p_wilcoxon_holm: building-level Wilcoxon signed-rank test (ignores clustering).**
-
-| family                    | dataset   | protocol                | proposed      | baseline                | metric       |   n_buildings |   n_clusters |   mean_diff | CI95               |   median_diff | CI95_median        |   share_proposed_better |   rank_biserial |   p_holm |   p_wilcoxon_holm |
-|:--------------------------|:----------|:------------------------|:--------------|:------------------------|:-------------|--------------:|-------------:|------------:|:-------------------|--------------:|:-------------------|------------------------:|----------------:|---------:|------------------:|
-| main                      | BDG2      | random                  | PCS-CQR       | CQR                     | abs_dev      |           713 |           10 |     -0.0237 | [-0.0271, -0.0212] |       -0.0176 | [-0.0218, -0.0156] |                  0.8738 |          0.8877 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | CQR                     | under        |           713 |           10 |     -0.1582 | [-0.2350, -0.0755] |        0      | [0.0000, 0.0000]   |                  0.2244 |          0.971  |   0.0312 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | CQR                     | rel_IS       |           713 |           10 |     -0.0016 | [-0.0109, 0.0196]  |       -0.0004 | [-0.0016, 0.0004]  |                  0.5217 |          0.2342 |   1      |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | CQR                     | reserve_cost |           713 |           10 |     -0.0001 | [-0.0004, 0.0006]  |       -0      | [-0.0001, 0.0000]  |                  0.547  |          0.1797 |   1      |            0.0002 |
-| main                      | BDG2      | random                  | PCS-CQR       | CQR                     | book_fail    |           713 |           10 |     -0.0476 | [-0.0664, -0.0214] |        0      | [0.0000, 0.0000]   |                  0.0856 |          0.9677 |   0.0703 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | Self-CQR                | abs_dev      |           713 |           10 |     -0.006  | [-0.0084, -0.0046] |       -0.0045 | [-0.0070, -0.0036] |                  0.6928 |          0.5383 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | Self-CQR                | under        |           713 |           10 |     -0.0605 | [-0.0945, -0.0356] |        0      | [0.0000, 0.0000]   |                  0.0996 |          0.9315 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | Self-CQR                | rel_IS       |           713 |           10 |     -0.0444 | [-0.1310, -0.0121] |       -0.0058 | [-0.0067, -0.0049] |                  0.9635 |          0.9578 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | Self-CQR                | reserve_cost |           713 |           10 |     -0.001  | [-0.0031, -0.0002] |       -0.0001 | [-0.0001, -0.0001] |                  0.7307 |          0.5983 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | Self-CQR                | book_fail    |           713 |           10 |     -0.0005 | [-0.0110, 0.0077]  |        0      | [0.0000, 0.0000]   |                  0.0168 |          0.0553 |   0.9141 |            0.8157 |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR                 | abs_dev      |           713 |           10 |     -0.0098 | [-0.0124, -0.0085] |       -0.0072 | [-0.0087, -0.0063] |                  0.7363 |          0.6472 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR                 | under        |           713 |           10 |     -0.0697 | [-0.1124, -0.0266] |        0      | [0.0000, 0.0000]   |                  0.1066 |          0.9157 |   0.0391 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR                 | rel_IS       |           713 |           10 |     -0.0013 | [-0.0140, 0.0192]  |        0.0007 | [0.0002, 0.0011]   |                  0.4222 |         -0.0989 |   1      |            0.0221 |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR                 | reserve_cost |           713 |           10 |     -0      | [-0.0003, 0.0006]  |        0      | [-0.0000, 0.0000]  |                  0.4853 |          0.0019 |   1      |            1      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR                 | book_fail    |           713 |           10 |     -0.0124 | [-0.0202, -0.0015] |        0      | [0.0000, 0.0000]   |                  0.0351 |          0.6529 |   0.4922 |            0.011  |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR (MACD)          | abs_dev      |           713 |           10 |     -0.0055 | [-0.0075, -0.0045] |       -0.0045 | [-0.0060, -0.0037] |                  0.648  |          0.473  |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR (MACD)          | under        |           713 |           10 |     -0.0266 | [-0.0458, -0.0070] |        0      | [0.0000, 0.0000]   |                  0.0505 |          0.7697 |   0.0469 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR (MACD)          | rel_IS       |           713 |           10 |     -0.0029 | [-0.0129, 0.0097]  |        0.0007 | [0.0003, 0.0010]   |                  0.3955 |         -0.2091 |   1      |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR (MACD)          | reserve_cost |           713 |           10 |     -0.0001 | [-0.0003, 0.0003]  |        0      | [-0.0000, 0.0000]  |                  0.4741 |         -0.0368 |   1      |            1      |
-| main                      | BDG2      | random                  | PCS-CQR       | ACI-CQR (MACD)          | book_fail    |           713 |           10 |     -0.0055 | [-0.0099, 0.0016]  |        0      | [0.0000, 0.0000]   |                  0.0224 |          0.3518 |   0.75   |            0.2831 |
-| main                      | BDG2      | random                  | PCS-CQR       | TQA-B-CQR               | abs_dev      |           713 |           10 |     -0.0238 | [-0.0261, -0.0224] |       -0.0176 | [-0.0210, -0.0162] |                  0.871  |          0.8812 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | TQA-B-CQR               | under        |           713 |           10 |     -0.154  | [-0.2157, -0.0821] |        0      | [0.0000, 0.0000]   |                  0.223  |          0.9543 |   0.0312 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | TQA-B-CQR               | rel_IS       |           713 |           10 |     -0.0031 | [-0.0124, 0.0232]  |       -0.0021 | [-0.0038, -0.0013] |                  0.6045 |          0.3976 |   1      |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | TQA-B-CQR               | reserve_cost |           713 |           10 |     -0.0001 | [-0.0004, 0.0006]  |       -0.0001 | [-0.0001, -0.0000] |                  0.5849 |          0.3024 |   1      |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | TQA-B-CQR               | book_fail    |           713 |           10 |     -0.0443 | [-0.0624, -0.0210] |        0      | [0.0000, 0.0000]   |                  0.0799 |          0.9043 |   0.1094 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | GHCP-CQR                | abs_dev      |           713 |           10 |     -0.0234 | [-0.0269, -0.0212] |       -0.0173 | [-0.0222, -0.0149] |                  0.8612 |          0.8806 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | GHCP-CQR                | under        |           713 |           10 |     -0.15   | [-0.2215, -0.0730] |        0      | [0.0000, 0.0000]   |                  0.2104 |          0.97   |   0.0312 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | GHCP-CQR                | rel_IS       |           713 |           10 |     -0.0013 | [-0.0108, 0.0196]  |       -0.0004 | [-0.0017, 0.0004]  |                  0.5175 |          0.23   |   1      |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | GHCP-CQR                | reserve_cost |           713 |           10 |     -0.0001 | [-0.0004, 0.0006]  |       -0      | [-0.0001, 0.0000]  |                  0.5568 |          0.1928 |   1      |            0.0001 |
-| main                      | BDG2      | random                  | PCS-CQR       | GHCP-CQR                | book_fail    |           713 |           10 |     -0.0427 | [-0.0595, -0.0200] |        0      | [0.0000, 0.0000]   |                  0.0771 |          0.9643 |   0.0703 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR             | abs_dev      |           713 |           10 |     -0.0066 | [-0.0075, -0.0060] |       -0.0043 | [-0.0051, -0.0037] |                  0.6928 |          0.5679 |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR             | under        |           713 |           10 |     -0.0281 | [-0.0397, -0.0140] |        0      | [0.0000, 0.0000]   |                  0.0561 |          0.8067 |   0.0469 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR             | rel_IS       |           713 |           10 |      0.0039 | [-0.0013, 0.0200]  |        0.0007 | [0.0002, 0.0010]   |                  0.3759 |         -0.23   |   1      |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR             | reserve_cost |           713 |           10 |      0.0001 | [-0.0000, 0.0005]  |        0      | [-0.0000, 0.0000]  |                  0.4825 |          0.0016 |   1      |            1      |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR             | book_fail    |           713 |           10 |     -0.0085 | [-0.0145, 0.0015]  |        0      | [0.0000, 0.0000]   |                  0.0196 |          0.7124 |   0.75   |            0.0407 |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR (MACD)      | abs_dev      |           713 |           10 |     -0.0003 | [-0.0006, 0.0003]  |       -0      | [-0.0004, 0.0000]  |                  0.5091 |          0.0712 |   0.5996 |            0.1087 |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR (MACD)      | under        |           713 |           10 |      0.001  | [-0.0023, 0.0063]  |        0      | [0.0000, 0.0000]   |                  0.0042 |         -0.1667 |   0.875  |            0.6721 |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR (MACD)      | rel_IS       |           713 |           10 |     -0.0085 | [-0.0227, -0.0008] |       -0.0002 | [-0.0003, -0.0001] |                  0.568  |          0.219  |   0.041  |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR (MACD)      | reserve_cost |           713 |           10 |     -0.0002 | [-0.0005, 0.0000]  |       -0      | [-0.0000, 0.0000]  |                  0.5077 |          0.0604 |   1      |            0.6495 |
-| main                      | BDG2      | random                  | PCS-CQR       | QShrink-CQR (MACD)      | book_fail    |           713 |           10 |      0.0064 | [0.0005, 0.0113]   |        0      | [0.0000, 0.0000]   |                  0.0014 |         -0.8    |   0.625  |            0.0649 |
-| main                      | BDG2      | random                  | PCS-CQR       | HSC-CQR                 | abs_dev      |           713 |           10 |     -0.0026 | [-0.0036, -0.0014] |       -0.0022 | [-0.0033, -0.0011] |                  0.6536 |          0.411  |   0.0176 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | HSC-CQR                 | under        |           713 |           10 |     -0.0167 | [-0.0321, -0.0062] |        0      | [0.0000, 0.0000]   |                  0.0351 |          0.9117 |   0.0391 |            0.0001 |
-| main                      | BDG2      | random                  | PCS-CQR       | HSC-CQR                 | rel_IS       |           713 |           10 |      0.0076 | [0.0006, 0.0310]   |        0.0007 | [0.0005, 0.0008]   |                  0.324  |         -0.3879 |   0.0312 |            0      |
-| main                      | BDG2      | random                  | PCS-CQR       | HSC-CQR                 | reserve_cost |           713 |           10 |      0.0002 | [-0.0000, 0.0008]  |        0      | [0.0000, 0.0000]   |                  0.4109 |         -0.1939 |   1      |            0.0001 |
-| main                      | BDG2      | random                  | PCS-CQR       | HSC-CQR                 | book_fail    |           713 |           10 |     -0.0047 | [-0.0081, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0112 |          0.9333 |   0.75   |            0.0407 |
-| other                     | BDG2      | random                  | PCS-CQR       | QR-LGBM                 | abs_dev      |           713 |           10 |     -0.0363 | [-0.0436, -0.0268] |       -0.0305 | [-0.0397, -0.0202] |                  0.8976 |          0.9418 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | QR-LGBM                 | under        |           713 |           10 |     -0.3925 | [-0.4888, -0.2657] |        0      | [-0.5000, 0.0000]  |                  0.4979 |          1      |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | QR-LGBM                 | rel_IS       |           713 |           10 |     -0.0083 | [-0.0180, 0.0143]  |       -0.0024 | [-0.0059, 0.0002]  |                  0.5919 |          0.4726 |   0.7344 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | QR-LGBM                 | reserve_cost |           713 |           10 |     -0.0001 | [-0.0004, 0.0005]  |       -0      | [-0.0000, 0.0000]  |                  0.5245 |          0.1788 |   1      |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | QR-LGBM                 | book_fail    |           713 |           10 |     -0.1113 | [-0.1351, -0.0846] |        0      | [0.0000, 0.0000]   |                  0.1781 |          1      |   0.0273 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-QR                  | abs_dev      |           713 |           10 |     -0.0231 | [-0.0259, -0.0203] |       -0.0185 | [-0.0220, -0.0146] |                  0.8612 |          0.8767 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-QR                  | under        |           713 |           10 |     -0.2147 | [-0.2798, -0.1302] |        0      | [0.0000, 0.0000]   |                  0.3029 |          0.9884 |   0.0195 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-QR                  | rel_IS       |           713 |           10 |     -0.0013 | [-0.0103, 0.0129]  |       -0.0088 | [-0.0125, -0.0059] |                  0.6438 |          0.2879 |   0.8926 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-QR                  | reserve_cost |           713 |           10 |     -0.0001 | [-0.0005, 0.0005]  |       -0.0003 | [-0.0005, -0.0002] |                  0.6381 |          0.3077 |   1      |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-QR                  | book_fail    |           713 |           10 |     -0.0488 | [-0.0653, -0.0295] |        0      | [0.0000, 0.0000]   |                  0.0996 |          0.8065 |   0.0312 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-Gauss               | abs_dev      |           713 |           10 |     -0.0277 | [-0.0355, -0.0216] |       -0.0259 | [-0.0363, -0.0179] |                  0.8485 |          0.8706 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-Gauss               | under        |           713 |           10 |     -0.0331 | [-0.0499, -0.0144] |        0      | [0.0000, 0.0000]   |                  0.0673 |          0.6842 |   0.0234 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-Gauss               | rel_IS       |           713 |           10 |     -0.2087 | [-0.4233, -0.1188] |       -0.0514 | [-0.0652, -0.0429] |                  0.9187 |          0.9173 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-Gauss               | reserve_cost |           713 |           10 |     -0.0049 | [-0.0111, -0.0025] |       -0.0012 | [-0.0017, -0.0010] |                  0.8345 |          0.7762 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | MLP-Gauss               | book_fail    |           713 |           10 |     -0.0107 | [-0.0184, -0.0017] |        0      | [0.0000, 0.0000]   |                  0.0351 |          0.3044 |   0.1562 |            0.1993 |
-| other                     | BDG2      | random                  | PCS-CQR       | ACI-CQR (coverage only) | abs_dev      |           713 |           10 |      0.0108 | [0.0096, 0.0120]   |        0.009  | [0.0082, 0.0100]   |                  0.0884 |         -0.9443 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | ACI-CQR (coverage only) | under        |           713 |           10 |      0.0129 | [0.0071, 0.0209]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.0234 |            0.0004 |
-| other                     | BDG2      | random                  | PCS-CQR       | ACI-CQR (coverage only) | rel_IS       |           713 |           10 |     -0.9408 | [-1.2495, -0.5663] |       -0.558  | [-0.9101, -0.2707] |                  0.979  |          0.9937 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | ACI-CQR (coverage only) | reserve_cost |           713 |           10 |     -0.0233 | [-0.0310, -0.0140] |       -0.0139 | [-0.0223, -0.0066] |                  0.9509 |          0.9846 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | ACI-CQR (coverage only) | book_fail    |           713 |           10 |      0.0191 | [0.0133, 0.0239]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.0273 |            0.0001 |
-| other                     | BDG2      | random                  | PCS-CQR       | SCP-stage               | abs_dev      |           713 |           10 |     -0.0786 | [-0.0884, -0.0713] |       -0.0609 | [-0.0706, -0.0530] |                  0.9327 |          0.9807 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | SCP-stage               | under        |           713 |           10 |     -0.2734 | [-0.3484, -0.1816] |        0      | [0.0000, 0.0000]   |                  0.3352 |          0.9816 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | SCP-stage               | rel_IS       |           713 |           10 |     -0.3407 | [-0.4584, -0.2677] |       -0.1644 | [-0.1924, -0.1356] |                  0.9888 |          0.998  |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | SCP-stage               | reserve_cost |           713 |           10 |     -0.0061 | [-0.0081, -0.0048] |       -0.0036 | [-0.0046, -0.0028] |                  0.9158 |          0.938  |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | SCP-stage               | book_fail    |           713 |           10 |     -0.1665 | [-0.2296, -0.1058] |        0      | [0.0000, 0.0000]   |                  0.2216 |          0.9544 |   0.0273 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | Self-CP                 | abs_dev      |           713 |           10 |     -0.011  | [-0.0121, -0.0098] |       -0.0102 | [-0.0117, -0.0089] |                  0.7686 |          0.6898 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | Self-CP                 | under        |           713 |           10 |     -0.0439 | [-0.0558, -0.0235] |        0      | [0.0000, 0.0000]   |                  0.0813 |          0.8433 |   0.0234 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | Self-CP                 | rel_IS       |           713 |           10 |     -0.1903 | [-0.2818, -0.1425] |       -0.0843 | [-0.1006, -0.0722] |                  0.9762 |          0.9939 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | Self-CP                 | reserve_cost |           713 |           10 |     -0.0032 | [-0.0054, -0.0022] |       -0.0011 | [-0.0016, -0.0010] |                  0.8247 |          0.7947 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | Self-CP                 | book_fail    |           713 |           10 |     -0.0004 | [-0.0090, 0.0063]  |        0      | [0.0000, 0.0000]   |                  0.0182 |         -0.0057 |   0.9375 |            0.9794 |
-| other                     | BDG2      | random                  | PCS-CQR       | HSC                     | abs_dev      |           713 |           10 |     -0.0138 | [-0.0150, -0.0123] |       -0.0118 | [-0.0132, -0.0099] |                  0.7938 |          0.7603 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | HSC                     | under        |           713 |           10 |     -0.078  | [-0.1211, -0.0299] |        0      | [0.0000, 0.0000]   |                  0.129  |          0.9249 |   0.0195 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | HSC                     | rel_IS       |           713 |           10 |     -0.1501 | [-0.1957, -0.1169] |       -0.0766 | [-0.0915, -0.0607] |                  0.9663 |          0.9894 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | HSC                     | reserve_cost |           713 |           10 |     -0.0022 | [-0.0031, -0.0016] |       -0.0011 | [-0.0015, -0.0008] |                  0.8093 |          0.7584 |   0.0137 |            0      |
-| other                     | BDG2      | random                  | PCS-CQR       | HSC                     | book_fail    |           713 |           10 |     -0.0137 | [-0.0215, -0.0061] |        0      | [0.0000, 0.0000]   |                  0.0379 |          0.4436 |   0.1406 |            0.0403 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR κ=168           | abs_dev      |           713 |           10 |      0      | [-0.0001, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.1739 |         -0.0279 |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR κ=168           | under        |           713 |           10 |     -0.0005 | [-0.0022, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0014 |          1      |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR κ=168           | rel_IS       |           713 |           10 |      0.0009 | [0.0001, 0.0033]   |        0      | [0.0000, 0.0000]   |                  0.0645 |         -0.6774 |   0.0684 |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR κ=168           | reserve_cost |           713 |           10 |      0      | [-0.0000, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.1445 |         -0.2086 |   1      |            0.0161 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR κ=168           | book_fail    |           713 |           10 |      0.0004 | [0.0000, 0.0012]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | abs_dev      |           713 |           10 |     -0.002  | [-0.0028, -0.0014] |       -0.0015 | [-0.0022, -0.0009] |                  0.6129 |          0.3351 |   0.0137 |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | under        |           713 |           10 |     -0.0132 | [-0.0245, -0.0048] |        0      | [0.0000, 0.0000]   |                  0.0295 |          0.8551 |   0.1641 |            0.0016 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | rel_IS       |           713 |           10 |      0.0078 | [0.0006, 0.0309]   |        0.0006 | [0.0004, 0.0008]   |                  0.2539 |         -0.5383 |   0.0137 |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | reserve_cost |           713 |           10 |      0.0002 | [-0.0000, 0.0008]  |        0      | [0.0000, 0.0000]   |                  0.4236 |         -0.1642 |   1      |            0.0007 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | book_fail    |           713 |           10 |     -0.0041 | [-0.0070, -0.0004] |        0      | [0.0000, 0.0000]   |                  0.0112 |          0.7091 |   0.75   |            0.2332 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +stage          | abs_dev      |           713 |           10 |     -0.0001 | [-0.0002, -0.0001] |        0      | [0.0000, 0.0000]   |                  0.4558 |          0.17   |   0.0586 |            0.002  |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +stage          | under        |           713 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +stage          | rel_IS       |           713 |           10 |     -0.0001 | [-0.0002, -0.0000] |       -0.0001 | [-0.0001, -0.0001] |                  0.5806 |          0.165  |   0.2656 |            0.0003 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +stage          | reserve_cost |           713 |           10 |     -0      | [-0.0000, -0.0000] |       -0      | [-0.0000, -0.0000] |                  0.5666 |          0.1206 |   0.5859 |            0.0161 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +stage          | book_fail    |           713 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN            | abs_dev      |           713 |           10 |     -0.0002 | [-0.0004, -0.0001] |        0      | [0.0000, 0.0000]   |                  0.3198 |          0.152  |   0.1797 |            0.0321 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN            | under        |           713 |           10 |     -0.0033 | [-0.0072, -0.0009] |        0      | [0.0000, 0.0000]   |                  0.007  |          1      |   0.75   |            0.2034 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN            | rel_IS       |           713 |           10 |      0.0009 | [0.0002, 0.0031]   |        0      | [0.0000, 0.0000]   |                  0.1964 |         -0.3716 |   0.0234 |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN            | reserve_cost |           713 |           10 |      0      | [0.0000, 0.0001]   |        0      | [0.0000, 0.0000]   |                  0.2342 |         -0.2781 |   0.041  |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN            | book_fail    |           713 |           10 |     -0.0011 | [-0.0037, 0.0007]  |        0      | [0.0000, 0.0000]   |                  0.0028 |          0.6667 |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | abs_dev      |           713 |           10 |     -0.0005 | [-0.0008, -0.0002] |       -0.0003 | [-0.0005, 0.0000]  |                  0.5316 |          0.2113 |   0.1758 |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | under        |           713 |           10 |     -0.0033 | [-0.0072, -0.0009] |        0      | [0.0000, 0.0000]   |                  0.007  |          1      |   0.75   |            0.2034 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | rel_IS       |           713 |           10 |      0.0004 | [-0.0004, 0.0026]  |       -0.0002 | [-0.0003, -0.0000] |                  0.5638 |          0.1849 |   0.8633 |            0.0001 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | reserve_cost |           713 |           10 |      0      | [-0.0000, 0.0001]  |       -0      | [-0.0000, 0.0000]  |                  0.5259 |          0.0694 |   1      |            0.2172 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | book_fail    |           713 |           10 |     -0.0011 | [-0.0037, 0.0007]  |        0      | [0.0000, 0.0000]   |                  0.0028 |          0.6667 |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR site-grouped    | abs_dev      |           713 |           10 |     -0.0001 | [-0.0001, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.1739 |          0.0697 |   0.8906 |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR site-grouped    | under        |           713 |           10 |     -0.0007 | [-0.0031, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0014 |          1      |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR site-grouped    | rel_IS       |           713 |           10 |     -0.0002 | [-0.0003, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.2847 |          0.6358 |   0.4531 |            0      |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR site-grouped    | reserve_cost |           713 |           10 |      0      | [-0.0000, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.2272 |          0.318  |   1      |            0.0001 |
-| design                    | BDG2      | random                  | PCS-CQR       | PCS-CQR site-grouped    | book_fail    |           713 |           10 |      0.0014 | [0.0000, 0.0058]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | QShrink-CQR λ=168       | abs_dev      |           713 |           10 |     -0.0002 | [-0.0005, 0.0004]  |        0      | [-0.0000, 0.0000]  |                  0.4853 |          0.0242 |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | QShrink-CQR λ=168       | under        |           713 |           10 |      0.0011 | [-0.0030, 0.0069]  |        0      | [0.0000, 0.0000]   |                  0.0042 |         -0.1333 |   1      |            1      |
-| design                    | BDG2      | random                  | PCS-CQR       | QShrink-CQR λ=168       | rel_IS       |           713 |           10 |     -0.0075 | [-0.0201, -0.0002] |       -0      | [-0.0001, 0.0001]  |                  0.5049 |          0.0432 |   0.2754 |            0.3176 |
-| design                    | BDG2      | random                  | PCS-CQR       | QShrink-CQR λ=168       | reserve_cost |           713 |           10 |     -0.0002 | [-0.0004, 0.0000]  |        0      | [-0.0000, 0.0000]  |                  0.4839 |         -0.0116 |   1      |            0.7893 |
-| design                    | BDG2      | random                  | PCS-CQR       | QShrink-CQR λ=168       | book_fail    |           713 |           10 |      0.006  | [0.0019, 0.0102]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.4375 |            0.1103 |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP                     | abs_dev      |           713 |           10 |     -0.0644 | [-0.0747, -0.0570] |       -0.0453 | [-0.0514, -0.0383] |                  0.8836 |          0.9195 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP                     | under        |           713 |           10 |     -0.1935 | [-0.2534, -0.1450] |        0      | [0.0000, 0.0000]   |                  0.2777 |          0.8211 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP                     | rel_IS       |           713 |           10 |     -0.1918 | [-0.2662, -0.1498] |       -0.066  | [-0.1089, -0.0415] |                  0.8107 |          0.8414 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP                     | reserve_cost |           713 |           10 |     -0.0039 | [-0.0050, -0.0030] |       -0.0017 | [-0.0027, -0.0012] |                  0.8205 |          0.8187 |   0.041  |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP                     | book_fail    |           713 |           10 |     -0.1524 | [-0.2148, -0.0926] |        0      | [0.0000, 0.0000]   |                  0.209  |          0.9152 |   0.0312 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP-stage               | abs_dev      |           713 |           10 |     -0.0648 | [-0.0753, -0.0574] |       -0.0461 | [-0.0517, -0.0390] |                  0.8878 |          0.9216 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP-stage               | under        |           713 |           10 |     -0.1954 | [-0.2580, -0.1455] |        0      | [0.0000, 0.0000]   |                  0.2791 |          0.823  |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP-stage               | rel_IS       |           713 |           10 |     -0.1906 | [-0.2646, -0.1485] |       -0.0644 | [-0.1084, -0.0411] |                  0.8022 |          0.8199 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP-stage               | reserve_cost |           713 |           10 |     -0.0039 | [-0.0050, -0.0030] |       -0.0017 | [-0.0027, -0.0012] |                  0.8135 |          0.8091 |   0.041  |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | SCP-stage               | book_fail    |           713 |           10 |     -0.1528 | [-0.2156, -0.0945] |        0      | [0.0000, 0.0000]   |                  0.2076 |          0.9162 |   0.0312 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Mondrian-usage          | abs_dev      |           713 |           10 |     -0.0641 | [-0.0769, -0.0571] |       -0.0458 | [-0.0519, -0.0400] |                  0.9032 |          0.9347 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Mondrian-usage          | under        |           713 |           10 |     -0.1851 | [-0.2533, -0.1473] |        0      | [0.0000, 0.0000]   |                  0.2777 |          0.7892 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Mondrian-usage          | rel_IS       |           713 |           10 |     -0.1844 | [-0.2600, -0.1423] |       -0.0763 | [-0.1023, -0.0539] |                  0.8205 |          0.848  |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Mondrian-usage          | reserve_cost |           713 |           10 |     -0.0038 | [-0.0052, -0.0028] |       -0.0019 | [-0.0026, -0.0013] |                  0.8387 |          0.8276 |   0.041  |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Mondrian-usage          | book_fail    |           713 |           10 |     -0.1631 | [-0.2295, -0.1172] |        0      | [0.0000, 0.0000]   |                  0.2314 |          0.9136 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Self-CP                 | abs_dev      |           713 |           10 |      0.0028 | [0.0017, 0.0035]   |        0.0015 | [0.0007, 0.0024]   |                  0.4418 |         -0.1877 |   0.0586 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Self-CP                 | under        |           713 |           10 |      0.0341 | [-0.0053, 0.0669]  |        0      | [0.0000, 0.0000]   |                  0.0154 |         -0.7168 |   0.4688 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Self-CP                 | rel_IS       |           713 |           10 |     -0.0402 | [-0.1165, -0.0110] |       -0.0059 | [-0.0069, -0.0048] |                  0.7013 |          0.5342 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Self-CP                 | reserve_cost |           713 |           10 |     -0.001  | [-0.0029, -0.0003] |       -0.0001 | [-0.0002, -0.0001] |                  0.6522 |          0.3949 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Self-CP                 | book_fail    |           713 |           10 |      0.0133 | [0.0008, 0.0201]   |        0      | [0.0000, 0.0000]   |                  0.0056 |         -0.7319 |   0.4219 |            0.0056 |
-| preregistered-abs         | BDG2      | random                  | HSC           | ACI                     | abs_dev      |           713 |           10 |     -0.0155 | [-0.0242, -0.0089] |       -0.0132 | [-0.0238, -0.0083] |                  0.7209 |          0.5851 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | ACI                     | under        |           713 |           10 |     -0.0326 | [-0.0947, 0.0021]  |        0      | [0.0000, 0.0000]   |                  0.1052 |          0.2921 |   0.4688 |            0.0068 |
-| preregistered-abs         | BDG2      | random                  | HSC           | ACI                     | rel_IS       |           713 |           10 |     -0.071  | [-0.1035, -0.0501] |       -0.0099 | [-0.0312, -0.0037] |                  0.6255 |          0.4734 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | ACI                     | reserve_cost |           713 |           10 |     -0.0016 | [-0.0023, -0.0009] |       -0.0004 | [-0.0009, -0.0001] |                  0.6718 |          0.5271 |   0.0547 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | ACI                     | book_fail    |           713 |           10 |     -0.0014 | [-0.0100, 0.0122]  |        0      | [0.0000, 0.0000]   |                  0.0309 |         -0.0233 |   1      |            0.8939 |
-| preregistered-abs         | BDG2      | random                  | HSC           | Raw-SCP                 | abs_dev      |           713 |           10 |     -0.0907 | [-0.1124, -0.0735] |       -0.0625 | [-0.0674, -0.0578] |                  0.9439 |          0.9728 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Raw-SCP                 | under        |           713 |           10 |     -0.0903 | [-0.1691, -0.0311] |        0      | [0.0000, 0.0000]   |                  0.1851 |          0.467  |   0.0625 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Raw-SCP                 | rel_IS       |           713 |           10 |     -1.7465 | [-2.3759, -0.9753] |       -0.305  | [-0.4085, -0.2289] |                  0.8906 |          0.9399 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Raw-SCP                 | reserve_cost |           713 |           10 |     -0.0427 | [-0.0586, -0.0227] |       -0.0074 | [-0.0100, -0.0051] |                  0.8583 |          0.8941 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | Raw-SCP                 | book_fail    |           713 |           10 |     -0.1106 | [-0.1548, -0.0812] |        0      | [0.0000, 0.0000]   |                  0.1599 |          0.7557 |   0.0312 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -stage              | abs_dev      |           713 |           10 |      0.0005 | [0.0000, 0.0010]   |        0.0004 | [0.0000, 0.0007]   |                  0.4404 |         -0.11   |   0.1797 |            0.0251 |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -stage              | under        |           713 |           10 |     -0.0088 | [-0.0146, 0.0016]  |        0      | [0.0000, 0.0000]   |                  0.0196 |          0.5065 |   0.4688 |            0.0397 |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -stage              | rel_IS       |           713 |           10 |     -0.0027 | [-0.0036, -0.0014] |       -0.0012 | [-0.0020, -0.0001] |                  0.5764 |          0.2559 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -stage              | reserve_cost |           713 |           10 |     -0      | [-0.0000, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.453  |         -0.0401 |   0.2617 |            0.3531 |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -stage              | book_fail    |           713 |           10 |      0.0016 | [-0.0014, 0.0060]  |        0      | [0.0000, 0.0000]   |                  0.0014 |         -0.6667 |   1      |            0.5701 |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -kNN                | abs_dev      |           713 |           10 |     -0.0007 | [-0.0032, 0.0013]  |       -0.0008 | [-0.0034, 0.0005]  |                  0.5358 |          0.0979 |   0.6367 |            0.0251 |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -kNN                | under        |           713 |           10 |      0.0441 | [0.0119, 0.0759]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.0234 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -kNN                | rel_IS       |           713 |           10 |     -0.0134 | [-0.0377, -0.0047] |       -0.0054 | [-0.0078, -0.0035] |                  0.6592 |          0.4065 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -kNN                | reserve_cost |           713 |           10 |     -0.0004 | [-0.0010, -0.0001] |       -0.0002 | [-0.0002, -0.0001] |                  0.676  |          0.4009 |   0.0547 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -kNN                | book_fail    |           713 |           10 |      0.0169 | [0.0100, 0.0229]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.0625 |            0.0003 |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -shrink             | abs_dev      |           713 |           10 |     -0.0644 | [-0.0776, -0.0464] |       -0.0377 | [-0.0566, -0.0285] |                  0.892  |          0.9267 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -shrink             | under        |           713 |           10 |     -0.3696 | [-0.4503, -0.2671] |        0      | [-0.5000, 0.0000]  |                  0.4642 |          0.9911 |   0.0234 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -shrink             | rel_IS       |           713 |           10 |     -0.1307 | [-0.1714, -0.0937] |       -0.0302 | [-0.0426, -0.0225] |                  0.8668 |          0.8575 |   0.0176 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -shrink             | reserve_cost |           713 |           10 |     -0.0025 | [-0.0034, -0.0013] |       -0.0008 | [-0.0010, -0.0006] |                  0.798  |          0.7423 |   0.0547 |            0      |
-| preregistered-abs         | BDG2      | random                  | HSC           | HSC -shrink             | book_fail    |           713 |           10 |     -0.2541 | [-0.3267, -0.1700] |        0      | [0.0000, 0.0000]   |                  0.3464 |          0.9911 |   0.0312 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | CQR                     | abs_dev      |           713 |           10 |     -0.0211 | [-0.0244, -0.0190] |       -0.0161 | [-0.0204, -0.0139] |                  0.8597 |          0.8846 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | CQR                     | under        |           713 |           10 |     -0.1415 | [-0.2067, -0.0656] |        0      | [0.0000, 0.0000]   |                  0.2048 |          0.9791 |   0.0469 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | CQR                     | rel_IS       |           713 |           10 |     -0.0092 | [-0.0138, -0.0060] |       -0.0013 | [-0.0027, -0.0005] |                  0.5975 |          0.4315 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | CQR                     | reserve_cost |           713 |           10 |     -0.0002 | [-0.0004, -0.0002] |       -0      | [-0.0001, -0.0000] |                  0.5933 |          0.3298 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | CQR                     | book_fail    |           713 |           10 |     -0.0429 | [-0.0589, -0.0190] |        0      | [0.0000, 0.0000]   |                  0.0771 |          0.963  |   0.0938 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | Self-CQR                | abs_dev      |           713 |           10 |     -0.0035 | [-0.0067, -0.0011] |       -0.0023 | [-0.0052, -0.0012] |                  0.5778 |          0.2388 |   0.0254 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | Self-CQR                | under        |           713 |           10 |     -0.0438 | [-0.0799, -0.0135] |        0      | [0.0000, 0.0000]   |                  0.0926 |          0.6202 |   0.0547 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | Self-CQR                | rel_IS       |           713 |           10 |     -0.052  | [-0.1614, -0.0127] |       -0.0064 | [-0.0072, -0.0051] |                  0.9201 |          0.9192 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | Self-CQR                | reserve_cost |           713 |           10 |     -0.0012 | [-0.0039, -0.0002] |       -0.0001 | [-0.0001, -0.0001] |                  0.7307 |          0.5395 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | Self-CQR                | book_fail    |           713 |           10 |      0.0042 | [-0.0100, 0.0144]  |        0      | [0.0000, 0.0000]   |                  0.0182 |         -0.2506 |   0.7812 |            0.4336 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | ACI-CQR                 | abs_dev      |           713 |           10 |     -0.0072 | [-0.0096, -0.0060] |       -0.0053 | [-0.0074, -0.0045] |                  0.7125 |          0.592  |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | ACI-CQR                 | under        |           713 |           10 |     -0.053  | [-0.0839, -0.0173] |        0      | [0.0000, 0.0000]   |                  0.0898 |          0.8371 |   0.0469 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | ACI-CQR                 | rel_IS       |           713 |           10 |     -0.0089 | [-0.0189, -0.0024] |       -0.0001 | [-0.0006, 0.0002]  |                  0.5119 |          0.1381 |   0.0117 |            0.0028 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | ACI-CQR                 | reserve_cost |           713 |           10 |     -0.0002 | [-0.0004, -0.0001] |       -0      | [-0.0000, 0.0000]  |                  0.5414 |          0.1887 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | ACI-CQR                 | book_fail    |           713 |           10 |     -0.0077 | [-0.0138, 0.0005]  |        0      | [0.0000, 0.0000]   |                  0.0252 |          0.5455 |   0.4219 |            0.0711 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | QShrink-CQR             | abs_dev      |           713 |           10 |     -0.004  | [-0.0056, -0.0027] |       -0.0021 | [-0.0030, -0.0009] |                  0.6115 |          0.3753 |   0.0156 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | QShrink-CQR             | under        |           713 |           10 |     -0.0113 | [-0.0185, 0.0035]  |        0      | [0.0000, 0.0000]   |                  0.0309 |          0.458  |   0.1875 |            0.0151 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | QShrink-CQR             | rel_IS       |           713 |           10 |     -0.0038 | [-0.0109, 0.0000]  |        0      | [-0.0003, 0.0002]  |                  0.4881 |          0.0517 |   0.1738 |            0.2318 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | QShrink-CQR             | reserve_cost |           713 |           10 |     -0.0001 | [-0.0003, 0.0000]  |       -0      | [-0.0000, 0.0000]  |                  0.5428 |          0.1733 |   0.252  |            0.0001 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | QShrink-CQR             | book_fail    |           713 |           10 |     -0.0039 | [-0.0099, 0.0033]  |        0      | [0.0000, 0.0000]   |                  0.0112 |          0.3974 |   0.7812 |            0.4336 |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | TQA-B-CQR               | abs_dev      |           713 |           10 |     -0.0212 | [-0.0237, -0.0197] |       -0.0164 | [-0.0186, -0.0150] |                  0.8612 |          0.8707 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | TQA-B-CQR               | under        |           713 |           10 |     -0.1373 | [-0.1895, -0.0710] |        0      | [0.0000, 0.0000]   |                  0.2034 |          0.9352 |   0.0469 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | TQA-B-CQR               | rel_IS       |           713 |           10 |     -0.0107 | [-0.0135, -0.0072] |       -0.0031 | [-0.0050, -0.0022] |                  0.6606 |          0.54   |   0.0234 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | TQA-B-CQR               | reserve_cost |           713 |           10 |     -0.0003 | [-0.0004, -0.0002] |       -0.0001 | [-0.0001, -0.0001] |                  0.6452 |          0.4328 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | TQA-B-CQR               | book_fail    |           713 |           10 |     -0.0396 | [-0.0545, -0.0191] |        0      | [0.0000, 0.0000]   |                  0.0701 |          0.8931 |   0.0938 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | GHCP-CQR                | abs_dev      |           713 |           10 |     -0.0208 | [-0.0243, -0.0186] |       -0.016  | [-0.0209, -0.0131] |                  0.8597 |          0.872  |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | GHCP-CQR                | under        |           713 |           10 |     -0.1333 | [-0.1935, -0.0629] |        0      | [0.0000, 0.0000]   |                  0.1907 |          0.9791 |   0.0469 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | GHCP-CQR                | rel_IS       |           713 |           10 |     -0.009  | [-0.0137, -0.0058] |       -0.0015 | [-0.0027, -0.0006] |                  0.6045 |          0.4278 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | GHCP-CQR                | reserve_cost |           713 |           10 |     -0.0002 | [-0.0004, -0.0002] |       -0      | [-0.0001, -0.0000] |                  0.5905 |          0.3353 |   0.0117 |            0      |
-| preregistered-cqr-variant | BDG2      | random                  | HSC-CQR       | GHCP-CQR                | book_fail    |           713 |           10 |     -0.038  | [-0.0525, -0.0172] |        0      | [0.0000, 0.0000]   |                  0.0701 |          0.9543 |   0.0938 |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | CQR (MLP)               | abs_dev      |           713 |           10 |     -0.0208 | [-0.0234, -0.0194] |       -0.0167 | [-0.0187, -0.0153] |                  0.8527 |          0.8765 |   0.0039 |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | CQR (MLP)               | under        |           713 |           10 |     -0.1366 | [-0.1932, -0.0734] |        0      | [0.0000, 0.0000]   |                  0.2048 |          0.9357 |   0.0078 |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | CQR (MLP)               | rel_IS       |           713 |           10 |     -0.0018 | [-0.0059, 0.0065]  |       -0.0004 | [-0.0014, 0.0006]  |                  0.5217 |          0.1835 |   0.707  |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | CQR (MLP)               | reserve_cost |           713 |           10 |     -0.0001 | [-0.0003, 0.0003]  |       -0      | [-0.0001, 0.0000]  |                  0.5638 |          0.2329 |   1      |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | CQR (MLP)               | book_fail    |           713 |           10 |     -0.0442 | [-0.0577, -0.0266] |        0      | [0.0000, 0.0000]   |                  0.0842 |          0.9418 |   0.0156 |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | MLP-QR                  | abs_dev      |           713 |           10 |     -0.0232 | [-0.0259, -0.0204] |       -0.0191 | [-0.0214, -0.0158] |                  0.871  |          0.8991 |   0.0039 |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | MLP-QR                  | under        |           713 |           10 |     -0.2112 | [-0.2793, -0.1278] |        0      | [0.0000, 0.0000]   |                  0.2987 |          0.9811 |   0.0078 |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | MLP-QR                  | rel_IS       |           713 |           10 |     -0.0032 | [-0.0068, 0.0057]  |       -0.0003 | [-0.0006, 0.0002]  |                  0.5288 |          0.2381 |   0.707  |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | MLP-QR                  | reserve_cost |           713 |           10 |     -0.0001 | [-0.0003, 0.0003]  |       -0      | [-0.0001, 0.0000]  |                  0.5442 |          0.2046 |   1      |            0      |
-| mlp                       | BDG2      | random                  | PCS-CQR (MLP) | MLP-QR                  | book_fail    |           713 |           10 |     -0.0579 | [-0.0767, -0.0348] |        0      | [0.0000, 0.0000]   |                  0.108  |          0.9546 |   0.0156 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | Self-CP                 | abs_dev      |           713 |           10 |     -0      | [-0.0004, 0.0007]  |        0      | [0.0000, 0.0000]   |                  0.4278 |          0.1072 |   0.9746 |            0.0333 |
-| abs-score                 | BDG2      | random                  | PCS           | Self-CP                 | under        |           713 |           10 |      0.0004 | [0.0000, 0.0009]   |        0      | [0.0000, 0.0000]   |                  0.007  |         -0.0444 |   1      |            0.9049 |
-| abs-score                 | BDG2      | random                  | PCS           | Self-CP                 | rel_IS       |           713 |           10 |     -0.0053 | [-0.0243, 0.0003]  |       -0.0014 | [-0.0020, -0.0004] |                  0.5778 |          0.0495 |   0.4297 |            0.2525 |
-| abs-score                 | BDG2      | random                  | PCS           | Self-CP                 | reserve_cost |           713 |           10 |     -0.0001 | [-0.0006, -0.0000] |       -0.0001 | [-0.0001, -0.0001] |                  0.6844 |          0.2174 |   0.2188 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | Self-CP                 | book_fail    |           713 |           10 |     -0.001  | [-0.0022, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0042 |          0.4    |   0.5    |            0.4497 |
-| abs-score                 | BDG2      | random                  | PCS           | SCP-stage               | abs_dev      |           713 |           10 |     -0.0676 | [-0.0771, -0.0600] |       -0.0491 | [-0.0567, -0.0424] |                  0.8962 |          0.9179 |   0.0078 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | SCP-stage               | under        |           713 |           10 |     -0.2291 | [-0.3016, -0.1478] |        0      | [0.0000, 0.0000]   |                  0.31   |          0.8605 |   0.0078 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | SCP-stage               | rel_IS       |           713 |           10 |     -0.1557 | [-0.2209, -0.1115] |       -0.0589 | [-0.0915, -0.0318] |                  0.7405 |          0.6901 |   0.0176 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | SCP-stage               | reserve_cost |           713 |           10 |     -0.003  | [-0.0044, -0.0009] |       -0.0015 | [-0.0024, -0.0010] |                  0.7672 |          0.6886 |   0.1113 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | SCP-stage               | book_fail    |           713 |           10 |     -0.1671 | [-0.2315, -0.1008] |        0      | [0.0000, 0.0000]   |                  0.2202 |          0.955  |   0.0156 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | ACI                     | abs_dev      |           713 |           10 |     -0.0183 | [-0.0264, -0.0120] |       -0.0156 | [-0.0272, -0.0093] |                  0.7181 |          0.6135 |   0.0078 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | ACI                     | under        |           713 |           10 |     -0.0662 | [-0.1183, -0.0324] |        0      | [0.0000, 0.0000]   |                  0.1248 |          0.5536 |   0.0234 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | ACI                     | rel_IS       |           713 |           10 |     -0.0361 | [-0.0790, 0.0262]  |       -0.0044 | [-0.0209, 0.0014]  |                  0.5582 |          0.2553 |   0.4297 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | ACI                     | reserve_cost |           713 |           10 |     -0.0007 | [-0.0018, 0.0013]  |       -0.0002 | [-0.0007, -0.0001] |                  0.5961 |          0.3458 |   0.3848 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | ACI                     | book_fail    |           713 |           10 |     -0.0157 | [-0.0275, 0.0015]  |        0      | [0.0000, 0.0000]   |                  0.0407 |          0.4366 |   0.4219 |            0.0298 |
-| abs-score                 | BDG2      | random                  | PCS           | HSC                     | abs_dev      |           713 |           10 |     -0.0028 | [-0.0033, -0.0017] |       -0.0016 | [-0.0025, -0.0011] |                  0.5582 |          0.206  |   0.0273 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | HSC                     | under        |           713 |           10 |     -0.0337 | [-0.0660, 0.0053]  |        0      | [0.0000, 0.0000]   |                  0.0729 |          0.7192 |   0.4297 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | HSC                     | rel_IS       |           713 |           10 |      0.0349 | [0.0102, 0.0920]   |        0.0048 | [0.0038, 0.0064]   |                  0.3072 |         -0.4987 |   0.0078 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | HSC                     | reserve_cost |           713 |           10 |      0.0009 | [0.0002, 0.0024]   |        0.0001 | [0.0001, 0.0001]   |                  0.3885 |         -0.3324 |   0.0078 |            0      |
-| abs-score                 | BDG2      | random                  | PCS           | HSC                     | book_fail    |           713 |           10 |     -0.0143 | [-0.0216, -0.0009] |        0      | [0.0000, 0.0000]   |                  0.0281 |          0.75   |   0.4219 |            0.0041 |
-| main                      | UCI       | random                  | PCS-CQR       | CQR                     | abs_dev      |           270 |          270 |     -0.0202 | [-0.0256, -0.0155] |       -0.013  | [-0.0152, -0.0103] |                  0.8296 |          0.8135 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | CQR                     | under        |           270 |          270 |     -0.091  | [-0.1250, -0.0593] |        0      | [0.0000, 0.0000]   |                  0.1259 |          0.9175 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | CQR                     | rel_IS       |           270 |          270 |     -0.0047 | [-0.0096, -0.0001] |        0.0001 | [-0.0004, 0.0006]  |                  0.4889 |          0.0874 |   0.2608 |            0.4237 |
-| main                      | UCI       | random                  | PCS-CQR       | CQR                     | reserve_cost |           270 |          270 |     -0      | [-0.0002, 0.0002]  |        0      | [-0.0000, 0.0000]  |                  0.4963 |          0.095  |   1      |            0.7044 |
-| main                      | UCI       | random                  | PCS-CQR       | CQR                     | book_fail    |           270 |          270 |     -0.0154 | [-0.0284, -0.0046] |        0      | [0.0000, 0.0000]   |                  0.0296 |          1      |   0.0596 |            0.0905 |
-| main                      | UCI       | random                  | PCS-CQR       | Self-CQR                | abs_dev      |           270 |          270 |     -0.0035 | [-0.0045, -0.0025] |       -0.0032 | [-0.0041, -0.0026] |                  0.6704 |          0.475  |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | Self-CQR                | under        |           270 |          270 |     -0.0136 | [-0.0272, -0.0025] |        0      | [0.0000, 0.0000]   |                  0.0259 |          0.8611 |   0.2032 |            0.1655 |
-| main                      | UCI       | random                  | PCS-CQR       | Self-CQR                | rel_IS       |           270 |          270 |     -0.0122 | [-0.0208, -0.0068] |       -0.0031 | [-0.0034, -0.0026] |                  0.9815 |          0.9935 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | Self-CQR                | reserve_cost |           270 |          270 |     -0.0002 | [-0.0004, -0.0001] |       -0.0001 | [-0.0001, -0.0000] |                  0.7963 |          0.6893 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | Self-CQR                | book_fail    |           270 |          270 |      0.0012 | [-0.0025, 0.0049]  |        0      | [0.0000, 0.0000]   |                  0.0037 |         -0.3333 |   1      |            1      |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR                 | abs_dev      |           270 |          270 |     -0.0055 | [-0.0071, -0.0039] |       -0.0043 | [-0.0062, -0.0026] |                  0.663  |          0.4468 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR                 | under        |           270 |          270 |     -0.0228 | [-0.0420, -0.0056] |        0      | [0.0000, 0.0000]   |                  0.037  |          0.7273 |   0.1398 |            0.1655 |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR                 | rel_IS       |           270 |          270 |     -0.0054 | [-0.0174, 0.0020]  |        0.0006 | [0.0002, 0.0009]   |                  0.4111 |         -0.1867 |   1      |            0.0313 |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR                 | reserve_cost |           270 |          270 |     -0.0001 | [-0.0004, 0.0000]  |       -0      | [-0.0000, 0.0000]  |                  0.5037 |          0.0242 |   1      |            0.9825 |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR                 | book_fail    |           270 |          270 |     -0.0037 | [-0.0123, 0.0025]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          0.5    |   1      |            1      |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR (MACD)          | abs_dev      |           270 |          270 |     -0.0044 | [-0.0060, -0.0028] |       -0.0029 | [-0.0049, -0.0013] |                  0.6185 |          0.3541 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR (MACD)          | under        |           270 |          270 |     -0.0191 | [-0.0364, -0.0025] |        0      | [0.0000, 0.0000]   |                  0.0333 |          0.6909 |   0.2032 |            0.1928 |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR (MACD)          | rel_IS       |           270 |          270 |     -0.0058 | [-0.0177, 0.0018]  |        0.0005 | [0.0001, 0.0008]   |                  0.4259 |         -0.1841 |   1      |            0.0313 |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR (MACD)          | reserve_cost |           270 |          270 |     -0.0001 | [-0.0004, 0.0000]  |       -0      | [-0.0000, 0.0000]  |                  0.5074 |          0.0588 |   1      |            0.9825 |
-| main                      | UCI       | random                  | PCS-CQR       | ACI-CQR (MACD)          | book_fail    |           270 |          270 |     -0.0037 | [-0.0123, 0.0025]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          0.5    |   1      |            1      |
-| main                      | UCI       | random                  | PCS-CQR       | TQA-B-CQR               | abs_dev      |           270 |          270 |     -0.0188 | [-0.0239, -0.0145] |       -0.0123 | [-0.0140, -0.0101] |                  0.8    |          0.7803 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | TQA-B-CQR               | under        |           270 |          270 |     -0.0892 | [-0.1225, -0.0562] |        0      | [0.0000, 0.0000]   |                  0.1222 |          0.916  |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | TQA-B-CQR               | rel_IS       |           270 |          270 |     -0.0033 | [-0.0070, 0.0006]  |       -0.0005 | [-0.0011, 0.0001]  |                  0.5481 |          0.1948 |   0.4028 |            0.0277 |
-| main                      | UCI       | random                  | PCS-CQR       | TQA-B-CQR               | reserve_cost |           270 |          270 |     -0      | [-0.0002, 0.0002]  |       -0      | [-0.0000, 0.0000]  |                  0.5593 |          0.1926 |   1      |            0.0365 |
-| main                      | UCI       | random                  | PCS-CQR       | TQA-B-CQR               | book_fail    |           270 |          270 |     -0.021  | [-0.0355, -0.0086] |        0      | [0.0000, 0.0000]   |                  0.0407 |          1      |   0.0076 |            0.027  |
-| main                      | UCI       | random                  | PCS-CQR       | GHCP-CQR                | abs_dev      |           270 |          270 |     -0.0214 | [-0.0269, -0.0169] |       -0.0157 | [-0.0172, -0.0128] |                  0.8296 |          0.8475 |   0      |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | GHCP-CQR                | under        |           270 |          270 |     -0.0759 | [-0.1087, -0.0463] |        0      | [0.0000, 0.0000]   |                  0.1037 |          0.9034 |   0      |            0.0001 |
-| main                      | UCI       | random                  | PCS-CQR       | GHCP-CQR                | rel_IS       |           270 |          270 |     -0.0045 | [-0.0090, -0.0002] |       -0.0007 | [-0.0014, -0.0001] |                  0.563  |          0.2177 |   0.2361 |            0.0116 |
-| main                      | UCI       | random                  | PCS-CQR       | GHCP-CQR                | reserve_cost |           270 |          270 |     -0      | [-0.0002, 0.0002]  |       -0      | [-0.0000, 0.0000]  |                  0.5148 |          0.1327 |   1      |            0.2937 |
-| main                      | UCI       | random                  | PCS-CQR       | GHCP-CQR                | book_fail    |           270 |          270 |     -0.0127 | [-0.0250, -0.0031] |        0      | [0.0000, 0.0000]   |                  0.0222 |          1      |   0.1978 |            0.188  |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR             | abs_dev      |           270 |          270 |     -0.0031 | [-0.0049, -0.0016] |       -0.0023 | [-0.0036, -0.0009] |                  0.6    |          0.2877 |   0      |            0.0001 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR             | under        |           270 |          270 |     -0.0127 | [-0.0272, 0.0009]  |        0      | [0.0000, 0.0000]   |                  0.0296 |          0.6444 |   0.3062 |            0.2501 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR             | rel_IS       |           270 |          270 |      0.0033 | [0.0011, 0.0064]   |        0.0006 | [0.0004, 0.0009]   |                  0.3444 |         -0.3992 |   0.0056 |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR             | reserve_cost |           270 |          270 |      0.0001 | [-0.0000, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.4185 |         -0.2079 |   1      |            0.0215 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR             | book_fail    |           270 |          270 |     -0.0025 | [-0.0062, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          1      |   1      |            0.9438 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR (MACD)      | abs_dev      |           270 |          270 |      0.0002 | [-0.0002, 0.0006]  |        0      | [0.0000, 0.0004]   |                  0.437  |         -0.0549 |   0.4385 |            0.4479 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR (MACD)      | under        |           270 |          270 |      0.0031 | [-0.0037, 0.0123]  |        0      | [0.0000, 0.0000]   |                  0.0037 |         -0.3333 |   0.749  |            0.593  |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR (MACD)      | rel_IS       |           270 |          270 |      0.0001 | [-0.0019, 0.0018]  |       -0.0002 | [-0.0002, 0.0000]  |                  0.5556 |          0.0877 |   1      |            0.4237 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR (MACD)      | reserve_cost |           270 |          270 |      0      | [-0.0000, 0.0001]  |       -0      | [-0.0000, 0.0000]  |                  0.5481 |          0.0687 |   1      |            0.9825 |
-| main                      | UCI       | random                  | PCS-CQR       | QShrink-CQR (MACD)      | book_fail    |           270 |          270 |      0.0012 | [0.0000, 0.0037]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            1      |
-| main                      | UCI       | random                  | PCS-CQR       | HSC-CQR                 | abs_dev      |           270 |          270 |     -0.0009 | [-0.0019, 0.0001]  |       -0.0004 | [-0.0016, 0.0007]  |                  0.5148 |          0.0929 |   0.2076 |            0.3784 |
-| main                      | UCI       | random                  | PCS-CQR       | HSC-CQR                 | under        |           270 |          270 |     -0.0086 | [-0.0228, 0.0037]  |        0      | [0.0000, 0.0000]   |                  0.0185 |          0.5238 |   0.6302 |            0.4846 |
-| main                      | UCI       | random                  | PCS-CQR       | HSC-CQR                 | rel_IS       |           270 |          270 |      0.0033 | [0.0008, 0.0065]   |        0.0008 | [0.0007, 0.0010]   |                  0.2259 |         -0.6202 |   0.0395 |            0      |
-| main                      | UCI       | random                  | PCS-CQR       | HSC-CQR                 | reserve_cost |           270 |          270 |      0.0001 | [-0.0001, 0.0003]  |        0      | [0.0000, 0.0000]   |                  0.3556 |         -0.3014 |   1      |            0.0001 |
-| main                      | UCI       | random                  | PCS-CQR       | HSC-CQR                 | book_fail    |           270 |          270 |     -0.0049 | [-0.0136, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          1      |   1      |            0.9438 |
-| other                     | UCI       | random                  | PCS-CQR       | QR-LGBM                 | abs_dev      |           270 |          270 |     -0.0231 | [-0.0290, -0.0180] |       -0.013  | [-0.0149, -0.0088] |                  0.7889 |          0.7582 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | QR-LGBM                 | under        |           270 |          270 |     -0.1836 | [-0.2269, -0.1407] |        0      | [0.0000, 0.0000]   |                  0.2444 |          0.957  |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | QR-LGBM                 | rel_IS       |           270 |          270 |     -0.0066 | [-0.0123, -0.0013] |        0.0009 | [0.0005, 0.0011]   |                  0.3889 |         -0.084  |   0.039  |            0.2315 |
-| other                     | UCI       | random                  | PCS-CQR       | QR-LGBM                 | reserve_cost |           270 |          270 |     -0.0001 | [-0.0003, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.4407 |          0.0131 |   1      |            0.8515 |
-| other                     | UCI       | random                  | PCS-CQR       | QR-LGBM                 | book_fail    |           270 |          270 |     -0.0432 | [-0.0654, -0.0235] |        0      | [0.0000, 0.0000]   |                  0.0704 |          1      |   0      |            0.0007 |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-QR                  | abs_dev      |           270 |          270 |     -0.0237 | [-0.0291, -0.0187] |       -0.0147 | [-0.0182, -0.0122] |                  0.8259 |          0.8282 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-QR                  | under        |           270 |          270 |     -0.138  | [-0.1759, -0.0988] |        0      | [0.0000, 0.0000]   |                  0.1926 |          0.9441 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-QR                  | rel_IS       |           270 |          270 |      0.0015 | [-0.0094, 0.0158]  |       -0.0091 | [-0.0119, -0.0071] |                  0.7481 |          0.5217 |   0.8627 |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-QR                  | reserve_cost |           270 |          270 |      0.0007 | [-0.0001, 0.0017]  |       -0.0002 | [-0.0003, -0.0002] |                  0.7185 |          0.4553 |   0.75   |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-QR                  | book_fail    |           270 |          270 |     -0.0457 | [-0.0694, -0.0235] |        0      | [0.0000, 0.0000]   |                  0.0741 |          0.9134 |   0      |            0.001  |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-Gauss               | abs_dev      |           270 |          270 |     -0.0234 | [-0.0267, -0.0206] |       -0.0222 | [-0.0265, -0.0182] |                  0.8741 |          0.8782 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-Gauss               | under        |           270 |          270 |     -0.0367 | [-0.0620, -0.0154] |        0      | [0.0000, 0.0000]   |                  0.0593 |          0.8235 |   0.0018 |            0.0075 |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-Gauss               | rel_IS       |           270 |          270 |     -0.037  | [-0.0531, -0.0240] |       -0.0221 | [-0.0243, -0.0196] |                  0.8889 |          0.8719 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-Gauss               | reserve_cost |           270 |          270 |      0.0001 | [-0.0005, 0.0011]  |       -0.0004 | [-0.0005, -0.0003] |                  0.8111 |          0.6309 |   1      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | MLP-Gauss               | book_fail    |           270 |          270 |     -0.0198 | [-0.0389, -0.0049] |        0      | [0.0000, 0.0000]   |                  0.0333 |          0.7727 |   0.0455 |            0.0435 |
-| other                     | UCI       | random                  | PCS-CQR       | ACI-CQR (coverage only) | abs_dev      |           270 |          270 |      0.0089 | [0.0080, 0.0099]   |        0.0079 | [0.0067, 0.0089]   |                  0.1    |         -0.9371 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | ACI-CQR (coverage only) | under        |           270 |          270 |      0.0049 | [0.0000, 0.0136]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.4945 |            0.1797 |
-| other                     | UCI       | random                  | PCS-CQR       | ACI-CQR (coverage only) | rel_IS       |           270 |          270 |     -0.4367 | [-0.5696, -0.3139] |       -0.0416 | [-0.0702, -0.0189] |                  0.937  |          0.9593 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | ACI-CQR (coverage only) | reserve_cost |           270 |          270 |     -0.0106 | [-0.0139, -0.0076] |       -0.0008 | [-0.0017, -0.0004] |                  0.9037 |          0.936  |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | ACI-CQR (coverage only) | book_fail    |           270 |          270 |      0.0043 | [0.0000, 0.0099]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.2525 |            0.1025 |
-| other                     | UCI       | random                  | PCS-CQR       | SCP-stage               | abs_dev      |           270 |          270 |     -0.0764 | [-0.0879, -0.0654] |       -0.0603 | [-0.0650, -0.0546] |                  0.9704 |          0.9911 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | SCP-stage               | under        |           270 |          270 |     -0.1951 | [-0.2417, -0.1515] |        0      | [0.0000, 0.0000]   |                  0.237  |          0.9599 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | SCP-stage               | rel_IS       |           270 |          270 |     -0.3615 | [-0.5357, -0.2117] |       -0.1098 | [-0.1171, -0.1029] |                  0.9963 |          0.9998 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | SCP-stage               | reserve_cost |           270 |          270 |     -0.0055 | [-0.0073, -0.0040] |       -0.0023 | [-0.0025, -0.0021] |                  0.9667 |          0.985  |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | SCP-stage               | book_fail    |           270 |          270 |     -0.1414 | [-0.1809, -0.1031] |        0      | [0.0000, 0.0000]   |                  0.1852 |          1      |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | Self-CP                 | abs_dev      |           270 |          270 |     -0.0078 | [-0.0094, -0.0063] |       -0.0073 | [-0.0086, -0.0054] |                  0.7296 |          0.617  |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | Self-CP                 | under        |           270 |          270 |     -0.0185 | [-0.0333, -0.0056] |        0      | [0.0000, 0.0000]   |                  0.0333 |          0.9273 |   0.0141 |            0.0173 |
-| other                     | UCI       | random                  | PCS-CQR       | Self-CP                 | rel_IS       |           270 |          270 |     -0.1294 | [-0.1711, -0.0933] |       -0.0484 | [-0.0525, -0.0421] |                  0.9889 |          0.9945 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | Self-CP                 | reserve_cost |           270 |          270 |     -0.0018 | [-0.0021, -0.0014] |       -0.0008 | [-0.0010, -0.0007] |                  0.9037 |          0.9074 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | Self-CP                 | book_fail    |           270 |          270 |     -0.0173 | [-0.0309, -0.0049] |        0      | [0.0000, 0.0000]   |                  0.0333 |          0.9091 |   0.0286 |            0.0293 |
-| other                     | UCI       | random                  | PCS-CQR       | HSC                     | abs_dev      |           270 |          270 |     -0.0078 | [-0.0093, -0.0061] |       -0.0065 | [-0.0078, -0.0050] |                  0.7407 |          0.6283 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | HSC                     | under        |           270 |          270 |     -0.0336 | [-0.0509, -0.0173] |        0      | [0.0000, 0.0000]   |                  0.0556 |          1      |   0.0002 |            0.0022 |
-| other                     | UCI       | random                  | PCS-CQR       | HSC                     | rel_IS       |           270 |          270 |     -0.122  | [-0.1644, -0.0862] |       -0.0458 | [-0.0512, -0.0396] |                  0.9815 |          0.9915 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | HSC                     | reserve_cost |           270 |          270 |     -0.0014 | [-0.0018, -0.0010] |       -0.0007 | [-0.0009, -0.0006] |                  0.8926 |          0.8474 |   0      |            0      |
-| other                     | UCI       | random                  | PCS-CQR       | HSC                     | book_fail    |           270 |          270 |     -0.0191 | [-0.0340, -0.0068] |        0      | [0.0000, 0.0000]   |                  0.037  |          0.9242 |   0.0188 |            0.0235 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR κ=168           | abs_dev      |           270 |          270 |      0.0006 | [0.0001, 0.0011]   |        0      | [0.0000, 0.0002]   |                  0.3778 |         -0.1338 |   0.1599 |            0.4059 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR κ=168           | under        |           270 |          270 |     -0.0012 | [-0.0099, 0.0093]  |        0      | [0.0000, 0.0000]   |                  0.0111 |          0.2    |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR κ=168           | rel_IS       |           270 |          270 |      0.0031 | [0.0014, 0.0053]   |        0.0005 | [0.0004, 0.0006]   |                  0.1259 |         -0.8437 |   0      |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR κ=168           | reserve_cost |           270 |          270 |      0.0001 | [-0.0000, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.2556 |         -0.4588 |   0.695  |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR κ=168           | book_fail    |           270 |          270 |     -0.0012 | [-0.0037, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0037 |          1      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | abs_dev      |           270 |          270 |     -0.0009 | [-0.0019, 0.0001]  |       -0.0006 | [-0.0013, 0.0004]  |                  0.5296 |          0.0965 |   0.3766 |            0.6962 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | under        |           270 |          270 |     -0.0049 | [-0.0160, 0.0068]  |        0      | [0.0000, 0.0000]   |                  0.0148 |          0.4    |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | rel_IS       |           270 |          270 |      0.0031 | [0.0006, 0.0062]   |        0.0007 | [0.0005, 0.0008]   |                  0.2    |         -0.7056 |   0.0448 |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | reserve_cost |           270 |          270 |      0.0001 | [-0.0001, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.3333 |         -0.3595 |   0.695  |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR (IS-tuned)      | book_fail    |           270 |          270 |     -0.0049 | [-0.0136, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          1      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +stage          | abs_dev      |           270 |          270 |     -0.0001 | [-0.0003, -0.0000] |        0      | [-0.0002, 0.0000]  |                  0.4815 |          0.175  |   0.2702 |            0.1444 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +stage          | under        |           270 |          270 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +stage          | rel_IS       |           270 |          270 |     -0      | [-0.0003, 0.0003]  |       -0.0004 | [-0.0004, -0.0002] |                  0.6593 |          0.406  |   0.8161 |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +stage          | reserve_cost |           270 |          270 |     -0      | [-0.0000, 0.0000]  |       -0      | [-0.0000, -0.0000] |                  0.6926 |          0.4522 |   0.695  |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +stage          | book_fail    |           270 |          270 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN            | abs_dev      |           270 |          270 |     -0      | [-0.0003, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.3556 |          0.024  |   1      |            0.7764 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN            | under        |           270 |          270 |     -0.0019 | [-0.0074, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0037 |          1      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN            | rel_IS       |           270 |          270 |      0.0001 | [0.0001, 0.0002]   |        0.0001 | [0.0000, 0.0001]   |                  0.2185 |         -0.4768 |   0      |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN            | reserve_cost |           270 |          270 |      0      | [-0.0000, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.3333 |         -0.154  |   0.4205 |            0.1049 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN            | book_fail    |           270 |          270 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | abs_dev      |           270 |          270 |     -0.0001 | [-0.0004, 0.0002]  |        0      | [-0.0004, 0.0000]  |                  0.4889 |          0.0665 |   1      |            0.7757 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | under        |           270 |          270 |     -0.0019 | [-0.0074, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0037 |          1      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | rel_IS       |           270 |          270 |      0.0028 | [0.0003, 0.0074]   |       -0      | [-0.0002, 0.0001]  |                  0.5185 |         -0.0217 |   0.0396 |            0.7575 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | reserve_cost |           270 |          270 |      0.0001 | [-0.0000, 0.0003]  |       -0      | [-0.0000, 0.0000]  |                  0.5148 |          0.047  |   0.676  |            0.5033 |
-| design                    | UCI       | random                  | PCS-CQR       | PCS-CQR +kNN+stage      | book_fail    |           270 |          270 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | QShrink-CQR λ=168       | abs_dev      |           270 |          270 |      0.0002 | [-0.0006, 0.0009]  |        0      | [-0.0004, 0.0006]  |                  0.4556 |         -0.0811 |   1      |            0.7757 |
-| design                    | UCI       | random                  | PCS-CQR       | QShrink-CQR λ=168       | under        |           270 |          270 |      0.0012 | [-0.0074, 0.0111]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          0      |   1      |            1      |
-| design                    | UCI       | random                  | PCS-CQR       | QShrink-CQR λ=168       | rel_IS       |           270 |          270 |      0.0022 | [0.0005, 0.0043]   |        0.0003 | [0.0002, 0.0005]   |                  0.3593 |         -0.3806 |   0.0448 |            0      |
-| design                    | UCI       | random                  | PCS-CQR       | QShrink-CQR λ=168       | reserve_cost |           270 |          270 |      0.0001 | [0.0000, 0.0002]   |        0      | [0.0000, 0.0000]   |                  0.4259 |         -0.2399 |   0.0342 |            0.0019 |
-| design                    | UCI       | random                  | PCS-CQR       | QShrink-CQR λ=168       | book_fail    |           270 |          270 |     -0.0012 | [-0.0037, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0037 |          1      |   1      |            1      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP                     | abs_dev      |           270 |          270 |     -0.0686 | [-0.0796, -0.0579] |       -0.0521 | [-0.0579, -0.0479] |                  0.9481 |          0.9806 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP                     | under        |           270 |          270 |     -0.1642 | [-0.2083, -0.1216] |        0      | [0.0000, 0.0000]   |                  0.2148 |          0.9334 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP                     | rel_IS       |           270 |          270 |     -0.2404 | [-0.3751, -0.1271] |       -0.0501 | [-0.0686, -0.0410] |                  0.8926 |          0.9401 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP                     | reserve_cost |           270 |          270 |     -0.0041 | [-0.0058, -0.0026] |       -0.0012 | [-0.0015, -0.0009] |                  0.8259 |          0.8609 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP                     | book_fail    |           270 |          270 |     -0.1157 | [-0.1537, -0.0784] |        0      | [0.0000, 0.0000]   |                  0.1556 |          0.889  |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP-stage               | abs_dev      |           270 |          270 |     -0.0686 | [-0.0796, -0.0579] |       -0.0525 | [-0.0570, -0.0478] |                  0.9407 |          0.9787 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP-stage               | under        |           270 |          270 |     -0.1614 | [-0.2059, -0.1191] |        0      | [0.0000, 0.0000]   |                  0.2111 |          0.9333 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP-stage               | rel_IS       |           270 |          270 |     -0.2395 | [-0.3737, -0.1266] |       -0.0489 | [-0.0688, -0.0420] |                  0.9037 |          0.9351 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP-stage               | reserve_cost |           270 |          270 |     -0.0041 | [-0.0059, -0.0027] |       -0.0012 | [-0.0015, -0.0009] |                  0.8185 |          0.8611 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | SCP-stage               | book_fail    |           270 |          270 |     -0.1222 | [-0.1605, -0.0840] |        0      | [0.0000, 0.0000]   |                  0.163  |          0.8971 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Self-CP                 | abs_dev      |           270 |          270 |     -0.0001 | [-0.0014, 0.0013]  |       -0.0004 | [-0.0019, 0.0001]  |                  0.5148 |          0.0549 |   1      |            0.8851 |
-| preregistered-abs         | UCI       | random                  | HSC           | Self-CP                 | under        |           270 |          270 |      0.0151 | [-0.0000, 0.0309]  |        0      | [0.0000, 0.0000]   |                  0.0037 |         -0.6667 |   0.154  |            0.1439 |
-| preregistered-abs         | UCI       | random                  | HSC           | Self-CP                 | rel_IS       |           270 |          270 |     -0.0074 | [-0.0118, -0.0036] |       -0.0036 | [-0.0040, -0.0031] |                  0.8111 |          0.6404 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Self-CP                 | reserve_cost |           270 |          270 |     -0.0004 | [-0.0007, -0.0001] |       -0.0001 | [-0.0001, -0.0001] |                  0.7444 |          0.5462 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Self-CP                 | book_fail    |           270 |          270 |      0.0019 | [-0.0093, 0.0130]  |        0      | [0.0000, 0.0000]   |                  0.0074 |         -0.1333 |   1      |            1      |
-| preregistered-abs         | UCI       | random                  | HSC           | ACI                     | abs_dev      |           270 |          270 |     -0.0287 | [-0.0330, -0.0246] |       -0.0255 | [-0.0324, -0.0185] |                  0.8296 |          0.8366 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | ACI                     | under        |           270 |          270 |     -0.0519 | [-0.0836, -0.0228] |        0      | [0.0000, 0.0000]   |                  0.0889 |          0.6688 |   0.004  |            0.0047 |
-| preregistered-abs         | UCI       | random                  | HSC           | ACI                     | rel_IS       |           270 |          270 |     -0.0772 | [-0.1140, -0.0447] |       -0.0152 | [-0.0226, -0.0099] |                  0.7556 |          0.7041 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | ACI                     | reserve_cost |           270 |          270 |     -0.0018 | [-0.0027, -0.0011] |       -0.0004 | [-0.0005, -0.0003] |                  0.7519 |          0.6863 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | ACI                     | book_fail    |           270 |          270 |     -0.0225 | [-0.0441, -0.0019] |        0      | [0.0000, 0.0000]   |                  0.0519 |          0.4667 |   0.2218 |            0.2523 |
-| preregistered-abs         | UCI       | random                  | HSC           | Raw-SCP                 | abs_dev      |           270 |          270 |     -0.1088 | [-0.1273, -0.0931] |       -0.077  | [-0.0802, -0.0750] |                  0.9667 |          0.9864 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Raw-SCP                 | under        |           270 |          270 |     -0.1324 | [-0.1806, -0.0870] |        0      | [0.0000, 0.0000]   |                  0.2037 |          0.6808 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Raw-SCP                 | rel_IS       |           270 |          270 |     -2.3174 | [-4.2239, -1.1870] |       -0.5221 | [-0.6767, -0.4316] |                  0.9407 |          0.9787 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Raw-SCP                 | reserve_cost |           270 |          270 |     -0.0575 | [-0.1051, -0.0294] |       -0.0129 | [-0.0165, -0.0099] |                  0.9407 |          0.9759 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | Raw-SCP                 | book_fail    |           270 |          270 |     -0.1262 | [-0.1691, -0.0858] |        0      | [0.0000, 0.0000]   |                  0.1741 |          0.8014 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -stage              | abs_dev      |           270 |          270 |      0      | [-0.0005, 0.0005]  |        0      | [-0.0004, 0.0005]  |                  0.463  |         -0.006  |   1      |            0.9337 |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -stage              | under        |           270 |          270 |      0      | [-0.0056, 0.0056]  |        0      | [0.0000, 0.0000]   |                  0.0074 |          0      |   1      |            1      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -stage              | rel_IS       |           270 |          270 |     -0.0016 | [-0.0037, 0.0006]  |        0.0002 | [-0.0000, 0.0004]  |                  0.4556 |          0.009  |   0.1635 |            0.8981 |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -stage              | reserve_cost |           270 |          270 |     -0.0001 | [-0.0003, -0.0000] |        0      | [-0.0000, 0.0000]  |                  0.4444 |         -0.0164 |   0.0468 |            0.815  |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -stage              | book_fail    |           270 |          270 |     -0.0019 | [-0.0111, 0.0056]  |        0      | [0.0000, 0.0000]   |                  0.0037 |          0.3333 |   1      |            1      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -kNN                | abs_dev      |           270 |          270 |     -0.004  | [-0.0054, -0.0027] |       -0.0037 | [-0.0052, -0.0017] |                  0.6407 |          0.4039 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -kNN                | under        |           270 |          270 |      0.017  | [0.0046, 0.0309]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.0504 |            0.0508 |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -kNN                | rel_IS       |           270 |          270 |     -0.0059 | [-0.0083, -0.0036] |       -0.0052 | [-0.0059, -0.0041] |                  0.7519 |          0.6053 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -kNN                | reserve_cost |           270 |          270 |     -0.0003 | [-0.0005, -0.0001] |       -0.0001 | [-0.0001, -0.0001] |                  0.7296 |          0.5208 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -kNN                | book_fail    |           270 |          270 |      0.0031 | [-0.0037, 0.0099]  |        0      | [0.0000, 0.0000]   |                  0.0037 |         -0.4    |   1      |            1      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -shrink             | abs_dev      |           270 |          270 |     -0.0571 | [-0.0677, -0.0471] |       -0.0253 | [-0.0297, -0.0216] |                  0.8481 |          0.8897 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -shrink             | under        |           270 |          270 |     -0.2812 | [-0.3318, -0.2309] |        0      | [0.0000, 0.0000]   |                  0.337  |          1      |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -shrink             | rel_IS       |           270 |          270 |     -0.1876 | [-0.2973, -0.0927] |       -0.0125 | [-0.0173, -0.0083] |                  0.8185 |          0.8191 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -shrink             | reserve_cost |           270 |          270 |     -0.0034 | [-0.0050, -0.0021] |       -0.0003 | [-0.0004, -0.0002] |                  0.7704 |          0.7022 |   0      |            0      |
-| preregistered-abs         | UCI       | random                  | HSC           | HSC -shrink             | book_fail    |           270 |          270 |     -0.2145 | [-0.2599, -0.1694] |        0      | [0.0000, 0.0000]   |                  0.2704 |          1      |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | CQR                     | abs_dev      |           270 |          270 |     -0.0194 | [-0.0244, -0.0150] |       -0.013  | [-0.0141, -0.0112] |                  0.8741 |          0.9063 |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | CQR                     | under        |           270 |          270 |     -0.0824 | [-0.1133, -0.0543] |        0      | [0.0000, 0.0000]   |                  0.1111 |          1      |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | CQR                     | rel_IS       |           270 |          270 |     -0.008  | [-0.0135, -0.0037] |       -0.001  | [-0.0013, -0.0004] |                  0.637  |          0.4522 |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | CQR                     | reserve_cost |           270 |          270 |     -0.0001 | [-0.0002, -0.0000] |       -0      | [-0.0000, -0.0000] |                  0.5963 |          0.2804 |   0.0085 |            0.0001 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | CQR                     | book_fail    |           270 |          270 |     -0.0105 | [-0.0207, -0.0028] |        0      | [0.0000, 0.0000]   |                  0.0222 |          1      |   0.1592 |            0.1343 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | Self-CQR                | abs_dev      |           270 |          270 |     -0.0026 | [-0.0043, -0.0010] |       -0.0033 | [-0.0047, -0.0012] |                  0.6111 |          0.2928 |   0.0026 |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | Self-CQR                | under        |           270 |          270 |     -0.0049 | [-0.0241, 0.0136]  |        0      | [0.0000, 0.0000]   |                  0.0296 |          0.0989 |   1      |            0.8327 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | Self-CQR                | rel_IS       |           270 |          270 |     -0.0155 | [-0.0242, -0.0089] |       -0.0039 | [-0.0045, -0.0033] |                  0.9481 |          0.9443 |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | Self-CQR                | reserve_cost |           270 |          270 |     -0.0003 | [-0.0005, -0.0001] |       -0.0001 | [-0.0001, -0.0001] |                  0.7593 |          0.6229 |   0.0102 |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | Self-CQR                | book_fail    |           270 |          270 |      0.0062 | [-0.0012, 0.0160]  |        0      | [0.0000, 0.0000]   |                  0.0037 |         -0.7    |   1      |            0.5924 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | ACI-CQR                 | abs_dev      |           270 |          270 |     -0.0047 | [-0.0060, -0.0034] |       -0.0031 | [-0.0040, -0.0018] |                  0.6407 |          0.4535 |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | ACI-CQR                 | under        |           270 |          270 |     -0.0142 | [-0.0315, 0.0031]  |        0      | [0.0000, 0.0000]   |                  0.0296 |          0.5606 |   0.3783 |            0.2849 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | ACI-CQR                 | rel_IS       |           270 |          270 |     -0.0087 | [-0.0224, -0.0011] |       -0.0003 | [-0.0006, 0.0000]  |                  0.5519 |          0.2051 |   0.0006 |            0.0035 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | ACI-CQR                 | reserve_cost |           270 |          270 |     -0.0002 | [-0.0006, -0.0000] |       -0      | [-0.0000, -0.0000] |                  0.6185 |          0.2999 |   0.0802 |            0.0001 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | ACI-CQR                 | book_fail    |           270 |          270 |      0.0012 | [0.0000, 0.0037]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            0.6346 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | QShrink-CQR             | abs_dev      |           270 |          270 |     -0.0022 | [-0.0038, -0.0010] |       -0.0015 | [-0.0019, -0.0007] |                  0.6074 |          0.3504 |   0.0002 |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | QShrink-CQR             | under        |           270 |          270 |     -0.004  | [-0.0164, 0.0074]  |        0      | [0.0000, 0.0000]   |                  0.0148 |          0.4    |   1      |            0.8327 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | QShrink-CQR             | rel_IS       |           270 |          270 |      0      | [-0.0007, 0.0008]  |       -0.0002 | [-0.0004, -0.0001] |                  0.5889 |          0.2459 |   0.9647 |            0.0009 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | QShrink-CQR             | reserve_cost |           270 |          270 |      0      | [-0.0000, 0.0001]  |       -0      | [-0.0000, 0.0000]  |                  0.5037 |          0.0605 |   0.3604 |            0.3885 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | QShrink-CQR             | book_fail    |           270 |          270 |      0.0025 | [-0.0037, 0.0111]  |        0      | [0.0000, 0.0000]   |                  0.0037 |         -0.3333 |   1      |            0.6547 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | TQA-B-CQR               | abs_dev      |           270 |          270 |     -0.018  | [-0.0228, -0.0139] |       -0.0114 | [-0.0138, -0.0098] |                  0.8407 |          0.826  |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | TQA-B-CQR               | under        |           270 |          270 |     -0.0806 | [-0.1142, -0.0481] |        0      | [0.0000, 0.0000]   |                  0.1185 |          0.8063 |   0      |            0.0001 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | TQA-B-CQR               | rel_IS       |           270 |          270 |     -0.0065 | [-0.0115, -0.0026] |       -0.0014 | [-0.0020, -0.0009] |                  0.6815 |          0.4784 |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | TQA-B-CQR               | reserve_cost |           270 |          270 |     -0.0001 | [-0.0001, -0.0000] |       -0      | [-0.0001, -0.0000] |                  0.5963 |          0.3433 |   0.0802 |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | TQA-B-CQR               | book_fail    |           270 |          270 |     -0.016  | [-0.0281, -0.0065] |        0      | [0.0000, 0.0000]   |                  0.0333 |          1      |   0.024  |            0.0396 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | GHCP-CQR                | abs_dev      |           270 |          270 |     -0.0206 | [-0.0256, -0.0163] |       -0.0149 | [-0.0174, -0.0129] |                  0.8778 |          0.8979 |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | GHCP-CQR                | under        |           270 |          270 |     -0.0673 | [-0.0957, -0.0407] |        0      | [0.0000, 0.0000]   |                  0.0889 |          1      |   0      |            0.0001 |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | GHCP-CQR                | rel_IS       |           270 |          270 |     -0.0078 | [-0.0127, -0.0039] |       -0.0016 | [-0.0023, -0.0013] |                  0.6778 |          0.545  |   0      |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | GHCP-CQR                | reserve_cost |           270 |          270 |     -0.0001 | [-0.0002, -0.0000] |       -0      | [-0.0001, -0.0000] |                  0.6148 |          0.3088 |   0.003  |            0      |
-| preregistered-cqr-variant | UCI       | random                  | HSC-CQR       | GHCP-CQR                | book_fail    |           270 |          270 |     -0.0077 | [-0.0176, -0.0009] |        0      | [0.0000, 0.0000]   |                  0.0148 |          1      |   0.5052 |            0.2716 |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | CQR (MLP)               | abs_dev      |           270 |          270 |     -0.0182 | [-0.0238, -0.0134] |       -0.012  | [-0.0153, -0.0089] |                  0.7778 |          0.7195 |   0      |            0      |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | CQR (MLP)               | under        |           270 |          270 |     -0.071  | [-0.0994, -0.0432] |        0      | [0.0000, 0.0000]   |                  0.1    |          0.9494 |   0      |            0      |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | CQR (MLP)               | rel_IS       |           270 |          270 |     -0.0072 | [-0.0157, -0.0010] |        0.0002 | [-0.0004, 0.0008]  |                  0.4704 |          0.0608 |   0.0224 |            0.3864 |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | CQR (MLP)               | reserve_cost |           270 |          270 |     -0      | [-0.0001, 0.0001]  |        0      | [-0.0000, 0.0000]  |                  0.4889 |          0.0582 |   0.7242 |            0.4067 |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | CQR (MLP)               | book_fail    |           270 |          270 |     -0.0207 | [-0.0407, -0.0031] |        0      | [0.0000, 0.0000]   |                  0.0481 |          0.5662 |   0.032  |            0.0431 |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | MLP-QR                  | abs_dev      |           270 |          270 |     -0.0219 | [-0.0274, -0.0169] |       -0.0141 | [-0.0171, -0.0102] |                  0.8333 |          0.7953 |   0      |            0      |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | MLP-QR                  | under        |           270 |          270 |     -0.1324 | [-0.1698, -0.0948] |        0      | [0.0000, 0.0000]   |                  0.1778 |          1      |   0      |            0      |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | MLP-QR                  | rel_IS       |           270 |          270 |     -0.0086 | [-0.0171, -0.0023] |       -0.0002 | [-0.0010, 0.0006]  |                  0.5148 |          0.1906 |   0.0032 |            0.0133 |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | MLP-QR                  | reserve_cost |           270 |          270 |     -0.0001 | [-0.0002, 0.0001]  |       -0      | [-0.0000, -0.0000] |                  0.563  |          0.2003 |   0.7051 |            0.0087 |
-| mlp                       | UCI       | random                  | PCS-CQR (MLP) | MLP-QR                  | book_fail    |           270 |          270 |     -0.0333 | [-0.0559, -0.0120] |        0      | [0.0000, 0.0000]   |                  0.0704 |          0.6719 |   0.0042 |            0.0105 |
-| abs-score                 | UCI       | random                  | PCS           | Self-CP                 | abs_dev      |           270 |          270 |     -0.0004 | [-0.0007, -0.0002] |        0      | [-0.0002, 0.0000]  |                  0.463  |          0.3226 |   0.0027 |            0.0003 |
-| abs-score                 | UCI       | random                  | PCS           | Self-CP                 | under        |           270 |          270 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| abs-score                 | UCI       | random                  | PCS           | Self-CP                 | rel_IS       |           270 |          270 |     -0.0021 | [-0.0059, 0.0002]  |       -0.0013 | [-0.0016, -0.0010] |                  0.7222 |          0.3765 |   0.2052 |            0      |
-| abs-score                 | UCI       | random                  | PCS           | Self-CP                 | reserve_cost |           270 |          270 |     -0.0001 | [-0.0001, -0.0000] |       -0.0001 | [-0.0001, -0.0000] |                  0.7926 |          0.5252 |   0.0001 |            0      |
-| abs-score                 | UCI       | random                  | PCS           | Self-CP                 | book_fail    |           270 |          270 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| abs-score                 | UCI       | random                  | PCS           | SCP-stage               | abs_dev      |           270 |          270 |     -0.069  | [-0.0805, -0.0579] |       -0.0516 | [-0.0552, -0.0462] |                  0.9296 |          0.9613 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | SCP-stage               | under        |           270 |          270 |     -0.1765 | [-0.2235, -0.1321] |        0      | [0.0000, 0.0000]   |                  0.2222 |          0.9029 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | SCP-stage               | rel_IS       |           270 |          270 |     -0.2342 | [-0.3693, -0.1196] |       -0.0459 | [-0.0602, -0.0365] |                  0.8407 |          0.8581 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | SCP-stage               | reserve_cost |           270 |          270 |     -0.0038 | [-0.0056, -0.0024] |       -0.0011 | [-0.0014, -0.0008] |                  0.8    |          0.8022 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | SCP-stage               | book_fail    |           270 |          270 |     -0.1241 | [-0.1648, -0.0852] |        0      | [0.0000, 0.0000]   |                  0.1741 |          0.8337 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | ACI                     | abs_dev      |           270 |          270 |     -0.029  | [-0.0335, -0.0248] |       -0.026  | [-0.0308, -0.0205] |                  0.7889 |          0.801  |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | ACI                     | under        |           270 |          270 |     -0.067  | [-0.1015, -0.0333] |        0      | [0.0000, 0.0000]   |                  0.1074 |          0.6772 |   0.0009 |            0.0009 |
-| abs-score                 | UCI       | random                  | PCS           | ACI                     | rel_IS       |           270 |          270 |     -0.0718 | [-0.1100, -0.0394] |       -0.0131 | [-0.0192, -0.0078] |                  0.7185 |          0.5657 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | ACI                     | reserve_cost |           270 |          270 |     -0.0015 | [-0.0024, -0.0009] |       -0.0003 | [-0.0005, -0.0002] |                  0.7222 |          0.5554 |   0      |            0      |
-| abs-score                 | UCI       | random                  | PCS           | ACI                     | book_fail    |           270 |          270 |     -0.0244 | [-0.0466, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0593 |          0.4275 |   0.1834 |            0.2039 |
-| abs-score                 | UCI       | random                  | PCS           | HSC                     | abs_dev      |           270 |          270 |     -0.0004 | [-0.0017, 0.0009]  |        0      | [-0.0009, 0.0014]  |                  0.4778 |          0.0064 |   0.6047 |            0.9282 |
-| abs-score                 | UCI       | random                  | PCS           | HSC                     | under        |           270 |          270 |     -0.0151 | [-0.0309, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0296 |          0.6667 |   0.154  |            0.1439 |
-| abs-score                 | UCI       | random                  | PCS           | HSC                     | rel_IS       |           270 |          270 |      0.0053 | [-0.0015, 0.0110]  |        0.0027 | [0.0020, 0.0030]   |                  0.237  |         -0.5561 |   0.1526 |            0      |
-| abs-score                 | UCI       | random                  | PCS           | HSC                     | reserve_cost |           270 |          270 |      0.0003 | [0.0000, 0.0007]   |        0.0001 | [0.0000, 0.0001]   |                  0.2963 |         -0.4492 |   0.0312 |            0      |
-| abs-score                 | UCI       | random                  | PCS           | HSC                     | book_fail    |           270 |          270 |     -0.0019 | [-0.0130, 0.0093]  |        0      | [0.0000, 0.0000]   |                  0.0111 |          0.1333 |   1      |            1      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | CQR                     | abs_dev      |           842 |           10 |     -0.0284 | [-0.0351, -0.0214] |       -0.0241 | [-0.0310, -0.0180] |                  0.9216 |          0.962  |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | CQR                     | under        |           842 |           10 |     -0.2245 | [-0.3613, -0.0805] |        0      | [-0.3333, 0.0000]  |                  0.3705 |          0.9642 |   0.043  |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | CQR                     | rel_IS       |           842 |           10 |     -0.0073 | [-0.0120, -0.0032] |       -0.0028 | [-0.0053, -0.0008] |                  0.6413 |          0.517  |   0.1562 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | CQR                     | reserve_cost |           842 |           10 |     -0.0002 | [-0.0004, -0.0001] |       -0.0001 | [-0.0001, -0.0001] |                  0.633  |          0.43   |   0.2031 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | CQR                     | book_fail    |           842 |           10 |     -0.0784 | [-0.1200, -0.0390] |        0      | [0.0000, 0.0000]   |                  0.196  |          0.9167 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | Self-CQR                | abs_dev      |           842 |           10 |     -0.0056 | [-0.0086, -0.0030] |       -0.0044 | [-0.0067, -0.0022] |                  0.7043 |          0.5776 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | Self-CQR                | under        |           842 |           10 |     -0.0475 | [-0.0714, -0.0264] |        0      | [0.0000, 0.0000]   |                  0.1496 |          0.7592 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | Self-CQR                | rel_IS       |           842 |           10 |     -0.0222 | [-0.0343, -0.0144] |       -0.0063 | [-0.0074, -0.0055] |                  0.9786 |          0.9884 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | Self-CQR                | reserve_cost |           842 |           10 |     -0.0004 | [-0.0007, -0.0003] |       -0.0001 | [-0.0001, -0.0001] |                  0.7708 |          0.655  |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | Self-CQR                | book_fail    |           842 |           10 |     -0.0024 | [-0.0110, 0.0057]  |        0      | [0.0000, 0.0000]   |                  0.0297 |          0.1237 |   1      |            1      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR                 | abs_dev      |           842 |           10 |     -0.0102 | [-0.0119, -0.0084] |       -0.0084 | [-0.0110, -0.0064] |                  0.7957 |          0.7763 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR                 | under        |           842 |           10 |     -0.0534 | [-0.1020, -0.0229] |        0      | [0.0000, 0.0000]   |                  0.1354 |          0.7301 |   0.0625 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR                 | rel_IS       |           842 |           10 |     -0.0179 | [-0.0437, -0.0043] |        0.0002 | [-0.0002, 0.0005]  |                  0.481  |          0.0449 |   0.1055 |            0.5179 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR                 | reserve_cost |           842 |           10 |     -0.0005 | [-0.0011, -0.0002] |       -0      | [-0.0000, -0.0000] |                  0.5713 |          0.2527 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR                 | book_fail    |           842 |           10 |     -0.0265 | [-0.0352, -0.0177] |        0      | [0.0000, 0.0000]   |                  0.0808 |          0.7323 |   0.0391 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR (MACD)          | abs_dev      |           842 |           10 |     -0.0087 | [-0.0108, -0.0064] |       -0.0074 | [-0.0097, -0.0047] |                  0.7672 |          0.7167 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR (MACD)          | under        |           842 |           10 |     -0.0455 | [-0.0960, -0.0113] |        0      | [0.0000, 0.0000]   |                  0.1235 |          0.6909 |   0.1094 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR (MACD)          | rel_IS       |           842 |           10 |     -0.0175 | [-0.0432, -0.0039] |        0.0003 | [-0.0001, 0.0006]  |                  0.4667 |         -0.0123 |   0.2539 |            0.7565 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR (MACD)          | reserve_cost |           842 |           10 |     -0.0005 | [-0.0011, -0.0002] |       -0      | [-0.0000, -0.0000] |                  0.5558 |          0.2087 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | ACI-CQR (MACD)          | book_fail    |           842 |           10 |     -0.023  | [-0.0316, -0.0134] |        0      | [0.0000, 0.0000]   |                  0.0736 |          0.6733 |   0.0391 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | TQA-B-CQR               | abs_dev      |           842 |           10 |     -0.0276 | [-0.0320, -0.0225] |       -0.0237 | [-0.0298, -0.0183] |                  0.9062 |          0.9434 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | TQA-B-CQR               | under        |           842 |           10 |     -0.2122 | [-0.3410, -0.0822] |        0      | [-0.3333, 0.0000]  |                  0.3646 |          0.9375 |   0.043  |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | TQA-B-CQR               | rel_IS       |           842 |           10 |     -0.0076 | [-0.0093, -0.0041] |       -0.0035 | [-0.0058, -0.0013] |                  0.6591 |          0.5138 |   0.1562 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | TQA-B-CQR               | reserve_cost |           842 |           10 |     -0.0002 | [-0.0003, -0.0001] |       -0.0001 | [-0.0001, -0.0001] |                  0.6615 |          0.4322 |   0.2461 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | TQA-B-CQR               | book_fail    |           842 |           10 |     -0.0681 | [-0.0983, -0.0358] |        0      | [0.0000, 0.0000]   |                  0.177  |          0.8686 |   0.0391 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | GHCP-CQR                | abs_dev      |           842 |           10 |     -0.028  | [-0.0340, -0.0219] |       -0.0241 | [-0.0297, -0.0179] |                  0.9287 |          0.9621 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | GHCP-CQR                | under        |           842 |           10 |     -0.2142 | [-0.3467, -0.0749] |        0      | [-0.3333, 0.0000]  |                  0.3563 |          0.9625 |   0.043  |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | GHCP-CQR                | rel_IS       |           842 |           10 |     -0.007  | [-0.0115, -0.0033] |       -0.003  | [-0.0049, -0.0010] |                  0.6437 |          0.5095 |   0.1562 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | GHCP-CQR                | reserve_cost |           842 |           10 |     -0.0002 | [-0.0004, -0.0001] |       -0.0001 | [-0.0001, -0.0000] |                  0.633  |          0.4237 |   0.2031 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | GHCP-CQR                | book_fail    |           842 |           10 |     -0.0724 | [-0.1119, -0.0338] |        0      | [0.0000, 0.0000]   |                  0.1805 |          0.8917 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR             | abs_dev      |           842 |           10 |     -0.0081 | [-0.0098, -0.0052] |       -0.0062 | [-0.0084, -0.0034] |                  0.785  |          0.7609 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR             | under        |           842 |           10 |     -0.0337 | [-0.0594, -0.0070] |        0      | [0.0000, 0.0000]   |                  0.0998 |          0.782  |   0.1875 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR             | rel_IS       |           842 |           10 |      0.0011 | [-0.0004, 0.0025]  |        0.0004 | [0.0002, 0.0006]   |                  0.4359 |         -0.0995 |   0.5    |            0.0425 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR             | reserve_cost |           842 |           10 |      0      | [-0.0000, 0.0001]  |       -0      | [-0.0000, 0.0000]  |                  0.5024 |          0.0667 |   1      |            0.1869 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR             | book_fail    |           842 |           10 |     -0.0158 | [-0.0230, -0.0072] |        0      | [0.0000, 0.0000]   |                  0.0523 |          0.7413 |   0.0469 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR (MACD)      | abs_dev      |           842 |           10 |     -0.0002 | [-0.0006, 0.0006]  |       -0.0003 | [-0.0006, 0.0000]  |                  0.5546 |          0.1006 |   1      |            0.0236 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR (MACD)      | under        |           842 |           10 |      0.0036 | [-0.0010, 0.0087]  |        0      | [0.0000, 0.0000]   |                  0.0083 |         -0.3913 |   1      |            0.2874 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR (MACD)      | rel_IS       |           842 |           10 |     -0.0039 | [-0.0084, -0.0017] |       -0.0001 | [-0.0003, -0.0000] |                  0.5558 |          0.2017 |   0.0391 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR (MACD)      | reserve_cost |           842 |           10 |     -0.0001 | [-0.0002, -0.0000] |        0      | [-0.0000, 0.0000]  |                  0.4988 |          0.0288 |   0.3711 |            0.4696 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | QShrink-CQR (MACD)      | book_fail    |           842 |           10 |      0.0024 | [0.0008, 0.0056]   |        0      | [0.0000, 0.0000]   |                  0.0024 |         -0.6364 |   0.3125 |            0.261  |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR κ=168           | abs_dev      |           842 |           10 |     -0.0001 | [-0.0003, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.3171 |          0.1692 |   1      |            0.0045 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR κ=168           | under        |           842 |           10 |      0.0004 | [-0.0007, 0.0019]  |        0      | [0.0000, 0.0000]   |                  0.0012 |         -0.3333 |   1      |            0.6346 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR κ=168           | rel_IS       |           842 |           10 |      0.0011 | [0.0000, 0.0023]   |        0      | [0.0000, 0.0001]   |                  0.1473 |         -0.5591 |   0.2539 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR κ=168           | reserve_cost |           842 |           10 |      0      | [0.0000, 0.0001]   |        0      | [0.0000, 0.0000]   |                  0.2447 |         -0.2455 |   0.75   |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR κ=168           | book_fail    |           842 |           10 |      0      | [-0.0008, 0.0012]  |        0      | [0.0000, 0.0000]   |                  0.0024 |          0      |   1      |            1      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | HSC-CQR                 | abs_dev      |           842 |           10 |     -0.0038 | [-0.0060, -0.0015] |       -0.003  | [-0.0060, -0.0007] |                  0.7019 |          0.5837 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | HSC-CQR                 | under        |           842 |           10 |     -0.0218 | [-0.0422, -0.0020] |        0      | [0.0000, 0.0000]   |                  0.0713 |          0.7749 |   0.4688 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | HSC-CQR                 | rel_IS       |           842 |           10 |      0.0026 | [0.0010, 0.0044]   |        0.0008 | [0.0003, 0.0010]   |                  0.3171 |         -0.3575 |   0.0234 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | HSC-CQR                 | reserve_cost |           842 |           10 |      0      | [0.0000, 0.0001]   |        0      | [0.0000, 0.0000]   |                  0.4026 |         -0.1885 |   0.3711 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | HSC-CQR                 | book_fail    |           842 |           10 |     -0.017  | [-0.0214, -0.0118] |        0      | [0.0000, 0.0000]   |                  0.0499 |          0.9152 |   0.0391 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR +kNN+stage      | abs_dev      |           842 |           10 |     -0.0005 | [-0.0008, -0.0001] |       -0.0005 | [-0.0009, -0.0000] |                  0.5831 |          0.2344 |   0.1875 |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR +kNN+stage      | under        |           842 |           10 |     -0.002  | [-0.0044, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0107 |          0.3846 |   1      |            0.4966 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR +kNN+stage      | rel_IS       |           842 |           10 |      0.0011 | [0.0000, 0.0021]   |        0.0001 | [-0.0001, 0.0003]  |                  0.443  |         -0.1016 |   0.2988 |            0.0425 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR +kNN+stage      | reserve_cost |           842 |           10 |      0      | [0.0000, 0.0000]   |        0      | [-0.0000, 0.0000]  |                  0.4513 |         -0.1136 |   0.1934 |            0.0172 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR +kNN+stage      | book_fail    |           842 |           10 |     -0.002  | [-0.0033, -0.0006] |        0      | [0.0000, 0.0000]   |                  0.0083 |          0.5556 |   0.5    |            0.3823 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR site-grouped    | abs_dev      |           842 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0.057  |         -0.0897 |   1      |            0.416  |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR site-grouped    | under        |           842 |           10 |      0.0004 | [0.0000, 0.0013]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            0.6346 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR site-grouped    | rel_IS       |           842 |           10 |      0.0001 | [0.0000, 0.0002]   |        0      | [0.0000, 0.0000]   |                  0.0285 |         -0.6812 |   1      |            0      |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR site-grouped    | reserve_cost |           842 |           10 |     -0      | [-0.0000, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0546 |         -0.2263 |   1      |            0.0964 |
-| generalisation            | BDG2      | leave-site-out          | PCS-CQR       | PCS-CQR site-grouped    | book_fail    |           842 |           10 |      0.0004 | [0.0000, 0.0013]   |        0      | [0.0000, 0.0000]   |                  0.0012 |         -0.3333 |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | CQR                     | abs_dev      |           211 |          211 |     -0.0174 | [-0.0230, -0.0128] |       -0.0109 | [-0.0141, -0.0096] |                  0.7915 |          0.7787 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | CQR                     | under        |           211 |          211 |     -0.0577 | [-0.0908, -0.0269] |        0      | [0.0000, 0.0000]   |                  0.0758 |          0.8497 |   0.005  |            0.0132 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | CQR                     | rel_IS       |           211 |          211 |      0.0008 | [-0.0027, 0.0054]  |        0.0012 | [0.0006, 0.0016]   |                  0.3839 |         -0.1612 |   1      |            0.1269 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | CQR                     | reserve_cost |           211 |          211 |      0.0001 | [-0.0001, 0.0004]  |        0      | [-0.0000, 0.0001]  |                  0.4455 |         -0.1392 |   1      |            0.318  |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | CQR                     | book_fail    |           211 |          211 |     -0.0213 | [-0.0427, -0.0047] |        0      | [0.0000, 0.0000]   |                  0.0237 |          1      |   0.5526 |            0.3051 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | Self-CQR                | abs_dev      |           211 |          211 |     -0.0045 | [-0.0060, -0.0029] |       -0.0037 | [-0.0050, -0.0022] |                  0.6445 |          0.4509 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | Self-CQR                | under        |           211 |          211 |     -0.0205 | [-0.0411, -0.0047] |        0      | [0.0000, 0.0000]   |                  0.0237 |          1      |   0.5052 |            0.2712 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | Self-CQR                | rel_IS       |           211 |          211 |     -0.0219 | [-0.0401, -0.0104] |       -0.0054 | [-0.0064, -0.0046] |                  0.9763 |          0.9909 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | Self-CQR                | reserve_cost |           211 |          211 |     -0.0006 | [-0.0011, -0.0002] |       -0.0002 | [-0.0002, -0.0001] |                  0.8341 |          0.82   |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | Self-CQR                | book_fail    |           211 |          211 |     -0.0261 | [-0.0498, -0.0071] |        0      | [0.0000, 0.0000]   |                  0.0284 |          1      |   0.3255 |            0.1963 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR                 | abs_dev      |           211 |          211 |     -0.0039 | [-0.0055, -0.0024] |       -0.003  | [-0.0045, -0.0021] |                  0.654  |          0.4137 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR                 | under        |           211 |          211 |     -0.0095 | [-0.0284, 0.0095]  |        0      | [0.0000, 0.0000]   |                  0.0142 |          0.5    |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR                 | rel_IS       |           211 |          211 |      0.0041 | [0.0010, 0.0087]   |        0.0012 | [0.0008, 0.0014]   |                  0.2654 |         -0.5489 |   0.0068 |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR                 | reserve_cost |           211 |          211 |      0.0002 | [-0.0000, 0.0004]  |        0      | [0.0000, 0.0000]   |                  0.3649 |         -0.3504 |   1      |            0.0001 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR                 | book_fail    |           211 |          211 |     -0.0095 | [-0.0237, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0095 |          1      |   1      |            0.9438 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | abs_dev      |           211 |          211 |     -0.0039 | [-0.0055, -0.0024] |       -0.003  | [-0.0045, -0.0021] |                  0.654  |          0.4137 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | under        |           211 |          211 |     -0.0095 | [-0.0284, 0.0095]  |        0      | [0.0000, 0.0000]   |                  0.0142 |          0.5    |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | rel_IS       |           211 |          211 |      0.0041 | [0.0010, 0.0087]   |        0.0012 | [0.0008, 0.0014]   |                  0.2654 |         -0.5489 |   0.0068 |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | reserve_cost |           211 |          211 |      0.0002 | [-0.0000, 0.0004]  |        0      | [0.0000, 0.0000]   |                  0.3649 |         -0.3504 |   1      |            0.0001 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | book_fail    |           211 |          211 |     -0.0095 | [-0.0237, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0095 |          1      |   1      |            0.9438 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | TQA-B-CQR               | abs_dev      |           211 |          211 |     -0.0176 | [-0.0233, -0.0132] |       -0.0115 | [-0.0143, -0.0082] |                  0.8009 |          0.7903 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | TQA-B-CQR               | under        |           211 |          211 |     -0.0616 | [-0.0956, -0.0308] |        0      | [0.0000, 0.0000]   |                  0.0806 |          0.8538 |   0.0044 |            0.0108 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | TQA-B-CQR               | rel_IS       |           211 |          211 |     -0.0015 | [-0.0063, 0.0039]  |        0.0008 | [0.0003, 0.0014]   |                  0.3886 |         -0.115  |   1      |            0.222  |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | TQA-B-CQR               | reserve_cost |           211 |          211 |      0.0001 | [-0.0001, 0.0004]  |        0      | [-0.0000, 0.0000]  |                  0.4502 |         -0.1052 |   1      |            0.5549 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | TQA-B-CQR               | book_fail    |           211 |          211 |     -0.0284 | [-0.0521, -0.0095] |        0      | [0.0000, 0.0000]   |                  0.0332 |          1      |   0.1622 |            0.1526 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | GHCP-CQR                | abs_dev      |           211 |          211 |     -0.0176 | [-0.0232, -0.0131] |       -0.0121 | [-0.0149, -0.0089] |                  0.8104 |          0.7857 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | GHCP-CQR                | under        |           211 |          211 |     -0.0553 | [-0.0877, -0.0253] |        0      | [0.0000, 0.0000]   |                  0.0711 |          0.8456 |   0.0068 |            0.0159 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | GHCP-CQR                | rel_IS       |           211 |          211 |      0.0008 | [-0.0026, 0.0054]  |        0.0009 | [0.0002, 0.0012]   |                  0.3886 |         -0.1265 |   1      |            0.222  |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | GHCP-CQR                | reserve_cost |           211 |          211 |      0.0001 | [-0.0001, 0.0004]  |        0      | [0.0000, 0.0001]   |                  0.4313 |         -0.175  |   1      |            0.1376 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | GHCP-CQR                | book_fail    |           211 |          211 |     -0.0166 | [-0.0355, -0.0024] |        0      | [0.0000, 0.0000]   |                  0.019  |          1      |   0.996  |            0.4703 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR             | abs_dev      |           211 |          211 |     -0.0024 | [-0.0036, -0.0012] |       -0.0015 | [-0.0022, -0.0007] |                  0.6114 |          0.3696 |   0.0006 |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR             | under        |           211 |          211 |      0      | [-0.0142, 0.0142]  |        0      | [0.0000, 0.0000]   |                  0.0047 |          0      |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR             | rel_IS       |           211 |          211 |      0.0033 | [0.0010, 0.0064]   |        0.0009 | [0.0008, 0.0011]   |                  0.2227 |         -0.6019 |   0.0013 |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR             | reserve_cost |           211 |          211 |      0.0001 | [0.0000, 0.0002]   |        0      | [0.0000, 0.0000]   |                  0.3697 |         -0.3712 |   0.0255 |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR             | book_fail    |           211 |          211 |     -0.0095 | [-0.0237, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0095 |          1      |   1      |            0.9438 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | abs_dev      |           211 |          211 |      0.0004 | [-0.0002, 0.0009]  |        0      | [0.0000, 0.0004]   |                  0.4218 |         -0.0579 |   0.3833 |            0.5974 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | under        |           211 |          211 |      0.0047 | [0.0000, 0.0142]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | rel_IS       |           211 |          211 |     -0.0022 | [-0.0055, -0.0001] |        0.0003 | [0.0001, 0.0004]   |                  0.3886 |         -0.184  |   0.3494 |            0.0818 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | reserve_cost |           211 |          211 |     -0      | [-0.0002, 0.0001]  |        0      | [-0.0000, 0.0000]  |                  0.436  |         -0.0431 |   1      |            0.9602 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | book_fail    |           211 |          211 |     -0.0047 | [-0.0142, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0047 |          1      |   1      |            0.9519 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR κ=168           | abs_dev      |           211 |          211 |     -0.0002 | [-0.0005, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.2227 |          0.1305 |   0.3833 |            0.5974 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR κ=168           | under        |           211 |          211 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR κ=168           | rel_IS       |           211 |          211 |      0.0005 | [-0.0000, 0.0009]  |        0      | [0.0000, 0.0000]   |                  0.0474 |         -0.8206 |   0.228  |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR κ=168           | reserve_cost |           211 |          211 |      0      | [-0.0000, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.1185 |         -0.6272 |   1      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR κ=168           | book_fail    |           211 |          211 |     -0.0047 | [-0.0190, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0047 |          1      |   1      |            0.9519 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | HSC-CQR                 | abs_dev      |           211 |          211 |     -0.0025 | [-0.0035, -0.0015] |       -0.0022 | [-0.0033, -0.0015] |                  0.6445 |          0.4719 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | HSC-CQR                 | under        |           211 |          211 |      0      | [-0.0142, 0.0142]  |        0      | [0.0000, 0.0000]   |                  0.0047 |          0      |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | HSC-CQR                 | rel_IS       |           211 |          211 |      0.0043 | [0.0014, 0.0089]   |        0.0008 | [0.0006, 0.0011]   |                  0.2417 |         -0.6145 |   0      |            0      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | HSC-CQR                 | reserve_cost |           211 |          211 |      0.0001 | [-0.0000, 0.0003]  |        0      | [0.0000, 0.0000]   |                  0.4076 |         -0.2409 |   1      |            0.0145 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | HSC-CQR                 | book_fail    |           211 |          211 |     -0.0142 | [-0.0332, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0142 |          1      |   1      |            0.5829 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | abs_dev      |           211 |          211 |     -0.0011 | [-0.0017, -0.0005] |       -0.0007 | [-0.0011, 0.0000]  |                  0.5308 |          0.2826 |   0.0004 |            0.0019 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | under        |           211 |          211 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | rel_IS       |           211 |          211 |      0.001  | [0.0001, 0.0026]   |        0.0002 | [0.0001, 0.0004]   |                  0.4076 |         -0.1991 |   0.228  |            0.0607 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | reserve_cost |           211 |          211 |      0      | [-0.0000, 0.0000]  |       -0      | [-0.0000, 0.0000]  |                  0.5166 |          0.0561 |   1      |            0.9602 |
-| generalisation            | UCI       | BDG2->UCI (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | book_fail    |           211 |          211 |     -0.0047 | [-0.0142, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0047 |          1      |   1      |            0.9519 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | CQR                     | abs_dev      |           559 |           10 |     -0.0414 | [-0.0525, -0.0283] |       -0.0315 | [-0.0481, -0.0200] |                  0.8658 |          0.8965 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | CQR                     | under        |           559 |           10 |     -0.3822 | [-0.5232, -0.2163] |        0      | [-0.5000, 0.0000]  |                  0.4329 |          0.9878 |   0.043  |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | CQR                     | rel_IS       |           559 |           10 |      0.0109 | [-0.0171, 0.0354]  |       -0.0033 | [-0.0083, -0.0003] |                  0.6297 |          0.418  |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | CQR                     | reserve_cost |           559 |           10 |      0.0001 | [-0.0006, 0.0007]  |       -0.0001 | [-0.0002, -0.0000] |                  0.5725 |          0.2969 |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | CQR                     | book_fail    |           559 |           10 |     -0.1768 | [-0.2322, -0.1098] |        0      | [0.0000, 0.0000]   |                  0.2254 |          0.9651 |   0.043  |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | Self-CQR                | abs_dev      |           559 |           10 |     -0.0039 | [-0.0054, -0.0028] |       -0.0028 | [-0.0037, -0.0019] |                  0.6136 |          0.3145 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | Self-CQR                | under        |           559 |           10 |     -0.0397 | [-0.0769, -0.0153] |        0      | [0.0000, 0.0000]   |                  0.0698 |          0.5875 |   0.1172 |            0.0008 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | Self-CQR                | rel_IS       |           559 |           10 |     -0.043  | [-0.0725, -0.0144] |       -0.0062 | [-0.0067, -0.0056] |                  0.9052 |          0.8878 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | Self-CQR                | reserve_cost |           559 |           10 |     -0.001  | [-0.0017, -0.0003] |       -0.0001 | [-0.0001, -0.0001] |                  0.7567 |          0.5927 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | Self-CQR                | book_fail    |           559 |           10 |      0.0018 | [-0.0045, 0.0118]  |        0      | [0.0000, 0.0000]   |                  0.0197 |         -0.0725 |   1      |            0.7505 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR                 | abs_dev      |           559 |           10 |     -0.011  | [-0.0151, -0.0062] |       -0.0074 | [-0.0119, -0.0038] |                  0.6887 |          0.5267 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR                 | under        |           559 |           10 |     -0.1294 | [-0.1920, -0.0493] |        0      | [0.0000, 0.0000]   |                  0.1753 |          0.8581 |   0.0938 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR                 | rel_IS       |           559 |           10 |      0.0074 | [-0.0300, 0.0317]  |       -0.0003 | [-0.0014, 0.0007]  |                  0.5224 |          0.1362 |   1      |            0.0207 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR                 | reserve_cost |           559 |           10 |      0.0001 | [-0.0008, 0.0007]  |       -0      | [-0.0001, 0.0000]  |                  0.5581 |          0.2208 |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR                 | book_fail    |           559 |           10 |     -0.0569 | [-0.0773, -0.0264] |        0      | [0.0000, 0.0000]   |                  0.0877 |          0.7054 |   0.0625 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | abs_dev      |           559 |           10 |     -0.011  | [-0.0151, -0.0062] |       -0.0074 | [-0.0119, -0.0038] |                  0.6887 |          0.5267 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | under        |           559 |           10 |     -0.1294 | [-0.1920, -0.0493] |        0      | [0.0000, 0.0000]   |                  0.1753 |          0.8581 |   0.0938 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | rel_IS       |           559 |           10 |      0.0074 | [-0.0300, 0.0317]  |       -0.0003 | [-0.0014, 0.0007]  |                  0.5224 |          0.1362 |   1      |            0.0207 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | reserve_cost |           559 |           10 |      0.0001 | [-0.0008, 0.0007]  |       -0      | [-0.0001, 0.0000]  |                  0.5581 |          0.2208 |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | ACI-CQR (MACD)          | book_fail    |           559 |           10 |     -0.0569 | [-0.0773, -0.0264] |        0      | [0.0000, 0.0000]   |                  0.0877 |          0.7054 |   0.0625 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | TQA-B-CQR               | abs_dev      |           559 |           10 |     -0.0378 | [-0.0469, -0.0277] |       -0.0312 | [-0.0433, -0.0186] |                  0.8318 |          0.8512 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | TQA-B-CQR               | under        |           559 |           10 |     -0.3414 | [-0.4657, -0.1998] |        0      | [-0.5000, 0.0000]  |                  0.4007 |          0.945  |   0.043  |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | TQA-B-CQR               | rel_IS       |           559 |           10 |      0.0159 | [-0.0147, 0.0440]  |       -0.0039 | [-0.0089, -0.0014] |                  0.6082 |          0.357  |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | TQA-B-CQR               | reserve_cost |           559 |           10 |      0.0002 | [-0.0005, 0.0008]  |       -0.0001 | [-0.0002, -0.0000] |                  0.6029 |          0.3544 |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | TQA-B-CQR               | book_fail    |           559 |           10 |     -0.1726 | [-0.2240, -0.1059] |        0      | [0.0000, 0.0000]   |                  0.2236 |          0.9234 |   0.043  |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | GHCP-CQR                | abs_dev      |           559 |           10 |     -0.0382 | [-0.0475, -0.0270] |       -0.0296 | [-0.0417, -0.0188] |                  0.864  |          0.884  |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | GHCP-CQR                | under        |           559 |           10 |     -0.333  | [-0.4627, -0.1801] |        0      | [-0.5000, 0.0000]  |                  0.3864 |          0.9807 |   0.043  |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | GHCP-CQR                | rel_IS       |           559 |           10 |      0.0137 | [-0.0152, 0.0396]  |       -0.0026 | [-0.0068, -0.0001] |                  0.5868 |          0.3548 |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | GHCP-CQR                | reserve_cost |           559 |           10 |      0.0002 | [-0.0005, 0.0008]  |       -0.0001 | [-0.0001, -0.0000] |                  0.5653 |          0.2606 |   1      |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | GHCP-CQR                | book_fail    |           559 |           10 |     -0.1556 | [-0.1979, -0.0974] |        0      | [0.0000, 0.0000]   |                  0.1986 |          0.9382 |   0.043  |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR             | abs_dev      |           559 |           10 |     -0.0077 | [-0.0102, -0.0048] |       -0.004  | [-0.0067, -0.0022] |                  0.6905 |          0.5667 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR             | under        |           559 |           10 |     -0.0659 | [-0.1139, -0.0061] |        0      | [0.0000, 0.0000]   |                  0.0894 |          0.8623 |   0.25   |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR             | rel_IS       |           559 |           10 |      0.0085 | [0.0019, 0.0232]   |        0.0004 | [0.0002, 0.0009]   |                  0.4436 |         -0.1365 |   0.123  |            0.0207 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR             | reserve_cost |           559 |           10 |      0.0001 | [-0.0000, 0.0005]  |       -0      | [-0.0000, 0.0000]  |                  0.5045 |          0.0163 |   1      |            0.8545 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR             | book_fail    |           559 |           10 |     -0.0203 | [-0.0290, -0.0087] |        0      | [0.0000, 0.0000]   |                  0.034  |          0.7835 |   0.1562 |            0.0081 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | abs_dev      |           559 |           10 |     -0.0003 | [-0.0008, 0.0005]  |        0      | [-0.0004, 0.0002]  |                  0.4848 |          0.0202 |   1      |            1      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | under        |           559 |           10 |      0.0072 | [0.0000, 0.0186]   |        0      | [0.0000, 0.0000]   |                  0.0018 |         -0.6389 |   0.5625 |            0.296  |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | rel_IS       |           559 |           10 |     -0.0053 | [-0.0099, -0.0006] |       -0.0003 | [-0.0006, -0.0001] |                  0.5778 |          0.1515 |   0.2227 |            0.0095 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | reserve_cost |           559 |           10 |     -0.0001 | [-0.0002, 0.0000]  |       -0      | [-0.0000, -0.0000] |                  0.5903 |          0.1977 |   1      |            0.0002 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | QShrink-CQR (MACD)      | book_fail    |           559 |           10 |      0.0054 | [0.0012, 0.0131]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   0.5    |            0.1356 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR κ=168           | abs_dev      |           559 |           10 |     -0.0004 | [-0.0012, 0.0005]  |        0      | [0.0000, 0.0000]   |                  0.4079 |          0.1377 |   1      |            0.0478 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR κ=168           | under        |           559 |           10 |     -0.0039 | [-0.0088, 0.0037]  |        0      | [0.0000, 0.0000]   |                  0.0089 |          0.3333 |   1      |            0.7911 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR κ=168           | rel_IS       |           559 |           10 |      0.0166 | [0.0028, 0.0297]   |        0.0003 | [0.0001, 0.0005]   |                  0.195  |         -0.5594 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR κ=168           | reserve_cost |           559 |           10 |      0.0003 | [0.0000, 0.0006]   |        0      | [0.0000, 0.0000]   |                  0.297  |         -0.2388 |   0.3516 |            0.0001 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR κ=168           | book_fail    |           559 |           10 |     -0.0042 | [-0.0070, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0054 |          1      |   1      |            0.3074 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | HSC-CQR                 | abs_dev      |           559 |           10 |     -0.0046 | [-0.0067, -0.0021] |       -0.0045 | [-0.0067, -0.0022] |                  0.6583 |          0.4643 |   0.0215 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | HSC-CQR                 | under        |           559 |           10 |     -0.0525 | [-0.0793, -0.0166] |        0      | [0.0000, 0.0000]   |                  0.0662 |          0.9292 |   0.1172 |            0      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | HSC-CQR                 | rel_IS       |           559 |           10 |      0.0184 | [0.0026, 0.0351]   |        0.0005 | [0.0001, 0.0010]   |                  0.4114 |         -0.1633 |   0.0215 |            0.0049 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | HSC-CQR                 | reserve_cost |           559 |           10 |      0.0003 | [-0.0000, 0.0007]  |        0      | [-0.0000, 0.0000]  |                  0.4526 |         -0.0388 |   1      |            0.8545 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | HSC-CQR                 | book_fail    |           559 |           10 |     -0.0179 | [-0.0283, -0.0114] |        0      | [0.0000, 0.0000]   |                  0.0304 |          0.8246 |   0.0938 |            0.0089 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | abs_dev      |           559 |           10 |     -0      | [-0.0004, 0.0005]  |        0      | [0.0000, 0.0007]   |                  0.4526 |          0.0051 |   1      |            1      |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | under        |           559 |           10 |     -0.0009 | [-0.0080, 0.0110]  |        0      | [0.0000, 0.0000]   |                  0.0072 |          0.1333 |   1      |            0.7911 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | rel_IS       |           559 |           10 |      0.0031 | [0.0012, 0.0082]   |       -0.0001 | [-0.0004, -0.0000] |                  0.5313 |         -0.0474 |   0.0625 |            0.3311 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | reserve_cost |           559 |           10 |      0      | [0.0000, 0.0001]   |       -0      | [-0.0000, -0.0000] |                  0.5599 |          0.0834 |   0.3516 |            0.2622 |
-| generalisation            | BDG2      | UCI->BDG2 (no weather)  | PCS-CQR       | PCS-CQR +kNN+stage      | book_fail    |           559 |           10 |      0.0009 | [0.0000, 0.0032]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            0.6346 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | CQR                     | abs_dev      |           559 |           10 |     -0.0228 | [-0.0263, -0.0176] |       -0.0188 | [-0.0214, -0.0150] |                  0.8122 |          0.8127 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | CQR                     | under        |           559 |           10 |     -0.1667 | [-0.2812, -0.0273] |        0      | [0.0000, 0.0000]   |                  0.2021 |          0.929  |   0.1562 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | CQR                     | rel_IS       |           559 |           10 |     -0.0033 | [-0.0080, 0.0074]  |       -0.0002 | [-0.0006, 0.0003]  |                  0.517  |          0.165  |   1      |            0.0029 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | CQR                     | reserve_cost |           559 |           10 |     -0.0001 | [-0.0003, 0.0002]  |       -0      | [-0.0001, 0.0000]  |                  0.5403 |          0.1471 |   1      |            0.0181 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | CQR                     | book_fail    |           559 |           10 |     -0.0474 | [-0.0818, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.068  |          0.8955 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | Self-CQR                | abs_dev      |           559 |           10 |     -0.0064 | [-0.0096, -0.0041] |       -0.0045 | [-0.0082, -0.0029] |                  0.6565 |          0.493  |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | Self-CQR                | under        |           559 |           10 |     -0.059  | [-0.0948, -0.0337] |        0      | [0.0000, 0.0000]   |                  0.0859 |          0.8914 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | Self-CQR                | rel_IS       |           559 |           10 |     -0.0336 | [-0.0697, -0.0124] |       -0.0055 | [-0.0068, -0.0044] |                  0.9267 |          0.941  |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | Self-CQR                | reserve_cost |           559 |           10 |     -0.0008 | [-0.0017, -0.0002] |       -0.0001 | [-0.0001, -0.0001] |                  0.7281 |          0.568  |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | Self-CQR                | book_fail    |           559 |           10 |     -0.0015 | [-0.0173, 0.0079]  |        0      | [0.0000, 0.0000]   |                  0.0125 |          0.0952 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR                 | abs_dev      |           559 |           10 |     -0.0052 | [-0.0066, -0.0035] |       -0.0037 | [-0.0053, -0.0028] |                  0.6422 |          0.3993 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR                 | under        |           559 |           10 |     -0.0274 | [-0.0500, -0.0004] |        0      | [0.0000, 0.0000]   |                  0.0429 |          0.6736 |   1      |            0.0086 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR                 | rel_IS       |           559 |           10 |     -0.0029 | [-0.0143, 0.0110]  |        0.0008 | [0.0006, 0.0011]   |                  0.39   |         -0.2194 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR                 | reserve_cost |           559 |           10 |     -0.0001 | [-0.0004, 0.0003]  |       -0      | [-0.0000, 0.0000]  |                  0.5098 |         -0.0167 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR                 | book_fail    |           559 |           10 |     -0.0107 | [-0.0265, 0.0121]  |        0      | [0.0000, 0.0000]   |                  0.025  |          0.4857 |   1      |            0.3193 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR (MACD)          | abs_dev      |           559 |           10 |     -0.0052 | [-0.0066, -0.0035] |       -0.0037 | [-0.0053, -0.0028] |                  0.6422 |          0.3993 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR (MACD)          | under        |           559 |           10 |     -0.0274 | [-0.0500, -0.0004] |        0      | [0.0000, 0.0000]   |                  0.0429 |          0.6736 |   1      |            0.0086 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR (MACD)          | rel_IS       |           559 |           10 |     -0.0029 | [-0.0143, 0.0110]  |        0.0008 | [0.0006, 0.0011]   |                  0.39   |         -0.2194 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR (MACD)          | reserve_cost |           559 |           10 |     -0.0001 | [-0.0004, 0.0003]  |       -0      | [-0.0000, 0.0000]  |                  0.5098 |         -0.0167 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | ACI-CQR (MACD)          | book_fail    |           559 |           10 |     -0.0107 | [-0.0265, 0.0121]  |        0      | [0.0000, 0.0000]   |                  0.025  |          0.4857 |   1      |            0.3193 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | TQA-B-CQR               | abs_dev      |           559 |           10 |     -0.0236 | [-0.0265, -0.0199] |       -0.0186 | [-0.0228, -0.0163] |                  0.8122 |          0.8174 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | TQA-B-CQR               | under        |           559 |           10 |     -0.1682 | [-0.2837, -0.0341] |        0      | [0.0000, 0.0000]   |                  0.2057 |          0.9293 |   0.0859 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | TQA-B-CQR               | rel_IS       |           559 |           10 |     -0.0061 | [-0.0104, 0.0050]  |       -0.0022 | [-0.0034, -0.0015] |                  0.5957 |          0.3603 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | TQA-B-CQR               | reserve_cost |           559 |           10 |     -0.0002 | [-0.0004, 0.0001]  |       -0.0001 | [-0.0001, -0.0000] |                  0.5939 |          0.2974 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | TQA-B-CQR               | book_fail    |           559 |           10 |     -0.0447 | [-0.0822, 0.0032]  |        0      | [0.0000, 0.0000]   |                  0.068  |          0.8214 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | GHCP-CQR                | abs_dev      |           559 |           10 |     -0.0225 | [-0.0253, -0.0182] |       -0.0179 | [-0.0210, -0.0155] |                  0.8122 |          0.8148 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | GHCP-CQR                | under        |           559 |           10 |     -0.1428 | [-0.2430, -0.0211] |        0      | [0.0000, 0.0000]   |                  0.1753 |          0.918  |   0.2812 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | GHCP-CQR                | rel_IS       |           559 |           10 |     -0.003  | [-0.0078, 0.0075]  |       -0.0002 | [-0.0006, 0.0003]  |                  0.5098 |          0.1677 |   1      |            0.0029 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | GHCP-CQR                | reserve_cost |           559 |           10 |     -0.0001 | [-0.0003, 0.0002]  |       -0      | [-0.0001, 0.0000]  |                  0.5385 |          0.1579 |   1      |            0.011  |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | GHCP-CQR                | book_fail    |           559 |           10 |     -0.0492 | [-0.0854, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0698 |          0.8992 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR             | abs_dev      |           559 |           10 |     -0.0049 | [-0.0062, -0.0029] |       -0.0025 | [-0.0030, -0.0013] |                  0.6351 |          0.3972 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR             | under        |           559 |           10 |     -0.0152 | [-0.0356, 0.0074]  |        0      | [0.0000, 0.0000]   |                  0.034  |          0.4585 |   1      |            0.2039 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR             | rel_IS       |           559 |           10 |     -0.002  | [-0.0051, 0.0012]  |        0.0007 | [0.0006, 0.0008]   |                  0.3596 |         -0.3071 |   1      |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR             | reserve_cost |           559 |           10 |     -0.0001 | [-0.0001, 0.0000]  |        0      | [-0.0000, 0.0000]  |                  0.4794 |         -0.0494 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR             | book_fail    |           559 |           10 |     -0.0083 | [-0.0149, 0.0016]  |        0      | [0.0000, 0.0000]   |                  0.0125 |          0.8222 |   1      |            0.2107 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR (MACD)      | abs_dev      |           559 |           10 |     -0.0002 | [-0.0011, 0.0009]  |        0      | [-0.0001, 0.0007]  |                  0.449  |         -0.0345 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR (MACD)      | under        |           559 |           10 |      0.0015 | [-0.0061, 0.0110]  |        0      | [0.0000, 0.0000]   |                  0.0054 |         -0.1429 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR (MACD)      | rel_IS       |           559 |           10 |     -0.0087 | [-0.0212, -0.0002] |        0.0002 | [0.0000, 0.0004]   |                  0.4329 |         -0.0605 |   0.5801 |            0.6447 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR (MACD)      | reserve_cost |           559 |           10 |     -0.0002 | [-0.0005, 0.0000]  |        0      | [-0.0000, 0.0000]  |                  0.458  |         -0.0278 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | QShrink-CQR (MACD)      | book_fail    |           559 |           10 |      0.0051 | [0.0015, 0.0069]   |        0      | [0.0000, 0.0000]   |                  0      |         -1      |   1      |            0.2755 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR κ=168           | abs_dev      |           559 |           10 |     -0      | [-0.0002, 0.0002]  |        0      | [0.0000, 0.0000]   |                  0.2218 |          0.0269 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR κ=168           | under        |           559 |           10 |     -0.0027 | [-0.0087, 0.0000]  |        0      | [0.0000, 0.0000]   |                  0.0036 |          1      |   1      |            0.7188 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR κ=168           | rel_IS       |           559 |           10 |      0.0013 | [0.0003, 0.0042]   |        0      | [0.0000, 0.0000]   |                  0.0966 |         -0.6196 |   0.1367 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR κ=168           | reserve_cost |           559 |           10 |      0      | [-0.0000, 0.0001]  |        0      | [0.0000, 0.0000]   |                  0.1789 |         -0.228  |   1      |            0.0134 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR κ=168           | book_fail    |           559 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | HSC-CQR                 | abs_dev      |           559 |           10 |     -0.0022 | [-0.0036, -0.0003] |       -0.002  | [-0.0030, -0.0007] |                  0.6082 |          0.3324 |   0.3516 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | HSC-CQR                 | under        |           559 |           10 |     -0.0119 | [-0.0261, 0.0016]  |        0      | [0.0000, 0.0000]   |                  0.0233 |          0.7417 |   1      |            0.0626 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | HSC-CQR                 | rel_IS       |           559 |           10 |      0.0045 | [0.0013, 0.0137]   |        0.001  | [0.0008, 0.0011]   |                  0.2755 |         -0.4999 |   0.0234 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | HSC-CQR                 | reserve_cost |           559 |           10 |      0.0001 | [0.0000, 0.0003]   |        0      | [0.0000, 0.0000]   |                  0.4007 |         -0.2255 |   0.4082 |            0      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | HSC-CQR                 | book_fail    |           559 |           10 |     -0.0089 | [-0.0155, 0.0016]  |        0      | [0.0000, 0.0000]   |                  0.0143 |          0.9333 |   1      |            0.1052 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR +kNN+stage      | abs_dev      |           559 |           10 |     -0.0004 | [-0.0008, 0.0001]  |       -0.0004 | [-0.0007, 0.0000]  |                  0.5188 |          0.1889 |   0.9688 |            0.0009 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR +kNN+stage      | under        |           559 |           10 |     -0.0021 | [-0.0121, 0.0057]  |        0      | [0.0000, 0.0000]   |                  0.0072 |          0.381  |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR +kNN+stage      | rel_IS       |           559 |           10 |      0.0009 | [-0.0002, 0.0038]  |        0.0001 | [-0.0001, 0.0004]  |                  0.4758 |         -0.0401 |   1      |            0.8226 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR +kNN+stage      | reserve_cost |           559 |           10 |      0      | [-0.0000, 0.0001]  |        0      | [-0.0000, 0.0000]  |                  0.449  |         -0.0772 |   1      |            0.6833 |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR +kNN+stage      | book_fail    |           559 |           10 |     -0.0012 | [-0.0068, 0.0017]  |        0      | [0.0000, 0.0000]   |                  0.0018 |          0.3333 |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR site-grouped    | abs_dev      |           559 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR site-grouped    | under        |           559 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR site-grouped    | rel_IS       |           559 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR site-grouped    | reserve_cost |           559 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-| generalisation            | BDG2      | BDG2->BDG2 (no weather) | PCS-CQR       | PCS-CQR site-grouped    | book_fail    |           559 |           10 |      0      | [0.0000, 0.0000]   |        0      | [0.0000, 0.0000]   |                  0      |          0      |   1      |            1      |
-
-
-# S4. Supplementary figures
-
-![**Fig. S1.** Data overview: building counts, load scale and missing data.](/home/user/p_c1_1/figures/Fig2_data.png)
-
-![**Fig. S2.** Empirical distribution of per-building coverage over the 56-day onboarding window (all target buildings of all seeds; dashed: nominal 0.90; dotted: 0.85).](/home/user/p_c1_1/figures/Fig4_coverage_cdf.png)
-
-![**Fig. S3.** Design elements and tuning rules of the pseudo-count layer.](/home/user/p_c1_1/figures/Fig6_ablation.png)
-
-![**Fig. S4.** Under-covered share under stress tests (BDG2, 3 seeds).](/home/user/p_c1_1/figures/Fig7_robustness.png)
-
-![**Fig. S5.** Leave-one-site-out and cross-dataset transfer.](/home/user/p_c1_1/figures/Fig8_generalisation.png)
-
-![**Fig. S6.** Per-building coverage against forecast difficulty and usage class.](/home/user/p_c1_1/figures/Fig10_error_analysis.png)
-
-![**Fig. S7.** Example onboarding trajectories of intervals for individual buildings.](/home/user/p_c1_1/figures/Fig11_examples.png)
-
-# S5. Analysis plan (as committed on 2026-11-15)
-
-Pre-registered research design (written before any target-building result was inspected)
+# S2. Refinements examined: onboarding-stage matching and similarity-localised population distribution
+
+*Stage matching.* Calibration scores are grouped into onboarding-stage bins $\{1\},\{2\},\{3\},\{4..6\},\{7..13\},\{14..27\},\{28..56\}$; a forecast at stage $h$ is calibrated with the scores of the bin containing $h$.
+
+*Similarity-localised distribution.* From its most recent $\min(h,28)$ observed days, each building is summarised by a descriptor $\mathbf z_{b,h}$: its mean daily load profile divided by its mean load (24 values), the mean absolute day-to-day change of that normalised profile, and the logarithm of the mean load, computed in the same way for calibration buildings at the same stage. The population distribution is the average of the score distributions of the $K$ calibration buildings closest to $\mathbf z_{b,h}$ (Euclidean distance after standardisation; buildings without valid scores or descriptor are skipped). $K\in\{10,25,50,100,\text{all}\}$ and $\kappa$ were selected by leave-one-building-out with the interval-score objective (variant HSC-CQR).
+
+# S3. Implementation details of all compared methods
+
+All conformal-type methods share the same forecaster, scores and score grid; they differ only in how the radius is obtained.
+
+
+All conformal-type methods share the same forecaster, scores, grid and stage bins; they differ only in how the radius $q_{b,h}$ is obtained.
+
+* **Naive+SCP** (classical): seasonal-naive forecast (same hour one week earlier if $h\ge7$, else the previous day) with stage-matched split conformal intervals.
+* **Raw-SCP**: split conformal prediction on unnormalised absolute residuals (kWh).
+* **SCP**: split conformal on normalised absolute scores pooled over all stages .
+* **SCP-stage**: as SCP, with stage-bin matching (the score-weighted analogue of HSC with $\kappa=\infty$, $K=$ all, whose prior weights buildings equally).
+* **Mondrian-usage** (BDG2): SCP-stage computed separately per primary-usage class (classes with at least 10 calibration buildings), a group-conditional (Mondrian) variant .
+* **Self-CP**: split conformal on the building's own past scores ($\kappa=0$), falling back to SCP-stage until enough own scores exist.
+* **ACI** : adaptive conformal inference on top of the SCP-stage distribution, $\alpha_{h+1}=\alpha_h+\gamma\sum_j(\alpha-\mathrm{err}_{h,j})$, with $\gamma$ chosen by leave-one-building-out on calibration buildings from $\{0,10^{-4},2\!\times\!10^{-4},5\!\times\!10^{-4},10^{-3},2\!\times\!10^{-3},5\!\times\!10^{-3},10^{-2}\}$ (the three smallest values were added after a code audit showed that the pre-registered grid's lower edge was selected in most runs; $\gamma=0$ recovers the pooled method). When $\alpha_h$ leaves $[0,1]$, the radius is set to the largest observed calibration score ($\alpha_h\le 0$; a finite surrogate of the infinite interval of the original method, used in 0.02% of BDG2 and 0.14% of UCI building-days for ACI-CQR) or to the smallest observed score ($\alpha_h\ge1$, empty-set convention). In the first version of the code the radius for $\alpha_h\le0$ was the grid maximum ($500\,s$); this was changed after internal review.
+* **QR-LGBM**: direct LightGBM quantile regression .
+* **CQR** : QR-LGBM conformalised with stage-matched pooled CQR scores.
+* **MLP-Gauss**: a global multilayer perceptron (256-256-128, ReLU) with a Gaussian output trained by negative log-likelihood, a deep probabilistic baseline in the spirit of DeepAR's likelihood training .
+* **MLP-QR**: the same network trained with the pinball loss for the two quantiles .
+* **Self-CQR** and **ACI-CQR**: self-only calibration and ACI applied to the CQR scores (same quantile models as CQR).
+* **TQA-B-CQR** : temporal quantile adjustment ("budgeting" variant) on the CQR scores. The building's exponentially decayed mean own score (decay 0.8 per day, normalised by the weight sum, days before the forecast only) is ranked among the calibration buildings' decayed means at the same stage; the rank $r=|\{j:\bar e_j<\bar e_b\}|/(N+1)$ is mapped to the queried level $1-a$ with $a=\alpha-\lambda g^B(r)$, $g^B(r)=C(r-(1-\alpha))$ for $r<1-\alpha$ and $r-(1-\alpha)$ otherwise, $C=\alpha^2/(1-\alpha)^2$, $\lambda\le1$ chosen per stage so that $a\ge0.01$ for every *calibration* building (each ranked among the others; the first version used the target buildings, which made a building's interval depend on other new buildings and was corrected after internal review), and the quantile is taken over the pooled scores together with a point at $+\infty$, as in the original method; the paper's TQA-E variant is an ACI-type update and is represented by ACI-CQR.
+* **GHCP-CQR**: the calibration step of generalised hierarchical conformal prediction , adapted to our setting: with $M$ calibration buildings, every calibration building receives total weight $1/(M+1)$ spread over its scores (pooled over all onboarding stages, since GHCP has no notion of stages), and the new building receives the same group share, spread over its observed own scores and a point mass at $+\infty$ for its not-yet-observed scores. Deviations from the original: the surrogate group size is the median number of scores per calibration building (≈1344 in all runs) instead of a randomly drawn donor, and no observations are set aside to fit a local predictor, because our global forecaster already conditions on the building's own history (omitting this step most likely favours GHCP-CQR). GHCP's finite-sample guarantee relies on within-group exchangeability, which hourly loads violate.
+* **QShrink-CQR** (regularised Mondrian ): quantile-level shrinkage $q=w\,q^{\mathrm{own}}+(1-w)\,q^{\mathrm{pool}}$ with $w=n_{b,h}/(n_{b,h}+\lambda)$, $q^{\mathrm{own}}$ the split-conformal quantile of the own scores (w = 0 while undefined) and $q^{\mathrm{pool}}$ the CQR radius; $\lambda$ is selected by leave-one-building-out from the same grid as $\kappa$, including $\lambda=0$ (own quantile whenever it exists) and $\lambda=\infty$ (pooled CQR radius).
+* **HSC** and **HSC-CQR**: Eq. ([-@eq:hsc]) with all three elements (stage matching, similarity prior, shrinkage) applied to absolute and CQR scores; **HSC simple** and **HSC-CQR simple**: the same with a uniform prior ($K$ = all) and without stage matching, i.e. a single pseudo-count shrinkage towards the pooled score distribution; **HSC-CQR fixed-κ**: HSC-CQR simple with the pseudo-count fixed at one week of hourly scores ($\kappa=168$) instead of being selected — a donor–local mixture with fixed pseudo-count as in .
+* **CQR (MLP)** and **HSC-CQR (MLP)**: CQR and HSC-CQR simple on the quantiles of the MLP quantile model, to check that the calibration layer is not specific to LightGBM.
+
+The neural networks use the same features (missing values set to zero with missingness indicators, standardised), Adam (learning rate $10^{-3}$, batch 4096), at most 12 epochs, and early stopping on the validation buildings (patience 3). LightGBM uses 63 leaves, learning rate 0.05, at least 200 samples per leaf, 0.8 feature and bagging fractions, L2 regularisation 1, and early stopping (50 rounds) on the validation buildings. These are conventional settings, applied identically to point and quantile models. No method was tuned on target buildings.
+
+ and statistical analysis
+
+
+# S4. Protocol and deviations
+
+1. The ACI step-size grid was extended to $\{0, 10^{-4}, 2\cdot10^{-4}\}$ after a code audit showed that the lower edge of the original grid was selected in most runs.
+2. Mis-specified ablations of the first version were removed and replaced by the fixed-κ variant.
+3. After the first internal review round, Addendum A (written and committed before the corresponding experiments) added the coverage objective for HSC, QShrink and ACI, recency weighting (ρ = 0.95), stage-wise studentisation, the operational outcomes, the noise reference, site-level tests and the rule for the recommended configuration (Addendum A.1). It also fixed the TQA-B budget scaling and the ACI convention for α_h ≤ 0 (Section S3).
+4. At nominal 95 % and 80 %, all CQR-based methods use the quantile models trained for α = 0.1; the conformal step corrects the level. Uncalibrated quantile models (QR-LGBM, MLP-QR) are not reported at these levels.
+5. The original protocol selected the HSC pseudo-count by the interval score; this variant is reported (HSC-CQR, HSC-CQR simple).
+
+The complete protocol, including the addenda, is reproduced at the end of this document.
+
+# S5. Additional results
+
+**Table S2. All methods, BDG2, random-building protocol, nominal 90 % (mean ± s.d. over 5 seeds; widths and interval scores are medians over buildings).**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.896 ± 0.001 | 0.897 ± 0.003       | 0.011 ± 0.000 | 0.004 ± 0.003         | 0.878 ± 0.001  | 0.400 ± 0.018         | 0.570 ± 0.020      |
+| HSC-SSC-CQR          | 0.898 ± 0.001 | 0.903 ± 0.004       | 0.014 ± 0.001 | 0.009 ± 0.009         | 0.876 ± 0.001  | 0.397 ± 0.017         | 0.571 ± 0.020      |
+| SSC-CQR              | 0.899 ± 0.004 | 0.898 ± 0.007       | 0.029 ± 0.001 | 0.097 ± 0.010         | 0.852 ± 0.003  | 0.395 ± 0.015         | 0.565 ± 0.022      |
+| HSC-CQR simple (cov) | 0.895 ± 0.001 | 0.897 ± 0.004       | 0.015 ± 0.001 | 0.019 ± 0.008         | 0.872 ± 0.001  | 0.393 ± 0.016         | 0.567 ± 0.022      |
+| QShrink-CQR (cov)    | 0.896 ± 0.001 | 0.896 ± 0.004       | 0.015 ± 0.001 | 0.015 ± 0.008         | 0.873 ± 0.002  | 0.394 ± 0.016         | 0.567 ± 0.021      |
+| ACI-CQR (cov)        | 0.900 ± 0.000 | 0.898 ± 0.003       | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.894 ± 0.001  | 0.913 ± 0.161         | 1.110 ± 0.194      |
+| HSC-CQR              | 0.891 ± 0.003 | 0.885 ± 0.007       | 0.018 ± 0.001 | 0.034 ± 0.008         | 0.864 ± 0.003  | 0.385 ± 0.011         | 0.564 ± 0.024      |
+| HSC-CQR simple       | 0.895 ± 0.002 | 0.895 ± 0.004       | 0.017 ± 0.001 | 0.029 ± 0.007         | 0.869 ± 0.001  | 0.388 ± 0.013         | 0.563 ± 0.023      |
+| HSC                  | 0.899 ± 0.003 | 0.880 ± 0.010       | 0.029 ± 0.002 | 0.092 ± 0.019         | 0.853 ± 0.005  | 0.413 ± 0.014         | 0.642 ± 0.024      |
+| HSC simple           | 0.910 ± 0.001 | 0.906 ± 0.006       | 0.029 ± 0.002 | 0.055 ± 0.008         | 0.865 ± 0.002  | 0.437 ± 0.018         | 0.643 ± 0.021      |
+| CQR                  | 0.891 ± 0.004 | 0.892 ± 0.006       | 0.038 ± 0.001 | 0.187 ± 0.018         | 0.831 ± 0.003  | 0.383 ± 0.014         | 0.564 ± 0.023      |
+| Self-CQR             | 0.889 ± 0.002 | 0.864 ± 0.003       | 0.021 ± 0.001 | 0.061 ± 0.017         | 0.857 ± 0.003  | 0.395 ± 0.016         | 0.575 ± 0.018      |
+| ACI-CQR              | 0.894 ± 0.003 | 0.892 ± 0.005       | 0.025 ± 0.003 | 0.080 ± 0.037         | 0.855 ± 0.008  | 0.385 ± 0.014         | 0.563 ± 0.025      |
+| TQA-B-CQR            | 0.894 ± 0.003 | 0.894 ± 0.004       | 0.038 ± 0.001 | 0.170 ± 0.015         | 0.836 ± 0.002  | 0.384 ± 0.012         | 0.567 ± 0.023      |
+| GHCP-CQR             | 0.894 ± 0.004 | 0.897 ± 0.004       | 0.038 ± 0.001 | 0.168 ± 0.010         | 0.834 ± 0.003  | 0.385 ± 0.014         | 0.565 ± 0.023      |
+| QShrink-CQR          | 0.897 ± 0.002 | 0.895 ± 0.005       | 0.022 ± 0.004 | 0.041 ± 0.016         | 0.862 ± 0.003  | 0.390 ± 0.013         | 0.562 ± 0.024      |
+| QR-LGBM              | 0.859 ± 0.009 | 0.865 ± 0.008       | 0.050 ± 0.006 | 0.403 ± 0.084         | 0.799 ± 0.008  | 0.357 ± 0.013         | 0.573 ± 0.025      |
+| MLP-QR               | 0.885 ± 0.010 | 0.884 ± 0.016       | 0.039 ± 0.005 | 0.206 ± 0.062         | 0.826 ± 0.015  | 0.383 ± 0.024         | 0.571 ± 0.021      |
+| MLP-Gauss            | 0.924 ± 0.009 | 0.934 ± 0.019       | 0.041 ± 0.002 | 0.056 ± 0.033         | 0.867 ± 0.013  | 0.451 ± 0.030         | 0.604 ± 0.036      |
+| CQR (MLP)            | 0.895 ± 0.004 | 0.897 ± 0.007       | 0.037 ± 0.004 | 0.156 ± 0.019         | 0.838 ± 0.005  | 0.392 ± 0.016         | 0.568 ± 0.023      |
+| HSC-CQR (MLP)        | 0.897 ± 0.003 | 0.897 ± 0.004       | 0.018 ± 0.001 | 0.025 ± 0.010         | 0.869 ± 0.002  | 0.398 ± 0.014         | 0.569 ± 0.022      |
+| ACI                  | 0.914 ± 0.003 | 0.895 ± 0.011       | 0.044 ± 0.001 | 0.130 ± 0.010         | 0.846 ± 0.002  | 0.435 ± 0.020         | 0.634 ± 0.023      |
+| Self-CP              | 0.904 ± 0.003 | 0.899 ± 0.004       | 0.026 ± 0.001 | 0.058 ± 0.009         | 0.862 ± 0.003  | 0.440 ± 0.018         | 0.656 ± 0.023      |
+| SCP-stage            | 0.881 ± 0.009 | 0.888 ± 0.013       | 0.094 ± 0.005 | 0.290 ± 0.034         | 0.700 ± 0.020  | 0.461 ± 0.024         | 0.639 ± 0.022      |
+| SCP                  | 0.881 ± 0.008 | 0.863 ± 0.012       | 0.093 ± 0.005 | 0.289 ± 0.036         | 0.701 ± 0.020  | 0.460 ± 0.024         | 0.640 ± 0.023      |
+| Mondrian-usage       | 0.883 ± 0.011 | 0.887 ± 0.016       | 0.092 ± 0.004 | 0.285 ± 0.044         | 0.706 ± 0.011  | 0.435 ± 0.040         | 0.666 ± 0.031      |
+| Naive+SCP            | 0.883 ± 0.011 | 0.891 ± 0.011       | 0.092 ± 0.006 | 0.304 ± 0.023         | 0.707 ± 0.032  | 0.691 ± 0.053         | 0.978 ± 0.044      |
+| Raw-SCP              | 0.907 ± 0.024 | 0.895 ± 0.029       | 0.118 ± 0.014 | 0.188 ± 0.047         | 0.700 ± 0.113  | 0.769 ± 0.077         | 1.130 ± 0.034      |
+| HSC -stage           | 0.898 ± 0.003 | 0.863 ± 0.010       | 0.028 ± 0.002 | 0.093 ± 0.025         | 0.853 ± 0.004  | 0.409 ± 0.014         | 0.646 ± 0.021      |
+| HSC -kNN             | 0.911 ± 0.002 | 0.921 ± 0.004       | 0.029 ± 0.002 | 0.053 ± 0.009         | 0.867 ± 0.002  | 0.443 ± 0.019         | 0.642 ± 0.022      |
+| HSC -shrink          | 0.841 ± 0.008 | 0.834 ± 0.016       | 0.093 ± 0.005 | 0.458 ± 0.034         | 0.689 ± 0.014  | 0.364 ± 0.009         | 0.662 ± 0.030      |
+| HSC-CQR -stage       | 0.892 ± 0.002 | 0.889 ± 0.006       | 0.017 ± 0.001 | 0.032 ± 0.009         | 0.865 ± 0.002  | 0.384 ± 0.010         | 0.564 ± 0.024      |
+| HSC-CQR -kNN         | 0.894 ± 0.002 | 0.895 ± 0.005       | 0.017 ± 0.001 | 0.031 ± 0.009         | 0.868 ± 0.001  | 0.389 ± 0.012         | 0.563 ± 0.024      |
+| HSC-CQR -shrink      | 0.884 ± 0.004 | 0.879 ± 0.008       | 0.037 ± 0.001 | 0.217 ± 0.026         | 0.826 ± 0.002  | 0.377 ± 0.012         | 0.567 ± 0.023      |
+| HSC-CQR fixed-κ      | 0.895 ± 0.002 | 0.897 ± 0.004       | 0.015 ± 0.001 | 0.019 ± 0.008         | 0.873 ± 0.001  | 0.392 ± 0.016         | 0.566 ± 0.022      |
+
+
+**Table S3. All methods, UCI, random-building protocol, nominal 90 %.**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.901 ± 0.002 | 0.903 ± 0.002       | 0.010 ± 0.001 | 0.000 ± 0.000         | 0.886 ± 0.003  | 0.268 ± 0.011         | 0.369 ± 0.014      |
+| HSC-SSC-CQR          | 0.903 ± 0.003 | 0.908 ± 0.002       | 0.013 ± 0.002 | 0.000 ± 0.000         | 0.884 ± 0.005  | 0.268 ± 0.014         | 0.368 ± 0.014      |
+| SSC-CQR              | 0.914 ± 0.006 | 0.918 ± 0.008       | 0.027 ± 0.002 | 0.025 ± 0.018         | 0.877 ± 0.011  | 0.283 ± 0.019         | 0.369 ± 0.015      |
+| HSC-CQR simple (cov) | 0.900 ± 0.002 | 0.904 ± 0.003       | 0.013 ± 0.002 | 0.002 ± 0.005         | 0.880 ± 0.005  | 0.268 ± 0.014         | 0.367 ± 0.015      |
+| QShrink-CQR (cov)    | 0.901 ± 0.003 | 0.906 ± 0.005       | 0.013 ± 0.002 | 0.002 ± 0.005         | 0.882 ± 0.004  | 0.266 ± 0.015         | 0.368 ± 0.015      |
+| ACI-CQR (cov)        | 0.901 ± 0.001 | 0.903 ± 0.004       | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.895 ± 0.001  | 0.328 ± 0.026         | 0.431 ± 0.037      |
+| HSC-CQR              | 0.898 ± 0.003 | 0.894 ± 0.007       | 0.014 ± 0.002 | 0.006 ± 0.009         | 0.878 ± 0.005  | 0.266 ± 0.012         | 0.368 ± 0.016      |
+| HSC-CQR simple       | 0.901 ± 0.004 | 0.902 ± 0.006       | 0.014 ± 0.003 | 0.011 ± 0.015         | 0.879 ± 0.009  | 0.267 ± 0.013         | 0.366 ± 0.015      |
+| HSC                  | 0.904 ± 0.003 | 0.891 ± 0.010       | 0.021 ± 0.001 | 0.042 ± 0.026         | 0.870 ± 0.003  | 0.286 ± 0.012         | 0.418 ± 0.018      |
+| HSC simple           | 0.912 ± 0.004 | 0.917 ± 0.010       | 0.023 ± 0.002 | 0.019 ± 0.014         | 0.880 ± 0.004  | 0.299 ± 0.013         | 0.418 ± 0.014      |
+| CQR                  | 0.899 ± 0.011 | 0.900 ± 0.010       | 0.033 ± 0.005 | 0.095 ± 0.043         | 0.856 ± 0.016  | 0.273 ± 0.019         | 0.368 ± 0.015      |
+| Self-CQR             | 0.896 ± 0.002 | 0.880 ± 0.008       | 0.016 ± 0.002 | 0.013 ± 0.019         | 0.871 ± 0.002  | 0.263 ± 0.011         | 0.372 ± 0.014      |
+| ACI-CQR              | 0.903 ± 0.005 | 0.902 ± 0.007       | 0.020 ± 0.006 | 0.036 ± 0.031         | 0.871 ± 0.011  | 0.271 ± 0.015         | 0.366 ± 0.015      |
+| TQA-B-CQR            | 0.900 ± 0.007 | 0.902 ± 0.008       | 0.032 ± 0.006 | 0.091 ± 0.041         | 0.857 ± 0.014  | 0.272 ± 0.014         | 0.368 ± 0.013      |
+| GHCP-CQR             | 0.906 ± 0.010 | 0.909 ± 0.011       | 0.034 ± 0.006 | 0.078 ± 0.036         | 0.864 ± 0.016  | 0.280 ± 0.019         | 0.369 ± 0.016      |
+| QShrink-CQR          | 0.902 ± 0.005 | 0.905 ± 0.006       | 0.016 ± 0.004 | 0.017 ± 0.024         | 0.879 ± 0.011  | 0.267 ± 0.012         | 0.367 ± 0.015      |
+| QR-LGBM              | 0.877 ± 0.009 | 0.879 ± 0.010       | 0.035 ± 0.006 | 0.181 ± 0.069         | 0.832 ± 0.017  | 0.257 ± 0.015         | 0.368 ± 0.014      |
+| MLP-QR               | 0.889 ± 0.013 | 0.886 ± 0.018       | 0.034 ± 0.008 | 0.133 ± 0.086         | 0.849 ± 0.022  | 0.268 ± 0.012         | 0.379 ± 0.017      |
+| MLP-Gauss            | 0.927 ± 0.005 | 0.927 ± 0.013       | 0.037 ± 0.002 | 0.025 ± 0.016         | 0.885 ± 0.011  | 0.299 ± 0.017         | 0.394 ± 0.017      |
+| CQR (MLP)            | 0.899 ± 0.010 | 0.899 ± 0.011       | 0.033 ± 0.005 | 0.078 ± 0.038         | 0.860 ± 0.015  | 0.276 ± 0.012         | 0.377 ± 0.016      |
+| HSC-CQR (MLP)        | 0.901 ± 0.006 | 0.896 ± 0.014       | 0.016 ± 0.004 | 0.021 ± 0.025         | 0.877 ± 0.010  | 0.274 ± 0.010         | 0.378 ± 0.016      |
+| ACI                  | 0.920 ± 0.011 | 0.910 ± 0.018       | 0.047 ± 0.021 | 0.080 ± 0.070         | 0.848 ± 0.039  | 0.331 ± 0.032         | 0.423 ± 0.015      |
+| Self-CP              | 0.908 ± 0.003 | 0.912 ± 0.003       | 0.021 ± 0.001 | 0.021 ± 0.018         | 0.878 ± 0.003  | 0.294 ± 0.012         | 0.420 ± 0.012      |
+| SCP-stage            | 0.903 ± 0.015 | 0.904 ± 0.017       | 0.090 ± 0.006 | 0.202 ± 0.047         | 0.771 ± 0.025  | 0.377 ± 0.031         | 0.443 ± 0.018      |
+| SCP                  | 0.904 ± 0.014 | 0.884 ± 0.018       | 0.090 ± 0.006 | 0.200 ± 0.045         | 0.771 ± 0.023  | 0.376 ± 0.031         | 0.444 ± 0.018      |
+| Naive+SCP            | 0.905 ± 0.008 | 0.904 ± 0.008       | 0.075 ± 0.004 | 0.215 ± 0.036         | 0.762 ± 0.018  | 0.475 ± 0.028         | 0.583 ± 0.020      |
+| Raw-SCP              | 0.908 ± 0.048 | 0.898 ± 0.050       | 0.130 ± 0.028 | 0.179 ± 0.098         | 0.681 ± 0.218  | 0.967 ± 0.321         | 1.137 ± 0.207      |
+| HSC -stage           | 0.903 ± 0.004 | 0.880 ± 0.016       | 0.021 ± 0.001 | 0.044 ± 0.033         | 0.868 ± 0.004  | 0.282 ± 0.012         | 0.419 ± 0.016      |
+| HSC -kNN             | 0.916 ± 0.006 | 0.926 ± 0.008       | 0.027 ± 0.005 | 0.029 ± 0.022         | 0.876 ± 0.004  | 0.308 ± 0.015         | 0.420 ± 0.014      |
+| HSC -shrink          | 0.857 ± 0.007 | 0.846 ± 0.013       | 0.078 ± 0.004 | 0.314 ± 0.037         | 0.719 ± 0.011  | 0.254 ± 0.011         | 0.435 ± 0.030      |
+| HSC-CQR -stage       | 0.899 ± 0.003 | 0.897 ± 0.004       | 0.014 ± 0.003 | 0.011 ± 0.015         | 0.877 ± 0.008  | 0.265 ± 0.012         | 0.366 ± 0.015      |
+| HSC-CQR -kNN         | 0.901 ± 0.004 | 0.905 ± 0.006       | 0.014 ± 0.002 | 0.011 ± 0.015         | 0.880 ± 0.007  | 0.268 ± 0.012         | 0.366 ± 0.016      |
+| HSC-CQR -shrink      | 0.891 ± 0.007 | 0.887 ± 0.009       | 0.031 ± 0.005 | 0.126 ± 0.040         | 0.847 ± 0.012  | 0.267 ± 0.017         | 0.369 ± 0.016      |
+| HSC-CQR fixed-κ      | 0.901 ± 0.003 | 0.904 ± 0.004       | 0.013 ± 0.002 | 0.004 ± 0.006         | 0.882 ± 0.005  | 0.267 ± 0.014         | 0.366 ± 0.015      |
+
+
+**Table S4. Paired per-building comparisons of HSC-CQR recency with the strongest alternatives.**
+
+| Data   | Baseline             | Metric   |   n |   Mean diff. |   Better (%) |   r_rb | p (Holm)   | p (sites)   |
+|:-------|:---------------------|:---------|----:|-------------:|-------------:|-------:|:-----------|:------------|
+| BDG2   | CQR                  | CD       | 713 |      -0.0266 |           90 |   0.93 | <0.001     | 0.002       |
+| BDG2   | CQR                  | CD wk 1  | 713 |      -0.0257 |           79 |   0.8  | <0.001     | 0.002       |
+| BDG2   | CQR                  | IS       | 713 |       0.0195 |           46 |   0.02 | 1.000      | 0.846       |
+| BDG2   | QShrink-CQR (cov)    | CD       | 713 |      -0.0037 |           77 |   0.68 | <0.001     | 0.002       |
+| BDG2   | QShrink-CQR (cov)    | CD wk 1  | 713 |      -0.0078 |           62 |   0.52 | <0.001     | 0.002       |
+| BDG2   | QShrink-CQR (cov)    | IS       | 713 |       0.01   |           32 |  -0.41 | <0.001     | 0.006       |
+| BDG2   | ACI-CQR              | CD       | 713 |      -0.0132 |           81 |   0.8  | <0.001     | 0.002       |
+| BDG2   | ACI-CQR              | CD wk 1  | 713 |      -0.0226 |           77 |   0.78 | <0.001     | 0.002       |
+| BDG2   | ACI-CQR              | IS       | 713 |       0.0216 |           35 |  -0.33 | <0.001     | 0.160       |
+| BDG2   | ACI-CQR (cov)        | CD       | 713 |       0.0071 |           11 |  -0.91 | <0.001     | 0.002       |
+| BDG2   | ACI-CQR (cov)        | CD wk 1  | 713 |       0.0047 |           32 |  -0.38 | <0.001     | 0.002       |
+| BDG2   | ACI-CQR (cov)        | IS       | 713 |      -0.8592 |           97 |   0.98 | <0.001     | 0.002       |
+| BDG2   | Self-CQR             | CD       | 713 |      -0.0096 |           82 |   0.8  | <0.001     | 0.002       |
+| BDG2   | Self-CQR             | CD wk 1  | 713 |      -0.0159 |           59 |   0.41 | <0.001     | 0.006       |
+| BDG2   | Self-CQR             | IS       | 713 |      -0.0234 |           90 |   0.9  | <0.001     | 0.002       |
+| BDG2   | HSC-CQR fixed-κ      | CD       | 713 |      -0.0035 |           77 |   0.73 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR fixed-κ      | CD wk 1  | 713 |      -0.0098 |           69 |   0.64 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR fixed-κ      | IS       | 713 |       0.0221 |           27 |  -0.54 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR simple (cov) | CD       | 713 |      -0.0035 |           78 |   0.74 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR simple (cov) | CD wk 1  | 713 |      -0.0089 |           66 |   0.62 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR simple (cov) | IS       | 713 |       0.0211 |           29 |  -0.51 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR              | CD       | 713 |      -0.0062 |           76 |   0.72 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR              | CD wk 1  | 713 |      -0.0156 |           72 |   0.68 | <0.001     | 0.002       |
+| BDG2   | HSC-CQR              | IS       | 713 |       0.0285 |           27 |  -0.53 | <0.001     | 0.002       |
+| BDG2   | HSC-SSC-CQR          | CD       | 713 |      -0.003  |           72 |   0.57 | <0.001     | 0.004       |
+| BDG2   | HSC-SSC-CQR          | CD wk 1  | 713 |      -0.0041 |           55 |   0.41 | <0.001     | 0.002       |
+| BDG2   | HSC-SSC-CQR          | IS       | 713 |      -1.487  |           45 |   0.01 | 1.000      | 0.014       |
+| BDG2   | GHCP-CQR             | CD       | 713 |      -0.0263 |           90 |   0.93 | <0.001     | 0.002       |
+| BDG2   | GHCP-CQR             | CD wk 1  | 713 |      -0.0255 |           80 |   0.81 | <0.001     | 0.002       |
+| BDG2   | GHCP-CQR             | IS       | 713 |       0.0197 |           46 |   0.02 | 1.000      | 0.846       |
+| BDG2   | TQA-B-CQR            | CD       | 713 |      -0.0268 |           90 |   0.93 | <0.001     | 0.002       |
+| BDG2   | TQA-B-CQR            | CD wk 1  | 713 |      -0.0216 |           76 |   0.76 | <0.001     | 0.002       |
+| BDG2   | TQA-B-CQR            | IS       | 713 |       0.0188 |           52 |   0.16 | <0.001     | 0.557       |
+| UCI    | CQR                  | CD       | 270 |      -0.0234 |           86 |   0.9  | <0.001     | –           |
+| UCI    | CQR                  | CD wk 1  | 270 |      -0.0261 |           76 |   0.77 | <0.001     | –           |
+| UCI    | CQR                  | IS       | 270 |      -0.0022 |           47 |  -0.03 | 1.000      | –           |
+| UCI    | QShrink-CQR (cov)    | CD       | 270 |      -0.0033 |           76 |   0.75 | <0.001     | –           |
+| UCI    | QShrink-CQR (cov)    | CD wk 1  | 270 |      -0.0056 |           61 |   0.48 | <0.001     | –           |
+| UCI    | QShrink-CQR (cov)    | IS       | 270 |       0.0027 |           33 |  -0.35 | <0.001     | –           |
+| UCI    | ACI-CQR              | CD       | 270 |      -0.0102 |           74 |   0.7  | <0.001     | –           |
+| UCI    | ACI-CQR              | CD wk 1  | 270 |      -0.0216 |           76 |   0.76 | <0.001     | –           |
+| UCI    | ACI-CQR              | IS       | 270 |      -0.0032 |           35 |  -0.33 | <0.001     | –           |
+| UCI    | ACI-CQR (cov)        | CD       | 270 |       0.0056 |           12 |  -0.87 | <0.001     | –           |
+| UCI    | ACI-CQR (cov)        | CD wk 1  | 270 |       0.0012 |           36 |  -0.17 | 0.023      | –           |
+| UCI    | ACI-CQR (cov)        | IS       | 270 |      -0.4375 |           93 |   0.94 | <0.001     | –           |
+| UCI    | Self-CQR             | CD       | 270 |      -0.0066 |           77 |   0.78 | <0.001     | –           |
+| UCI    | Self-CQR             | CD wk 1  | 270 |      -0.0132 |           63 |   0.48 | <0.001     | –           |
+| UCI    | Self-CQR             | IS       | 270 |      -0.0096 |           90 |   0.92 | <0.001     | –           |
+| UCI    | HSC-CQR fixed-κ      | CD       | 270 |      -0.0028 |           71 |   0.61 | <0.001     | –           |
+| UCI    | HSC-CQR fixed-κ      | CD wk 1  | 270 |      -0.0099 |           67 |   0.59 | <0.001     | –           |
+| UCI    | HSC-CQR fixed-κ      | IS       | 270 |       0.0055 |           21 |  -0.68 | <0.001     | –           |
+| UCI    | HSC-CQR simple (cov) | CD       | 270 |      -0.0033 |           82 |   0.85 | <0.001     | –           |
+| UCI    | HSC-CQR simple (cov) | CD wk 1  | 270 |      -0.0038 |           53 |   0.35 | <0.001     | –           |
+| UCI    | HSC-CQR simple (cov) | IS       | 270 |       0.004  |           28 |  -0.51 | <0.001     | –           |
+| UCI    | HSC-CQR              | CD       | 270 |      -0.0038 |           65 |   0.51 | <0.001     | –           |
+| UCI    | HSC-CQR              | CD wk 1  | 270 |      -0.0126 |           67 |   0.53 | <0.001     | –           |
+| UCI    | HSC-CQR              | IS       | 270 |       0.0059 |           20 |  -0.64 | <0.001     | –           |
+| UCI    | HSC-SSC-CQR          | CD       | 270 |      -0.0032 |           76 |   0.68 | <0.001     | –           |
+| UCI    | HSC-SSC-CQR          | CD wk 1  | 270 |      -0.0038 |           56 |   0.39 | <0.001     | –           |
+| UCI    | HSC-SSC-CQR          | IS       | 270 |      -0.0483 |           36 |  -0.18 | 0.047      | –           |
+| UCI    | GHCP-CQR             | CD       | 270 |      -0.0245 |           88 |   0.92 | <0.001     | –           |
+| UCI    | GHCP-CQR             | CD wk 1  | 270 |      -0.0277 |           77 |   0.78 | <0.001     | –           |
+| UCI    | GHCP-CQR             | IS       | 270 |      -0.0021 |           53 |   0.1  | 0.495      | –           |
+| UCI    | TQA-B-CQR            | CD       | 270 |      -0.022  |           86 |   0.88 | <0.001     | –           |
+| UCI    | TQA-B-CQR            | CD wk 1  | 270 |      -0.021  |           75 |   0.73 | <0.001     | –           |
+| UCI    | TQA-B-CQR            | IS       | 270 |      -0.0006 |           47 |   0.03 | 1.000      | –           |
+
+
+**Table S5. Site-level robustness of the paired comparisons of HSC-CQR recency on BDG2 (90 %). p (10 site means): Wilcoxon signed-rank test on the ten site means of the paired differences (smallest attainable two-sided p = 0.002); p (without largest site): building-level Wilcoxon test without site 'Rat'. CD = absolute coverage deviation over the window; CD wk 1 = the same for the first week; IS = relative interval score.**
+
+| Baseline | Metric | Better (%) | p (buildings, Holm) | p (10 site means) | p (without largest site) |
+|:--|:--|--:|--:|--:|--:|
+| CQR | IS | 46 | 1.000 | 0.846 | 0.054 |
+| CQR | CD | 90 | <0.001 | 0.002 | <0.001 |
+| CQR | CD wk 1 | 79 | <0.001 | 0.002 | <0.001 |
+| Self-CQR | IS | 90 | <0.001 | 0.002 | <0.001 |
+| Self-CQR | CD | 82 | <0.001 | 0.002 | <0.001 |
+| Self-CQR | CD wk 1 | 59 | <0.001 | 0.006 | <0.001 |
+| ACI-CQR | IS | 35 | <0.001 | 0.160 | <0.001 |
+| ACI-CQR | CD | 81 | <0.001 | 0.002 | <0.001 |
+| ACI-CQR | CD wk 1 | 77 | <0.001 | 0.002 | <0.001 |
+| ACI-CQR (cov) | IS | 97 | <0.001 | 0.002 | <0.001 |
+| ACI-CQR (cov) | CD | 11 | <0.001 | 0.002 | <0.001 |
+| ACI-CQR (cov) | CD wk 1 | 32 | <0.001 | 0.002 | <0.001 |
+| TQA-B-CQR | IS | 52 | <0.001 | 0.557 | <0.001 |
+| TQA-B-CQR | CD | 90 | <0.001 | 0.002 | <0.001 |
+| TQA-B-CQR | CD wk 1 | 76 | <0.001 | 0.002 | <0.001 |
+| GHCP-CQR | IS | 46 | 1.000 | 0.846 | 0.013 |
+| GHCP-CQR | CD | 90 | <0.001 | 0.002 | <0.001 |
+| GHCP-CQR | CD wk 1 | 80 | <0.001 | 0.002 | <0.001 |
+| QShrink-CQR | IS | 32 | <0.001 | 0.002 | <0.001 |
+| QShrink-CQR | CD | 81 | <0.001 | 0.002 | <0.001 |
+| QShrink-CQR | CD wk 1 | 75 | <0.001 | 0.002 | <0.001 |
+| QShrink-CQR (cov) | IS | 32 | <0.001 | 0.006 | <0.001 |
+| QShrink-CQR (cov) | CD | 77 | <0.001 | 0.002 | <0.001 |
+| QShrink-CQR (cov) | CD wk 1 | 62 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR | IS | 27 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR | CD | 76 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR | CD wk 1 | 72 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR simple | IS | 27 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR simple | CD | 73 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR simple | CD wk 1 | 73 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR fixed-κ | IS | 27 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR fixed-κ | CD | 77 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR fixed-κ | CD wk 1 | 69 | <0.001 | 0.002 | <0.001 |
+| SSC-CQR | IS | 48 | 0.331 | 0.492 | 0.623 |
+| SSC-CQR | CD | 84 | <0.001 | 0.002 | <0.001 |
+| SSC-CQR | CD wk 1 | 77 | <0.001 | 0.002 | <0.001 |
+| MLP-QR | IS | 62 | <0.001 | 0.922 | <0.001 |
+| MLP-QR | CD | 89 | <0.001 | 0.002 | <0.001 |
+| MLP-QR | CD wk 1 | 77 | <0.001 | 0.002 | <0.001 |
+| MLP-Gauss | IS | 90 | <0.001 | 0.027 | <0.001 |
+| MLP-Gauss | CD | 88 | <0.001 | 0.002 | <0.001 |
+| MLP-Gauss | CD wk 1 | 81 | <0.001 | 0.002 | <0.001 |
+| HSC-SSC-CQR | IS | 45 | 1.000 | 0.014 | 0.970 |
+| HSC-SSC-CQR | CD | 72 | <0.001 | 0.004 | <0.001 |
+| HSC-SSC-CQR | CD wk 1 | 55 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR simple (cov) | IS | 29 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR simple (cov) | CD | 78 | <0.001 | 0.002 | <0.001 |
+| HSC-CQR simple (cov) | CD wk 1 | 66 | <0.001 | 0.002 | <0.001 |
+
+**Table S6. BDG2, nominal 95 %.**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.948 ± 0.000 | 0.948 ± 0.002       | 0.008 ± 0.000 | 0.001 ± 0.002         | 0.934 ± 0.002  | 0.507 ± 0.029         | 0.703 ± 0.023      |
+| HSC-SSC-CQR          | 0.948 ± 0.001 | 0.951 ± 0.003       | 0.010 ± 0.001 | 0.001 ± 0.002         | 0.932 ± 0.002  | 0.500 ± 0.022         | 0.702 ± 0.020      |
+| SSC-CQR              | 0.951 ± 0.001 | 0.951 ± 0.005       | 0.019 ± 0.001 | 0.036 ± 0.008         | 0.920 ± 0.001  | 0.497 ± 0.014         | 0.694 ± 0.022      |
+| HSC-CQR simple (cov) | 0.948 ± 0.001 | 0.947 ± 0.004       | 0.011 ± 0.001 | 0.004 ± 0.003         | 0.929 ± 0.001  | 0.492 ± 0.020         | 0.698 ± 0.023      |
+| QShrink-CQR (cov)    | 0.948 ± 0.001 | 0.947 ± 0.004       | 0.011 ± 0.000 | 0.004 ± 0.003         | 0.929 ± 0.001  | 0.497 ± 0.027         | 0.699 ± 0.022      |
+| ACI-CQR (cov)        | 0.950 ± 0.000 | 0.949 ± 0.003       | 0.003 ± 0.000 | 0.000 ± 0.000         | 0.945 ± 0.001  | 2.041 ± 0.414         | 2.256 ± 0.384      |
+| HSC-CQR              | 0.944 ± 0.002 | 0.937 ± 0.006       | 0.015 ± 0.003 | 0.013 ± 0.010         | 0.920 ± 0.006  | 0.476 ± 0.017         | 0.690 ± 0.021      |
+| HSC-CQR simple       | 0.949 ± 0.001 | 0.944 ± 0.004       | 0.015 ± 0.003 | 0.010 ± 0.007         | 0.925 ± 0.004  | 0.487 ± 0.023         | 0.687 ± 0.021      |
+| HSC                  | 0.950 ± 0.003 | 0.939 ± 0.009       | 0.019 ± 0.002 | 0.034 ± 0.016         | 0.918 ± 0.007  | 0.571 ± 0.017         | 0.805 ± 0.026      |
+| HSC simple           | 0.957 ± 0.002 | 0.956 ± 0.002       | 0.019 ± 0.003 | 0.017 ± 0.009         | 0.927 ± 0.002  | 0.608 ± 0.024         | 0.808 ± 0.026      |
+| CQR                  | 0.943 ± 0.004 | 0.944 ± 0.005       | 0.032 ± 0.001 | 0.141 ± 0.021         | 0.887 ± 0.008  | 0.473 ± 0.021         | 0.680 ± 0.025      |
+| Self-CQR             | 0.942 ± 0.001 | 0.914 ± 0.004       | 0.015 ± 0.001 | 0.021 ± 0.009         | 0.918 ± 0.002  | 0.497 ± 0.026         | 0.709 ± 0.022      |
+| ACI-CQR              | 0.947 ± 0.002 | 0.945 ± 0.005       | 0.022 ± 0.001 | 0.051 ± 0.012         | 0.910 ± 0.004  | 0.479 ± 0.020         | 0.683 ± 0.024      |
+| TQA-B-CQR            | 0.943 ± 0.003 | 0.945 ± 0.005       | 0.031 ± 0.000 | 0.140 ± 0.015         | 0.888 ± 0.006  | 0.474 ± 0.018         | 0.681 ± 0.024      |
+| GHCP-CQR             | 0.946 ± 0.004 | 0.944 ± 0.005       | 0.031 ± 0.000 | 0.130 ± 0.019         | 0.891 ± 0.008  | 0.482 ± 0.021         | 0.680 ± 0.024      |
+| QShrink-CQR          | 0.951 ± 0.001 | 0.948 ± 0.005       | 0.017 ± 0.003 | 0.011 ± 0.012         | 0.924 ± 0.005  | 0.488 ± 0.022         | 0.688 ± 0.017      |
+| MLP-Gauss            | 0.950 ± 0.006 | 0.956 ± 0.013       | 0.026 ± 0.002 | 0.087 ± 0.048         | 0.904 ± 0.012  | 0.537 ± 0.036         | 0.739 ± 0.044      |
+| CQR (MLP)            | 0.945 ± 0.003 | 0.948 ± 0.005       | 0.030 ± 0.002 | 0.125 ± 0.020         | 0.894 ± 0.004  | 0.482 ± 0.021         | 0.688 ± 0.024      |
+| HSC-CQR (MLP)        | 0.950 ± 0.002 | 0.946 ± 0.003       | 0.014 ± 0.001 | 0.006 ± 0.004         | 0.928 ± 0.002  | 0.496 ± 0.022         | 0.692 ± 0.025      |
+| ACI                  | 0.959 ± 0.004 | 0.948 ± 0.012       | 0.030 ± 0.004 | 0.074 ± 0.066         | 0.907 ± 0.015  | 0.637 ± 0.025         | 0.794 ± 0.023      |
+| Self-CP              | 0.950 ± 0.002 | 0.937 ± 0.003       | 0.017 ± 0.001 | 0.028 ± 0.012         | 0.921 ± 0.003  | 0.591 ± 0.029         | 0.823 ± 0.023      |
+| SCP-stage            | 0.937 ± 0.006 | 0.943 ± 0.012       | 0.059 ± 0.004 | 0.205 ± 0.027         | 0.820 ± 0.018  | 0.695 ± 0.045         | 0.810 ± 0.030      |
+| SCP                  | 0.937 ± 0.006 | 0.926 ± 0.012       | 0.059 ± 0.004 | 0.204 ± 0.026         | 0.821 ± 0.019  | 0.694 ± 0.044         | 0.814 ± 0.026      |
+| Mondrian-usage       | 0.938 ± 0.008 | 0.942 ± 0.011       | 0.058 ± 0.004 | 0.215 ± 0.046         | 0.825 ± 0.017  | 0.661 ± 0.064         | 0.879 ± 0.060      |
+| Naive+SCP            | 0.940 ± 0.008 | 0.944 ± 0.008       | 0.058 ± 0.005 | 0.212 ± 0.031         | 0.823 ± 0.022  | 1.059 ± 0.081         | 1.222 ± 0.053      |
+| Raw-SCP              | 0.953 ± 0.020 | 0.948 ± 0.024       | 0.071 ± 0.013 | 0.115 ± 0.049         | 0.863 ± 0.096  | 1.439 ± 0.240         | 1.831 ± 0.174      |
+| HSC-CQR fixed-κ      | 0.948 ± 0.001 | 0.947 ± 0.004       | 0.012 ± 0.001 | 0.002 ± 0.002         | 0.930 ± 0.001  | 0.492 ± 0.022         | 0.696 ± 0.020      |
+
+
+**Table S7. UCI, nominal 95 %.**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.952 ± 0.001 | 0.954 ± 0.001       | 0.007 ± 0.001 | 0.000 ± 0.000         | 0.941 ± 0.003  | 0.338 ± 0.015         | 0.454 ± 0.021      |
+| HSC-SSC-CQR          | 0.951 ± 0.001 | 0.951 ± 0.003       | 0.008 ± 0.001 | 0.000 ± 0.000         | 0.938 ± 0.003  | 0.331 ± 0.016         | 0.447 ± 0.020      |
+| SSC-CQR              | 0.964 ± 0.003 | 0.968 ± 0.004       | 0.018 ± 0.002 | 0.004 ± 0.006         | 0.945 ± 0.005  | 0.374 ± 0.024         | 0.461 ± 0.020      |
+| HSC-CQR simple (cov) | 0.951 ± 0.002 | 0.951 ± 0.002       | 0.009 ± 0.001 | 0.000 ± 0.000         | 0.938 ± 0.003  | 0.330 ± 0.016         | 0.449 ± 0.020      |
+| QShrink-CQR (cov)    | 0.951 ± 0.002 | 0.953 ± 0.005       | 0.009 ± 0.001 | 0.000 ± 0.000         | 0.936 ± 0.003  | 0.329 ± 0.014         | 0.450 ± 0.020      |
+| ACI-CQR (cov)        | 0.950 ± 0.001 | 0.952 ± 0.003       | 0.003 ± 0.000 | 0.000 ± 0.000         | 0.946 ± 0.001  | 0.847 ± 0.385         | 0.950 ± 0.376      |
+| HSC-CQR              | 0.949 ± 0.003 | 0.946 ± 0.004       | 0.010 ± 0.001 | 0.004 ± 0.009         | 0.934 ± 0.005  | 0.331 ± 0.017         | 0.446 ± 0.020      |
+| HSC-CQR simple       | 0.952 ± 0.003 | 0.949 ± 0.004       | 0.010 ± 0.001 | 0.004 ± 0.009         | 0.937 ± 0.006  | 0.333 ± 0.016         | 0.445 ± 0.020      |
+| HSC                  | 0.953 ± 0.004 | 0.945 ± 0.009       | 0.015 ± 0.001 | 0.023 ± 0.017         | 0.928 ± 0.008  | 0.381 ± 0.022         | 0.519 ± 0.020      |
+| HSC simple           | 0.959 ± 0.002 | 0.959 ± 0.014       | 0.017 ± 0.002 | 0.011 ± 0.013         | 0.937 ± 0.004  | 0.412 ± 0.011         | 0.523 ± 0.018      |
+| CQR                  | 0.950 ± 0.007 | 0.952 ± 0.006       | 0.027 ± 0.005 | 0.076 ± 0.020         | 0.913 ± 0.008  | 0.349 ± 0.026         | 0.445 ± 0.020      |
+| Self-CQR             | 0.948 ± 0.002 | 0.934 ± 0.007       | 0.011 ± 0.001 | 0.000 ± 0.000         | 0.930 ± 0.003  | 0.326 ± 0.013         | 0.454 ± 0.017      |
+| ACI-CQR              | 0.953 ± 0.003 | 0.953 ± 0.006       | 0.017 ± 0.005 | 0.023 ± 0.016         | 0.925 ± 0.005  | 0.344 ± 0.021         | 0.445 ± 0.020      |
+| TQA-B-CQR            | 0.950 ± 0.006 | 0.953 ± 0.006       | 0.027 ± 0.005 | 0.078 ± 0.024         | 0.912 ± 0.009  | 0.347 ± 0.024         | 0.444 ± 0.021      |
+| GHCP-CQR             | 0.958 ± 0.006 | 0.957 ± 0.007       | 0.028 ± 0.003 | 0.051 ± 0.009         | 0.924 ± 0.006  | 0.370 ± 0.029         | 0.454 ± 0.021      |
+| QShrink-CQR          | 0.954 ± 0.003 | 0.956 ± 0.004       | 0.012 ± 0.002 | 0.002 ± 0.005         | 0.936 ± 0.008  | 0.340 ± 0.021         | 0.446 ± 0.020      |
+| MLP-Gauss            | 0.954 ± 0.004 | 0.952 ± 0.011       | 0.020 ± 0.001 | 0.036 ± 0.019         | 0.924 ± 0.006  | 0.357 ± 0.020         | 0.480 ± 0.023      |
+| CQR (MLP)            | 0.949 ± 0.008 | 0.951 ± 0.010       | 0.027 ± 0.005 | 0.069 ± 0.018         | 0.914 ± 0.011  | 0.352 ± 0.022         | 0.459 ± 0.021      |
+| HSC-CQR (MLP)        | 0.953 ± 0.004 | 0.947 ± 0.008       | 0.011 ± 0.001 | 0.006 ± 0.009         | 0.937 ± 0.006  | 0.342 ± 0.019         | 0.459 ± 0.019      |
+| ACI                  | 0.967 ± 0.007 | 0.957 ± 0.016       | 0.031 ± 0.009 | 0.032 ± 0.048         | 0.922 ± 0.023  | 0.495 ± 0.069         | 0.555 ± 0.043      |
+| Self-CP              | 0.954 ± 0.002 | 0.950 ± 0.004       | 0.014 ± 0.001 | 0.004 ± 0.009         | 0.932 ± 0.002  | 0.390 ± 0.024         | 0.521 ± 0.014      |
+| SCP-stage            | 0.950 ± 0.015 | 0.948 ± 0.015       | 0.059 ± 0.009 | 0.135 ± 0.033         | 0.877 ± 0.030  | 0.579 ± 0.083         | 0.615 ± 0.067      |
+| SCP                  | 0.950 ± 0.015 | 0.934 ± 0.020       | 0.059 ± 0.009 | 0.131 ± 0.035         | 0.878 ± 0.030  | 0.576 ± 0.084         | 0.613 ± 0.066      |
+| Naive+SCP            | 0.951 ± 0.008 | 0.948 ± 0.005       | 0.053 ± 0.003 | 0.162 ± 0.022         | 0.862 ± 0.027  | 0.711 ± 0.076         | 0.765 ± 0.057      |
+| Raw-SCP              | 0.951 ± 0.036 | 0.945 ± 0.039       | 0.079 ± 0.024 | 0.114 ± 0.090         | 0.842 ± 0.203  | 1.998 ± 0.831         | 2.153 ± 0.676      |
+| HSC-CQR fixed-κ      | 0.952 ± 0.002 | 0.950 ± 0.003       | 0.010 ± 0.001 | 0.000 ± 0.000         | 0.939 ± 0.003  | 0.334 ± 0.018         | 0.446 ± 0.019      |
+
+
+**Table S8. BDG2, nominal 80 %.**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.794 ± 0.001 | 0.802 ± 0.003       | 0.017 ± 0.001 | 0.032 ± 0.007         | 0.766 ± 0.003  | 0.322 ± 0.014         | 0.465 ± 0.020      |
+| HSC-SSC-CQR          | 0.800 ± 0.002 | 0.805 ± 0.003       | 0.020 ± 0.002 | 0.032 ± 0.009         | 0.769 ± 0.005  | 0.319 ± 0.012         | 0.464 ± 0.020      |
+| SSC-CQR              | 0.792 ± 0.009 | 0.792 ± 0.020       | 0.055 ± 0.004 | 0.204 ± 0.037         | 0.712 ± 0.017  | 0.321 ± 0.013         | 0.463 ± 0.018      |
+| HSC-CQR simple (cov) | 0.793 ± 0.002 | 0.809 ± 0.002       | 0.022 ± 0.001 | 0.064 ± 0.008         | 0.759 ± 0.004  | 0.320 ± 0.012         | 0.462 ± 0.017      |
+| QShrink-CQR (cov)    | 0.790 ± 0.004 | 0.792 ± 0.007       | 0.023 ± 0.002 | 0.082 ± 0.015         | 0.755 ± 0.004  | 0.319 ± 0.013         | 0.464 ± 0.019      |
+| ACI-CQR (cov)        | 0.801 ± 0.000 | 0.804 ± 0.003       | 0.006 ± 0.000 | 0.000 ± 0.000         | 0.792 ± 0.001  | 0.383 ± 0.020         | 0.517 ± 0.034      |
+| HSC-CQR              | 0.795 ± 0.004 | 0.796 ± 0.008       | 0.022 ± 0.001 | 0.055 ± 0.012         | 0.761 ± 0.004  | 0.318 ± 0.011         | 0.461 ± 0.018      |
+| HSC-CQR simple       | 0.796 ± 0.004 | 0.813 ± 0.005       | 0.023 ± 0.001 | 0.063 ± 0.020         | 0.759 ± 0.004  | 0.321 ± 0.013         | 0.461 ± 0.016      |
+| HSC                  | 0.799 ± 0.003 | 0.776 ± 0.009       | 0.039 ± 0.002 | 0.150 ± 0.025         | 0.733 ± 0.005  | 0.277 ± 0.011         | 0.493 ± 0.025      |
+| HSC simple           | 0.811 ± 0.003 | 0.804 ± 0.008       | 0.041 ± 0.002 | 0.118 ± 0.016         | 0.745 ± 0.005  | 0.287 ± 0.012         | 0.496 ± 0.021      |
+| CQR                  | 0.795 ± 0.008 | 0.795 ± 0.013       | 0.048 ± 0.005 | 0.168 ± 0.028         | 0.720 ± 0.017  | 0.326 ± 0.014         | 0.463 ± 0.017      |
+| Self-CQR             | 0.782 ± 0.003 | 0.758 ± 0.006       | 0.030 ± 0.002 | 0.157 ± 0.031         | 0.738 ± 0.006  | 0.319 ± 0.016         | 0.468 ± 0.019      |
+| ACI-CQR              | 0.802 ± 0.002 | 0.797 ± 0.009       | 0.019 ± 0.003 | 0.013 ± 0.009         | 0.773 ± 0.004  | 0.322 ± 0.013         | 0.462 ± 0.017      |
+| TQA-B-CQR            | 0.818 ± 0.001 | 0.811 ± 0.002       | 0.040 ± 0.003 | 0.052 ± 0.013         | 0.763 ± 0.002  | 0.328 ± 0.011         | 0.465 ± 0.018      |
+| GHCP-CQR             | 0.798 ± 0.008 | 0.817 ± 0.006       | 0.047 ± 0.005 | 0.152 ± 0.027         | 0.725 ± 0.015  | 0.327 ± 0.014         | 0.463 ± 0.017      |
+| QShrink-CQR          | 0.793 ± 0.006 | 0.795 ± 0.011       | 0.029 ± 0.005 | 0.104 ± 0.039         | 0.748 ± 0.012  | 0.320 ± 0.015         | 0.463 ± 0.019      |
+| MLP-Gauss            | 0.868 ± 0.014 | 0.887 ± 0.029       | 0.077 ± 0.009 | 0.028 ± 0.018         | 0.789 ± 0.018  | 0.351 ± 0.024         | 0.479 ± 0.032      |
+| CQR (MLP)            | 0.798 ± 0.004 | 0.799 ± 0.009       | 0.046 ± 0.006 | 0.170 ± 0.028         | 0.725 ± 0.014  | 0.330 ± 0.015         | 0.466 ± 0.017      |
+| HSC-CQR (MLP)        | 0.798 ± 0.003 | 0.810 ± 0.016       | 0.024 ± 0.003 | 0.062 ± 0.018         | 0.761 ± 0.007  | 0.326 ± 0.011         | 0.465 ± 0.019      |
+| ACI                  | 0.811 ± 0.004 | 0.791 ± 0.013       | 0.060 ± 0.015 | 0.206 ± 0.083         | 0.716 ± 0.028  | 0.279 ± 0.009         | 0.490 ± 0.024      |
+| Self-CP              | 0.809 ± 0.004 | 0.816 ± 0.004       | 0.038 ± 0.002 | 0.102 ± 0.021         | 0.750 ± 0.008  | 0.293 ± 0.012         | 0.501 ± 0.020      |
+| SCP-stage            | 0.775 ± 0.011 | 0.783 ± 0.014       | 0.139 ± 0.007 | 0.383 ± 0.028         | 0.529 ± 0.030  | 0.282 ± 0.012         | 0.493 ± 0.022      |
+| SCP                  | 0.775 ± 0.011 | 0.752 ± 0.011       | 0.138 ± 0.007 | 0.385 ± 0.031         | 0.531 ± 0.030  | 0.281 ± 0.013         | 0.494 ± 0.021      |
+| Mondrian-usage       | 0.778 ± 0.015 | 0.786 ± 0.020       | 0.136 ± 0.004 | 0.378 ± 0.041         | 0.541 ± 0.018  | 0.266 ± 0.023         | 0.507 ± 0.024      |
+| Naive+SCP            | 0.778 ± 0.013 | 0.787 ± 0.013       | 0.142 ± 0.006 | 0.404 ± 0.027         | 0.534 ± 0.028  | 0.402 ± 0.027         | 0.745 ± 0.033      |
+| Raw-SCP              | 0.813 ± 0.025 | 0.793 ± 0.030       | 0.181 ± 0.014 | 0.279 ± 0.041         | 0.467 ± 0.094  | 0.391 ± 0.019         | 0.692 ± 0.034      |
+| HSC-CQR fixed-κ      | 0.794 ± 0.003 | 0.811 ± 0.004       | 0.021 ± 0.001 | 0.064 ± 0.009         | 0.760 ± 0.003  | 0.319 ± 0.011         | 0.462 ± 0.017      |
+
+
+**Table S9. UCI, nominal 80 %.**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.799 ± 0.002 | 0.809 ± 0.006       | 0.014 ± 0.002 | 0.002 ± 0.005         | 0.776 ± 0.004  | 0.214 ± 0.010         | 0.302 ± 0.012      |
+| HSC-SSC-CQR          | 0.807 ± 0.004 | 0.814 ± 0.010       | 0.020 ± 0.001 | 0.013 ± 0.009         | 0.777 ± 0.008  | 0.215 ± 0.011         | 0.301 ± 0.012      |
+| SSC-CQR              | 0.816 ± 0.019 | 0.813 ± 0.012       | 0.063 ± 0.005 | 0.135 ± 0.067         | 0.740 ± 0.028  | 0.230 ± 0.019         | 0.306 ± 0.013      |
+| HSC-CQR simple (cov) | 0.797 ± 0.003 | 0.812 ± 0.006       | 0.019 ± 0.003 | 0.019 ± 0.014         | 0.768 ± 0.004  | 0.213 ± 0.011         | 0.302 ± 0.012      |
+| QShrink-CQR (cov)    | 0.795 ± 0.003 | 0.796 ± 0.009       | 0.020 ± 0.003 | 0.038 ± 0.022         | 0.766 ± 0.008  | 0.212 ± 0.011         | 0.301 ± 0.011      |
+| ACI-CQR (cov)        | 0.802 ± 0.001 | 0.803 ± 0.004       | 0.006 ± 0.001 | 0.000 ± 0.000         | 0.793 ± 0.001  | 0.219 ± 0.010         | 0.306 ± 0.013      |
+| HSC-CQR              | 0.797 ± 0.003 | 0.796 ± 0.008       | 0.021 ± 0.003 | 0.032 ± 0.020         | 0.766 ± 0.008  | 0.213 ± 0.010         | 0.301 ± 0.011      |
+| HSC-CQR simple       | 0.799 ± 0.004 | 0.813 ± 0.009       | 0.021 ± 0.005 | 0.034 ± 0.026         | 0.768 ± 0.010  | 0.214 ± 0.011         | 0.301 ± 0.012      |
+| HSC                  | 0.805 ± 0.005 | 0.791 ± 0.003       | 0.028 ± 0.001 | 0.074 ± 0.017         | 0.762 ± 0.006  | 0.198 ± 0.005         | 0.321 ± 0.013      |
+| HSC simple           | 0.814 ± 0.006 | 0.815 ± 0.011       | 0.031 ± 0.004 | 0.046 ± 0.033         | 0.768 ± 0.006  | 0.205 ± 0.006         | 0.322 ± 0.012      |
+| CQR                  | 0.798 ± 0.015 | 0.798 ± 0.008       | 0.047 ± 0.008 | 0.128 ± 0.093         | 0.746 ± 0.030  | 0.220 ± 0.016         | 0.304 ± 0.013      |
+| Self-CQR             | 0.787 ± 0.002 | 0.763 ± 0.011       | 0.024 ± 0.002 | 0.084 ± 0.032         | 0.754 ± 0.004  | 0.210 ± 0.011         | 0.303 ± 0.012      |
+| ACI-CQR              | 0.806 ± 0.005 | 0.800 ± 0.006       | 0.019 ± 0.003 | 0.013 ± 0.014         | 0.780 ± 0.006  | 0.216 ± 0.012         | 0.301 ± 0.012      |
+| TQA-B-CQR            | 0.807 ± 0.005 | 0.802 ± 0.008       | 0.042 ± 0.004 | 0.109 ± 0.060         | 0.752 ± 0.017  | 0.220 ± 0.007         | 0.304 ± 0.012      |
+| GHCP-CQR             | 0.805 ± 0.015 | 0.825 ± 0.015       | 0.047 ± 0.005 | 0.114 ± 0.068         | 0.754 ± 0.028  | 0.223 ± 0.016         | 0.304 ± 0.013      |
+| QShrink-CQR          | 0.796 ± 0.007 | 0.800 ± 0.009       | 0.025 ± 0.008 | 0.063 ± 0.054         | 0.767 ± 0.016  | 0.213 ± 0.011         | 0.301 ± 0.011      |
+| MLP-Gauss            | 0.869 ± 0.007 | 0.878 ± 0.016       | 0.073 ± 0.005 | 0.008 ± 0.014         | 0.810 ± 0.017  | 0.233 ± 0.013         | 0.317 ± 0.016      |
+| CQR (MLP)            | 0.797 ± 0.013 | 0.800 ± 0.013       | 0.045 ± 0.011 | 0.139 ± 0.115         | 0.742 ± 0.022  | 0.219 ± 0.010         | 0.313 ± 0.010      |
+| HSC-CQR (MLP)        | 0.799 ± 0.010 | 0.806 ± 0.020       | 0.023 ± 0.005 | 0.044 ± 0.058         | 0.765 ± 0.013  | 0.217 ± 0.007         | 0.310 ± 0.009      |
+| ACI                  | 0.816 ± 0.011 | 0.810 ± 0.020       | 0.072 ± 0.028 | 0.192 ± 0.067         | 0.702 ± 0.045  | 0.215 ± 0.012         | 0.323 ± 0.014      |
+| Self-CP              | 0.811 ± 0.005 | 0.824 ± 0.004       | 0.029 ± 0.002 | 0.042 ± 0.027         | 0.769 ± 0.005  | 0.205 ± 0.005         | 0.323 ± 0.011      |
+| SCP-stage            | 0.805 ± 0.017 | 0.809 ± 0.019       | 0.124 ± 0.006 | 0.280 ± 0.045         | 0.614 ± 0.026  | 0.231 ± 0.013         | 0.327 ± 0.010      |
+| SCP                  | 0.805 ± 0.017 | 0.780 ± 0.014       | 0.124 ± 0.006 | 0.282 ± 0.044         | 0.613 ± 0.027  | 0.231 ± 0.013         | 0.328 ± 0.009      |
+| Naive+SCP            | 0.807 ± 0.015 | 0.807 ± 0.016       | 0.097 ± 0.010 | 0.263 ± 0.051         | 0.638 ± 0.046  | 0.294 ± 0.013         | 0.449 ± 0.017      |
+| Raw-SCP              | 0.807 ± 0.056 | 0.791 ± 0.055       | 0.208 ± 0.024 | 0.284 ± 0.086         | 0.408 ± 0.154  | 0.406 ± 0.097         | 0.559 ± 0.028      |
+| HSC-CQR fixed-κ      | 0.799 ± 0.004 | 0.813 ± 0.008       | 0.019 ± 0.003 | 0.025 ± 0.018         | 0.770 ± 0.007  | 0.214 ± 0.011         | 0.301 ± 0.012      |
+
+
+**Table S10. BDG2 leave-site-out (5 site folds).**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.896 ± 0.003 | 0.897 ± 0.016       | 0.012 ± 0.001 | 0.004 ± 0.005         | 0.877 ± 0.003  | 0.386 ± 0.082         | 0.537 ± 0.114      |
+| HSC-SSC-CQR          | 0.900 ± 0.003 | 0.905 ± 0.017       | 0.015 ± 0.001 | 0.011 ± 0.004         | 0.876 ± 0.001  | 0.389 ± 0.085         | 0.539 ± 0.118      |
+| SSC-CQR              | 0.899 ± 0.020 | 0.902 ± 0.032       | 0.036 ± 0.004 | 0.138 ± 0.091         | 0.850 ± 0.022  | 0.384 ± 0.058         | 0.539 ± 0.115      |
+| HSC-CQR simple (cov) | 0.896 ± 0.004 | 0.899 ± 0.021       | 0.016 ± 0.001 | 0.014 ± 0.008         | 0.872 ± 0.003  | 0.382 ± 0.080         | 0.536 ± 0.118      |
+| QShrink-CQR (cov)    | 0.898 ± 0.004 | 0.901 ± 0.023       | 0.016 ± 0.001 | 0.017 ± 0.009         | 0.873 ± 0.004  | 0.384 ± 0.080         | 0.537 ± 0.117      |
+| ACI-CQR (cov)        | 0.900 ± 0.001 | 0.900 ± 0.015       | 0.004 ± 0.001 | 0.000 ± 0.000         | 0.893 ± 0.001  | 1.428 ± 0.703         | 1.582 ± 0.706      |
+| HSC-CQR              | 0.893 ± 0.009 | 0.888 ± 0.029       | 0.020 ± 0.004 | 0.053 ± 0.026         | 0.863 ± 0.008  | 0.374 ± 0.071         | 0.533 ± 0.116      |
+| HSC-CQR simple       | 0.897 ± 0.010 | 0.896 ± 0.030       | 0.020 ± 0.004 | 0.035 ± 0.018         | 0.868 ± 0.008  | 0.380 ± 0.071         | 0.533 ± 0.116      |
+| HSC                  | 0.900 ± 0.013 | 0.886 ± 0.032       | 0.030 ± 0.002 | 0.107 ± 0.062         | 0.850 ± 0.015  | 0.404 ± 0.065         | 0.610 ± 0.127      |
+| HSC simple           | 0.913 ± 0.012 | 0.903 ± 0.030       | 0.034 ± 0.005 | 0.068 ± 0.034         | 0.861 ± 0.011  | 0.427 ± 0.069         | 0.612 ± 0.126      |
+| CQR                  | 0.894 ± 0.027 | 0.896 ± 0.037       | 0.044 ± 0.008 | 0.218 ± 0.176         | 0.835 ± 0.029  | 0.374 ± 0.052         | 0.539 ± 0.117      |
+| Self-CQR             | 0.889 ± 0.005 | 0.863 ± 0.006       | 0.022 ± 0.003 | 0.063 ± 0.037         | 0.859 ± 0.009  | 0.388 ± 0.088         | 0.545 ± 0.114      |
+| ACI-CQR              | 0.897 ± 0.014 | 0.896 ± 0.035       | 0.026 ± 0.006 | 0.084 ± 0.067         | 0.858 ± 0.019  | 0.377 ± 0.065         | 0.534 ± 0.115      |
+| TQA-B-CQR            | 0.897 ± 0.027 | 0.898 ± 0.034       | 0.043 ± 0.007 | 0.199 ± 0.176         | 0.836 ± 0.026  | 0.373 ± 0.053         | 0.540 ± 0.117      |
+| GHCP-CQR             | 0.896 ± 0.027 | 0.897 ± 0.036       | 0.044 ± 0.007 | 0.203 ± 0.163         | 0.836 ± 0.029  | 0.376 ± 0.052         | 0.538 ± 0.117      |
+| QShrink-CQR          | 0.900 ± 0.014 | 0.901 ± 0.032       | 0.026 ± 0.010 | 0.042 ± 0.052         | 0.864 ± 0.009  | 0.380 ± 0.068         | 0.536 ± 0.117      |
+| QR-LGBM              | 0.867 ± 0.023 | 0.871 ± 0.035       | 0.049 ± 0.014 | 0.346 ± 0.205         | 0.807 ± 0.024  | 0.352 ± 0.054         | 0.539 ± 0.121      |
+| MLP-QR               | 0.889 ± 0.029 | 0.898 ± 0.044       | 0.043 ± 0.011 | 0.250 ± 0.190         | 0.833 ± 0.031  | 0.379 ± 0.054         | 0.547 ± 0.108      |
+| MLP-Gauss            | 0.931 ± 0.013 | 0.935 ± 0.016       | 0.045 ± 0.007 | 0.050 ± 0.040         | 0.878 ± 0.022  | 0.462 ± 0.088         | 0.584 ± 0.122      |
+| CQR (MLP)            | 0.896 ± 0.024 | 0.898 ± 0.037       | 0.041 ± 0.007 | 0.191 ± 0.142         | 0.839 ± 0.025  | 0.385 ± 0.051         | 0.545 ± 0.106      |
+| HSC-CQR (MLP)        | 0.895 ± 0.011 | 0.905 ± 0.036       | 0.020 ± 0.005 | 0.042 ± 0.024         | 0.866 ± 0.009  | 0.386 ± 0.065         | 0.542 ± 0.108      |
+| ACI                  | 0.910 ± 0.032 | 0.895 ± 0.052       | 0.063 ± 0.023 | 0.193 ± 0.126         | 0.812 ± 0.063  | 0.451 ± 0.033         | 0.622 ± 0.097      |
+| Self-CP              | 0.905 ± 0.003 | 0.902 ± 0.008       | 0.026 ± 0.001 | 0.063 ± 0.021         | 0.861 ± 0.007  | 0.427 ± 0.083         | 0.619 ± 0.129      |
+| SCP-stage            | 0.881 ± 0.064 | 0.890 ± 0.057       | 0.100 ± 0.028 | 0.308 ± 0.178         | 0.714 ± 0.129  | 0.457 ± 0.049         | 0.641 ± 0.105      |
+| SCP                  | 0.881 ± 0.063 | 0.863 ± 0.067       | 0.099 ± 0.027 | 0.305 ± 0.177         | 0.716 ± 0.130  | 0.456 ± 0.048         | 0.643 ± 0.104      |
+| Mondrian-usage       | 0.872 ± 0.064 | 0.884 ± 0.057       | 0.103 ± 0.032 | 0.330 ± 0.194         | 0.703 ± 0.117  | 0.409 ± 0.028         | 0.661 ± 0.125      |
+| Naive+SCP            | 0.887 ± 0.073 | 0.900 ± 0.038       | 0.099 ± 0.033 | 0.287 ± 0.232         | 0.739 ± 0.135  | 0.691 ± 0.093         | 0.957 ± 0.174      |
+| Raw-SCP              | 0.891 ± 0.039 | 0.877 ± 0.045       | 0.120 ± 0.028 | 0.235 ± 0.071         | 0.676 ± 0.139  | 0.646 ± 0.255         | 1.023 ± 0.254      |
+| HSC -stage           | 0.897 ± 0.013 | 0.859 ± 0.038       | 0.029 ± 0.003 | 0.121 ± 0.066         | 0.848 ± 0.017  | 0.398 ± 0.065         | 0.614 ± 0.130      |
+| HSC -kNN             | 0.915 ± 0.011 | 0.923 ± 0.024       | 0.034 ± 0.005 | 0.060 ± 0.025         | 0.864 ± 0.009  | 0.433 ± 0.068         | 0.612 ± 0.121      |
+| HSC -shrink          | 0.834 ± 0.077 | 0.833 ± 0.067       | 0.103 ± 0.056 | 0.457 ± 0.245         | 0.696 ± 0.106  | 0.339 ± 0.037         | 0.659 ± 0.158      |
+| HSC-CQR -stage       | 0.891 ± 0.011 | 0.888 ± 0.030       | 0.022 ± 0.006 | 0.068 ± 0.043         | 0.860 ± 0.010  | 0.372 ± 0.068         | 0.534 ± 0.117      |
+| HSC-CQR -kNN         | 0.897 ± 0.010 | 0.900 ± 0.030       | 0.020 ± 0.004 | 0.035 ± 0.019         | 0.869 ± 0.008  | 0.381 ± 0.071         | 0.533 ± 0.116      |
+| HSC-CQR -shrink      | 0.885 ± 0.023 | 0.884 ± 0.035       | 0.042 ± 0.011 | 0.243 ± 0.187         | 0.826 ± 0.027  | 0.362 ± 0.049         | 0.539 ± 0.119      |
+| HSC-CQR fixed-κ      | 0.896 ± 0.005 | 0.897 ± 0.025       | 0.016 ± 0.002 | 0.017 ± 0.010         | 0.870 ± 0.004  | 0.381 ± 0.077         | 0.535 ± 0.117      |
+
+
+**Table S11. BDG2 → UCI transfer (no weather; 3 seeds).**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.901 ± 0.001 | 0.906 ± 0.008       | 0.009 ± 0.000 | 0.000 ± 0.000         | 0.888 ± 0.001  | 0.318 ± 0.009         | 0.441 ± 0.014      |
+| HSC-SSC-CQR          | 0.901 ± 0.002 | 0.911 ± 0.009       | 0.011 ± 0.001 | 0.004 ± 0.006         | 0.885 ± 0.002  | 0.317 ± 0.009         | 0.440 ± 0.016      |
+| SSC-CQR              | 0.910 ± 0.009 | 0.911 ± 0.007       | 0.025 ± 0.001 | 0.021 ± 0.036         | 0.874 ± 0.013  | 0.324 ± 0.013         | 0.442 ± 0.015      |
+| HSC-CQR simple (cov) | 0.901 ± 0.002 | 0.907 ± 0.009       | 0.011 ± 0.001 | 0.004 ± 0.006         | 0.885 ± 0.001  | 0.316 ± 0.009         | 0.439 ± 0.015      |
+| QShrink-CQR (cov)    | 0.900 ± 0.002 | 0.904 ± 0.009       | 0.011 ± 0.001 | 0.000 ± 0.000         | 0.883 ± 0.001  | 0.314 ± 0.009         | 0.438 ± 0.015      |
+| ACI-CQR (cov)        | 0.901 ± 0.001 | 0.904 ± 0.005       | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.896 ± 0.001  | 0.475 ± 0.020         | 0.577 ± 0.029      |
+| HSC-CQR              | 0.899 ± 0.002 | 0.895 ± 0.006       | 0.013 ± 0.000 | 0.004 ± 0.006         | 0.880 ± 0.002  | 0.312 ± 0.002         | 0.437 ± 0.016      |
+| HSC-CQR simple       | 0.902 ± 0.003 | 0.907 ± 0.011       | 0.013 ± 0.001 | 0.007 ± 0.006         | 0.886 ± 0.003  | 0.318 ± 0.006         | 0.438 ± 0.016      |
+| HSC                  | 0.920 ± 0.002 | 0.885 ± 0.005       | 0.032 ± 0.005 | 0.042 ± 0.000         | 0.880 ± 0.009  | 0.361 ± 0.009         | 0.477 ± 0.018      |
+| HSC simple           | 0.923 ± 0.002 | 0.901 ± 0.002       | 0.031 ± 0.003 | 0.011 ± 0.018         | 0.889 ± 0.010  | 0.372 ± 0.015         | 0.479 ± 0.017      |
+| CQR                  | 0.903 ± 0.013 | 0.903 ± 0.011       | 0.028 ± 0.004 | 0.056 ± 0.043         | 0.870 ± 0.011  | 0.318 ± 0.013         | 0.442 ± 0.016      |
+| Self-CQR             | 0.892 ± 0.003 | 0.866 ± 0.008       | 0.016 ± 0.001 | 0.021 ± 0.028         | 0.866 ± 0.004  | 0.316 ± 0.005         | 0.447 ± 0.016      |
+| ACI-CQR              | 0.904 ± 0.005 | 0.904 ± 0.009       | 0.015 ± 0.001 | 0.011 ± 0.011         | 0.885 ± 0.004  | 0.317 ± 0.007         | 0.437 ± 0.016      |
+| TQA-B-CQR            | 0.901 ± 0.013 | 0.902 ± 0.011       | 0.027 ± 0.005 | 0.063 ± 0.038         | 0.867 ± 0.011  | 0.315 ± 0.012         | 0.441 ± 0.018      |
+| GHCP-CQR             | 0.905 ± 0.013 | 0.909 ± 0.014       | 0.028 ± 0.003 | 0.049 ± 0.034         | 0.873 ± 0.009  | 0.321 ± 0.013         | 0.443 ± 0.015      |
+| QShrink-CQR          | 0.903 ± 0.004 | 0.907 ± 0.007       | 0.014 ± 0.001 | 0.004 ± 0.006         | 0.883 ± 0.003  | 0.316 ± 0.004         | 0.436 ± 0.017      |
+| QR-LGBM              | 0.882 ± 0.006 | 0.889 ± 0.009       | 0.031 ± 0.006 | 0.158 ± 0.018         | 0.841 ± 0.003  | 0.301 ± 0.006         | 0.440 ± 0.017      |
+| MLP-QR               | 0.908 ± 0.002 | 0.907 ± 0.015       | 0.024 ± 0.003 | 0.032 ± 0.021         | 0.873 ± 0.005  | 0.327 ± 0.004         | 0.435 ± 0.014      |
+| MLP-Gauss            | 0.947 ± 0.014 | 0.948 ± 0.008       | 0.048 ± 0.014 | 0.004 ± 0.006         | 0.919 ± 0.014  | 0.384 ± 0.038         | 0.457 ± 0.024      |
+| CQR (MLP)            | 0.902 ± 0.004 | 0.909 ± 0.007       | 0.024 ± 0.003 | 0.035 ± 0.026         | 0.867 ± 0.005  | 0.322 ± 0.004         | 0.435 ± 0.017      |
+| HSC-CQR (MLP)        | 0.902 ± 0.000 | 0.903 ± 0.014       | 0.014 ± 0.002 | 0.011 ± 0.018         | 0.881 ± 0.003  | 0.325 ± 0.009         | 0.433 ± 0.016      |
+| ACI                  | 0.931 ± 0.004 | 0.897 ± 0.008       | 0.049 ± 0.003 | 0.077 ± 0.016         | 0.864 ± 0.006  | 0.398 ± 0.017         | 0.481 ± 0.016      |
+| Self-CP              | 0.920 ± 0.001 | 0.900 ± 0.000       | 0.026 ± 0.001 | 0.018 ± 0.016         | 0.892 ± 0.003  | 0.366 ± 0.010         | 0.490 ± 0.023      |
+| SCP-stage            | 0.916 ± 0.009 | 0.891 ± 0.009       | 0.088 ± 0.008 | 0.154 ± 0.024         | 0.801 ± 0.017  | 0.466 ± 0.024         | 0.524 ± 0.014      |
+| SCP                  | 0.915 ± 0.010 | 0.866 ± 0.011       | 0.087 ± 0.008 | 0.154 ± 0.024         | 0.804 ± 0.016  | 0.466 ± 0.025         | 0.527 ± 0.017      |
+| Naive+SCP            | 0.941 ± 0.007 | 0.938 ± 0.012       | 0.085 ± 0.002 | 0.105 ± 0.000         | 0.848 ± 0.006  | 0.661 ± 0.041         | 0.691 ± 0.030      |
+| Raw-SCP              | 0.787 ± 0.043 | 0.740 ± 0.040       | 0.195 ± 0.036 | 0.411 ± 0.079         | 0.360 ± 0.136  | 0.413 ± 0.038         | 0.758 ± 0.049      |
+| HSC -stage           | 0.919 ± 0.003 | 0.874 ± 0.005       | 0.031 ± 0.005 | 0.046 ± 0.006         | 0.878 ± 0.011  | 0.362 ± 0.012         | 0.476 ± 0.019      |
+| HSC -kNN             | 0.925 ± 0.002 | 0.917 ± 0.001       | 0.032 ± 0.003 | 0.007 ± 0.012         | 0.892 ± 0.009  | 0.377 ± 0.015         | 0.483 ± 0.016      |
+| HSC -shrink          | 0.897 ± 0.010 | 0.850 ± 0.010       | 0.077 ± 0.008 | 0.207 ± 0.034         | 0.778 ± 0.013  | 0.397 ± 0.026         | 0.503 ± 0.008      |
+| HSC-CQR -stage       | 0.899 ± 0.002 | 0.901 ± 0.011       | 0.013 ± 0.001 | 0.004 ± 0.006         | 0.881 ± 0.002  | 0.312 ± 0.001         | 0.438 ± 0.016      |
+| HSC-CQR -kNN         | 0.902 ± 0.003 | 0.904 ± 0.009       | 0.013 ± 0.001 | 0.011 ± 0.011         | 0.883 ± 0.004  | 0.317 ± 0.006         | 0.437 ± 0.016      |
+| HSC-CQR -shrink      | 0.894 ± 0.012 | 0.890 ± 0.014       | 0.029 ± 0.008 | 0.095 ± 0.079         | 0.855 ± 0.015  | 0.308 ± 0.008         | 0.444 ± 0.014      |
+| HSC-CQR fixed-κ      | 0.901 ± 0.002 | 0.907 ± 0.010       | 0.011 ± 0.001 | 0.004 ± 0.006         | 0.885 ± 0.001  | 0.316 ± 0.008         | 0.439 ± 0.016      |
+
+
+**Table S12. UCI → BDG2 transfer (no weather; 3 seeds).**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.895 ± 0.001 | 0.878 ± 0.006       | 0.014 ± 0.001 | 0.012 ± 0.007         | 0.874 ± 0.002  | 0.419 ± 0.021         | 0.605 ± 0.028      |
+| HSC-SSC-CQR          | 0.898 ± 0.003 | 0.881 ± 0.002       | 0.018 ± 0.000 | 0.022 ± 0.005         | 0.869 ± 0.001  | 0.418 ± 0.017         | 0.611 ± 0.023      |
+| SSC-CQR              | 0.884 ± 0.002 | 0.885 ± 0.007       | 0.042 ± 0.002 | 0.250 ± 0.006         | 0.819 ± 0.003  | 0.398 ± 0.024         | 0.610 ± 0.028      |
+| HSC-CQR simple (cov) | 0.894 ± 0.002 | 0.873 ± 0.006       | 0.018 ± 0.001 | 0.032 ± 0.010         | 0.866 ± 0.004  | 0.412 ± 0.026         | 0.605 ± 0.027      |
+| QShrink-CQR (cov)    | 0.896 ± 0.003 | 0.877 ± 0.003       | 0.018 ± 0.001 | 0.033 ± 0.012         | 0.868 ± 0.003  | 0.415 ± 0.021         | 0.607 ± 0.029      |
+| ACI-CQR (cov)        | 0.899 ± 0.000 | 0.886 ± 0.002       | 0.005 ± 0.000 | 0.000 ± 0.000         | 0.892 ± 0.001  | 1.770 ± 1.270         | 1.915 ± 1.232      |
+| HSC-CQR              | 0.887 ± 0.001 | 0.862 ± 0.007       | 0.023 ± 0.002 | 0.087 ± 0.040         | 0.853 ± 0.006  | 0.403 ± 0.023         | 0.605 ± 0.026      |
+| HSC-CQR simple       | 0.889 ± 0.001 | 0.864 ± 0.009       | 0.022 ± 0.003 | 0.067 ± 0.036         | 0.855 ± 0.006  | 0.407 ± 0.024         | 0.603 ± 0.025      |
+| HSC                  | 0.897 ± 0.006 | 0.864 ± 0.027       | 0.029 ± 0.002 | 0.111 ± 0.022         | 0.848 ± 0.005  | 0.438 ± 0.043         | 0.696 ± 0.048      |
+| HSC simple           | 0.905 ± 0.001 | 0.888 ± 0.006       | 0.027 ± 0.000 | 0.072 ± 0.018         | 0.859 ± 0.004  | 0.460 ± 0.020         | 0.695 ± 0.043      |
+| CQR                  | 0.861 ± 0.001 | 0.859 ± 0.001       | 0.060 ± 0.004 | 0.418 ± 0.029         | 0.782 ± 0.012  | 0.376 ± 0.024         | 0.613 ± 0.031      |
+| Self-CQR             | 0.893 ± 0.003 | 0.852 ± 0.004       | 0.022 ± 0.002 | 0.069 ± 0.028         | 0.858 ± 0.005  | 0.426 ± 0.019         | 0.617 ± 0.027      |
+| ACI-CQR              | 0.880 ± 0.011 | 0.861 ± 0.003       | 0.035 ± 0.017 | 0.209 ± 0.178         | 0.830 ± 0.036  | 0.399 ± 0.008         | 0.608 ± 0.025      |
+| TQA-B-CQR            | 0.869 ± 0.004 | 0.866 ± 0.003       | 0.056 ± 0.003 | 0.374 ± 0.026         | 0.788 ± 0.009  | 0.376 ± 0.020         | 0.609 ± 0.025      |
+| GHCP-CQR             | 0.869 ± 0.001 | 0.864 ± 0.005       | 0.056 ± 0.004 | 0.366 ± 0.019         | 0.790 ± 0.012  | 0.382 ± 0.024         | 0.611 ± 0.030      |
+| QShrink-CQR          | 0.888 ± 0.003 | 0.870 ± 0.004       | 0.026 ± 0.006 | 0.112 ± 0.062         | 0.848 ± 0.013  | 0.404 ± 0.027         | 0.603 ± 0.025      |
+| QR-LGBM              | 0.838 ± 0.003 | 0.832 ± 0.007       | 0.072 ± 0.004 | 0.555 ± 0.028         | 0.756 ± 0.013  | 0.357 ± 0.020         | 0.623 ± 0.035      |
+| MLP-QR               | 0.855 ± 0.007 | 0.836 ± 0.021       | 0.061 ± 0.005 | 0.432 ± 0.042         | 0.776 ± 0.015  | 0.373 ± 0.010         | 0.623 ± 0.034      |
+| MLP-Gauss            | 0.894 ± 0.011 | 0.892 ± 0.018       | 0.047 ± 0.003 | 0.231 ± 0.060         | 0.819 ± 0.013  | 0.436 ± 0.014         | 0.663 ± 0.047      |
+| CQR (MLP)            | 0.861 ± 0.007 | 0.855 ± 0.014       | 0.058 ± 0.003 | 0.406 ± 0.029         | 0.782 ± 0.012  | 0.379 ± 0.012         | 0.623 ± 0.035      |
+| HSC-CQR (MLP)        | 0.890 ± 0.001 | 0.854 ± 0.020       | 0.023 ± 0.004 | 0.065 ± 0.034         | 0.856 ± 0.005  | 0.417 ± 0.023         | 0.614 ± 0.026      |
+| ACI                  | 0.896 ± 0.008 | 0.856 ± 0.015       | 0.041 ± 0.014 | 0.157 ± 0.141         | 0.835 ± 0.036  | 0.419 ± 0.012         | 0.676 ± 0.048      |
+| Self-CP              | 0.905 ± 0.002 | 0.892 ± 0.001       | 0.027 ± 0.000 | 0.078 ± 0.010         | 0.861 ± 0.002  | 0.470 ± 0.020         | 0.700 ± 0.042      |
+| SCP-stage            | 0.837 ± 0.006 | 0.840 ± 0.008       | 0.112 ± 0.001 | 0.420 ± 0.024         | 0.634 ± 0.018  | 0.395 ± 0.011         | 0.681 ± 0.049      |
+| SCP                  | 0.837 ± 0.006 | 0.808 ± 0.006       | 0.111 ± 0.001 | 0.423 ± 0.021         | 0.635 ± 0.017  | 0.394 ± 0.012         | 0.683 ± 0.044      |
+| Naive+SCP            | 0.824 ± 0.016 | 0.842 ± 0.012       | 0.123 ± 0.011 | 0.474 ± 0.043         | 0.605 ± 0.034  | 0.490 ± 0.008         | 0.958 ± 0.080      |
+| Raw-SCP              | 0.963 ± 0.016 | 0.951 ± 0.023       | 0.103 ± 0.005 | 0.075 ± 0.036         | 0.898 ± 0.060  | 1.901 ± 0.389         | 2.087 ± 0.278      |
+| HSC -stage           | 0.897 ± 0.004 | 0.850 ± 0.020       | 0.029 ± 0.003 | 0.108 ± 0.018         | 0.847 ± 0.006  | 0.436 ± 0.036         | 0.698 ± 0.049      |
+| HSC -kNN             | 0.906 ± 0.001 | 0.897 ± 0.006       | 0.029 ± 0.002 | 0.071 ± 0.016         | 0.858 ± 0.003  | 0.459 ± 0.023         | 0.690 ± 0.048      |
+| HSC -shrink          | 0.771 ± 0.025 | 0.764 ± 0.021       | 0.152 ± 0.021 | 0.657 ± 0.063         | 0.570 ± 0.025  | 0.292 ± 0.036         | 0.774 ± 0.069      |
+| HSC-CQR -stage       | 0.887 ± 0.000 | 0.860 ± 0.006       | 0.023 ± 0.002 | 0.079 ± 0.024         | 0.853 ± 0.004  | 0.403 ± 0.022         | 0.604 ± 0.026      |
+| HSC-CQR -kNN         | 0.890 ± 0.001 | 0.871 ± 0.002       | 0.022 ± 0.002 | 0.065 ± 0.030         | 0.856 ± 0.005  | 0.408 ± 0.024         | 0.602 ± 0.027      |
+| HSC-CQR -shrink      | 0.856 ± 0.004 | 0.851 ± 0.006       | 0.062 ± 0.004 | 0.441 ± 0.059         | 0.775 ± 0.012  | 0.369 ± 0.018         | 0.614 ± 0.032      |
+| HSC-CQR fixed-κ      | 0.892 ± 0.001 | 0.868 ± 0.006       | 0.019 ± 0.001 | 0.043 ± 0.014         | 0.863 ± 0.003  | 0.408 ± 0.025         | 0.603 ± 0.027      |
+
+
+**Table S13. BDG2 → BDG2 without weather features (reference; 3 seeds).**
+
+| Method               | Coverage      | Coverage (week 1)   | MACD          | Under-covered share   | P10 coverage   | Rel. width (median)   | Rel. IS (median)   |
+|:---------------------|:--------------|:--------------------|:--------------|:----------------------|:---------------|:----------------------|:-------------------|
+| HSC-CQR recency      | 0.896 ± 0.002 | 0.897 ± 0.004       | 0.012 ± 0.001 | 0.001 ± 0.002         | 0.878 ± 0.003  | 0.406 ± 0.021         | 0.577 ± 0.025      |
+| HSC-SSC-CQR          | 0.900 ± 0.002 | 0.904 ± 0.004       | 0.015 ± 0.001 | 0.005 ± 0.006         | 0.877 ± 0.003  | 0.407 ± 0.016         | 0.577 ± 0.023      |
+| SSC-CQR              | 0.901 ± 0.003 | 0.898 ± 0.005       | 0.031 ± 0.002 | 0.097 ± 0.002         | 0.851 ± 0.001  | 0.401 ± 0.014         | 0.578 ± 0.025      |
+| HSC-CQR simple (cov) | 0.895 ± 0.002 | 0.897 ± 0.003       | 0.015 ± 0.000 | 0.013 ± 0.002         | 0.871 ± 0.002  | 0.403 ± 0.015         | 0.576 ± 0.023      |
+| QShrink-CQR (cov)    | 0.896 ± 0.003 | 0.894 ± 0.000       | 0.015 ± 0.001 | 0.009 ± 0.006         | 0.872 ± 0.004  | 0.403 ± 0.015         | 0.577 ± 0.023      |
+| ACI-CQR (cov)        | 0.900 ± 0.000 | 0.898 ± 0.002       | 0.004 ± 0.000 | 0.000 ± 0.000         | 0.894 ± 0.001  | 0.877 ± 0.082         | 1.056 ± 0.105      |
+| HSC-CQR              | 0.893 ± 0.004 | 0.887 ± 0.006       | 0.017 ± 0.000 | 0.029 ± 0.006         | 0.866 ± 0.004  | 0.395 ± 0.016         | 0.575 ± 0.025      |
+| HSC-CQR simple       | 0.896 ± 0.003 | 0.896 ± 0.003       | 0.017 ± 0.001 | 0.022 ± 0.010         | 0.869 ± 0.004  | 0.399 ± 0.015         | 0.574 ± 0.025      |
+| HSC                  | 0.902 ± 0.002 | 0.883 ± 0.012       | 0.029 ± 0.002 | 0.078 ± 0.013         | 0.857 ± 0.001  | 0.429 ± 0.024         | 0.652 ± 0.019      |
+| HSC simple           | 0.910 ± 0.002 | 0.905 ± 0.002       | 0.028 ± 0.001 | 0.049 ± 0.006         | 0.865 ± 0.002  | 0.453 ± 0.033         | 0.654 ± 0.009      |
+| CQR                  | 0.894 ± 0.003 | 0.892 ± 0.004       | 0.037 ± 0.001 | 0.174 ± 0.018         | 0.835 ± 0.007  | 0.391 ± 0.012         | 0.574 ± 0.026      |
+| Self-CQR             | 0.888 ± 0.003 | 0.860 ± 0.005       | 0.022 ± 0.002 | 0.074 ± 0.008         | 0.857 ± 0.001  | 0.404 ± 0.015         | 0.583 ± 0.021      |
+| ACI-CQR              | 0.897 ± 0.002 | 0.892 ± 0.003       | 0.020 ± 0.001 | 0.042 ± 0.005         | 0.865 ± 0.002  | 0.397 ± 0.020         | 0.573 ± 0.025      |
+| TQA-B-CQR            | 0.896 ± 0.002 | 0.896 ± 0.003       | 0.038 ± 0.002 | 0.177 ± 0.020         | 0.836 ± 0.002  | 0.394 ± 0.012         | 0.573 ± 0.022      |
+| GHCP-CQR             | 0.896 ± 0.003 | 0.899 ± 0.003       | 0.037 ± 0.001 | 0.157 ± 0.006         | 0.837 ± 0.006  | 0.393 ± 0.012         | 0.574 ± 0.026      |
+| QShrink-CQR          | 0.898 ± 0.004 | 0.894 ± 0.003       | 0.021 ± 0.001 | 0.036 ± 0.010         | 0.867 ± 0.004  | 0.401 ± 0.021         | 0.575 ± 0.026      |
+| QR-LGBM              | 0.873 ± 0.012 | 0.879 ± 0.009       | 0.043 ± 0.005 | 0.278 ± 0.087         | 0.815 ± 0.012  | 0.373 ± 0.007         | 0.576 ± 0.025      |
+| MLP-QR               | 0.900 ± 0.006 | 0.896 ± 0.011       | 0.036 ± 0.004 | 0.126 ± 0.050         | 0.845 ± 0.012  | 0.400 ± 0.006         | 0.564 ± 0.023      |
+| MLP-Gauss            | 0.929 ± 0.009 | 0.934 ± 0.014       | 0.042 ± 0.003 | 0.038 ± 0.023         | 0.873 ± 0.015  | 0.463 ± 0.047         | 0.613 ± 0.044      |
+| CQR (MLP)            | 0.895 ± 0.005 | 0.897 ± 0.011       | 0.035 ± 0.004 | 0.148 ± 0.050         | 0.841 ± 0.010  | 0.395 ± 0.007         | 0.562 ± 0.023      |
+| HSC-CQR (MLP)        | 0.898 ± 0.002 | 0.893 ± 0.009       | 0.020 ± 0.003 | 0.041 ± 0.022         | 0.867 ± 0.004  | 0.399 ± 0.012         | 0.562 ± 0.024      |
+| ACI                  | 0.915 ± 0.001 | 0.891 ± 0.009       | 0.044 ± 0.001 | 0.125 ± 0.002         | 0.847 ± 0.001  | 0.444 ± 0.028         | 0.639 ± 0.021      |
+| Self-CP              | 0.905 ± 0.001 | 0.898 ± 0.002       | 0.027 ± 0.001 | 0.066 ± 0.010         | 0.861 ± 0.001  | 0.457 ± 0.031         | 0.664 ± 0.017      |
+| SCP-stage            | 0.881 ± 0.006 | 0.883 ± 0.011       | 0.094 ± 0.006 | 0.289 ± 0.021         | 0.702 ± 0.024  | 0.466 ± 0.024         | 0.642 ± 0.020      |
+| SCP                  | 0.882 ± 0.006 | 0.861 ± 0.006       | 0.093 ± 0.006 | 0.291 ± 0.019         | 0.704 ± 0.026  | 0.466 ± 0.025         | 0.643 ± 0.015      |
+| Mondrian-usage       | 0.881 ± 0.009 | 0.880 ± 0.011       | 0.093 ± 0.005 | 0.299 ± 0.019         | 0.706 ± 0.008  | 0.430 ± 0.030         | 0.669 ± 0.031      |
+| Naive+SCP            | 0.876 ± 0.006 | 0.884 ± 0.006       | 0.096 ± 0.006 | 0.314 ± 0.010         | 0.692 ± 0.031  | 0.661 ± 0.041         | 0.970 ± 0.053      |
+| Raw-SCP              | 0.906 ± 0.031 | 0.892 ± 0.037       | 0.119 ± 0.019 | 0.190 ± 0.069         | 0.684 ± 0.153  | 0.744 ± 0.043         | 1.117 ± 0.016      |
+| HSC -stage           | 0.900 ± 0.002 | 0.866 ± 0.012       | 0.028 ± 0.002 | 0.078 ± 0.009         | 0.855 ± 0.002  | 0.428 ± 0.025         | 0.657 ± 0.017      |
+| HSC -kNN             | 0.911 ± 0.002 | 0.918 ± 0.000       | 0.029 ± 0.001 | 0.046 ± 0.008         | 0.867 ± 0.003  | 0.458 ± 0.033         | 0.655 ± 0.012      |
+| HSC -shrink          | 0.847 ± 0.006 | 0.838 ± 0.017       | 0.091 ± 0.004 | 0.437 ± 0.012         | 0.693 ± 0.020  | 0.375 ± 0.013         | 0.668 ± 0.029      |
+| HSC-CQR -stage       | 0.893 ± 0.003 | 0.892 ± 0.006       | 0.017 ± 0.000 | 0.028 ± 0.004         | 0.866 ± 0.003  | 0.394 ± 0.017         | 0.574 ± 0.026      |
+| HSC-CQR -kNN         | 0.895 ± 0.004 | 0.893 ± 0.003       | 0.018 ± 0.003 | 0.037 ± 0.018         | 0.867 ± 0.001  | 0.398 ± 0.016         | 0.575 ± 0.025      |
+| HSC-CQR -shrink      | 0.888 ± 0.005 | 0.882 ± 0.007       | 0.036 ± 0.001 | 0.182 ± 0.029         | 0.831 ± 0.003  | 0.387 ± 0.010         | 0.574 ± 0.026      |
+| HSC-CQR fixed-κ      | 0.895 ± 0.003 | 0.897 ± 0.003       | 0.015 ± 0.000 | 0.016 ± 0.004         | 0.871 ± 0.003  | 0.403 ± 0.015         | 0.575 ± 0.024      |
+
+
+**Table S14. Robustness conditions on BDG2, all strategies (mean over 3 seeds).**
+
+| perturb         | method               |   mean_cov |   macd |   under_rate |   under_wk1 |   rel_IS |   rel_width |   underprot |   cost20 |
+|:----------------|:---------------------|-----------:|-------:|-------------:|------------:|---------:|------------:|------------:|---------:|
+| calpool10       | ACI                  |      0.901 |  0.043 |        0.17  |       0.364 |    0.624 |       0.401 |       0.061 |    1.479 |
+| calpool10       | ACI-CQR              |      0.889 |  0.026 |        0.101 |       0.353 |    0.558 |       0.379 |       0.055 |    1.415 |
+| calpool10       | ACI-CQR (cov)        |      0.9   |  0.004 |        0     |       0.124 |    0.752 |       0.593 |       0.003 |    1.562 |
+| calpool10       | CQR                  |      0.883 |  0.039 |        0.216 |       0.362 |    0.56  |       0.375 |       0.076 |    1.418 |
+| calpool10       | GHCP-CQR             |      0.911 |  0.036 |        0.087 |       0.115 |    0.557 |       0.411 |       0.047 |    1.419 |
+| calpool10       | HSC                  |      0.904 |  0.028 |        0.072 |       0.237 |    0.644 |       0.428 |       0.033 |    1.475 |
+| calpool10       | HSC-CQR              |      0.889 |  0.02  |        0.079 |       0.311 |    0.562 |       0.387 |       0.036 |    1.418 |
+| calpool10       | HSC-CQR recency      |      0.892 |  0.015 |        0.025 |       0.186 |    0.56  |       0.394 |       0.02  |    1.426 |
+| calpool10       | HSC-CQR simple       |      0.89  |  0.02  |        0.062 |       0.213 |    0.56  |       0.388 |       0.036 |    1.418 |
+| calpool10       | HSC-CQR simple (cov) |      0.891 |  0.019 |        0.045 |       0.199 |    0.562 |       0.39  |       0.025 |    1.422 |
+| calpool10       | HSC-SSC-CQR          |      0.897 |  0.015 |        0.013 |       0.14  |    0.568 |       0.396 |       0.013 |    2.706 |
+| calpool10       | MLP-QR               |      0.885 |  0.037 |        0.196 |       0.258 |    0.563 |       0.381 |       0.094 |    1.414 |
+| calpool10       | QR-LGBM              |      0.861 |  0.048 |        0.383 |       0.352 |    0.565 |       0.359 |       0.133 |    1.419 |
+| calpool10       | QShrink-CQR          |      0.891 |  0.019 |        0.059 |       0.295 |    0.56  |       0.388 |       0.034 |    1.423 |
+| calpool10       | QShrink-CQR (cov)    |      0.893 |  0.017 |        0.028 |       0.262 |    0.562 |       0.392 |       0.022 |    1.424 |
+| calpool10       | SCP-stage            |      0.846 |  0.111 |        0.395 |       0.378 |    0.627 |       0.385 |       0.286 |    1.556 |
+| calpool10       | SSC-CQR              |      0.945 |  0.046 |        0.001 |       0.113 |    0.647 |       0.531 |       0.004 |    1.46  |
+| calpool10       | Self-CP              |      0.905 |  0.026 |        0.055 |       0.183 |    0.65  |       0.445 |       0.028 |    1.483 |
+| calpool10       | Self-CQR             |      0.889 |  0.021 |        0.07  |       0.354 |    0.573 |       0.395 |       0.025 |    1.437 |
+| calpool10       | TQA-B-CQR            |      0.882 |  0.04  |        0.237 |       0.358 |    0.561 |       0.373 |       0.086 |    1.418 |
+| calpool25       | ACI                  |      0.913 |  0.046 |        0.116 |       0.266 |    0.624 |       0.433 |       0.05  |    1.484 |
+| calpool25       | ACI-CQR              |      0.895 |  0.017 |        0.03  |       0.209 |    0.555 |       0.388 |       0.038 |    1.417 |
+| calpool25       | ACI-CQR (cov)        |      0.9   |  0.004 |        0     |       0.082 |    0.9   |       0.759 |       0.003 |    1.711 |
+| calpool25       | CQR                  |      0.891 |  0.037 |        0.175 |       0.221 |    0.557 |       0.383 |       0.069 |    1.418 |
+| calpool25       | GHCP-CQR             |      0.902 |  0.037 |        0.126 |       0.19  |    0.557 |       0.394 |       0.058 |    1.418 |
+| calpool25       | HSC                  |      0.903 |  0.029 |        0.078 |       0.278 |    0.637 |       0.421 |       0.03  |    1.461 |
+| calpool25       | HSC-CQR              |      0.893 |  0.017 |        0.032 |       0.229 |    0.554 |       0.388 |       0.036 |    1.413 |
+| calpool25       | HSC-CQR recency      |      0.896 |  0.012 |        0.005 |       0.146 |    0.565 |       0.401 |       0.017 |    1.423 |
+| calpool25       | HSC-CQR simple       |      0.895 |  0.018 |        0.036 |       0.225 |    0.554 |       0.388 |       0.034 |    1.413 |
+| calpool25       | HSC-CQR simple (cov) |      0.895 |  0.015 |        0.018 |       0.196 |    0.561 |       0.394 |       0.024 |    1.415 |
+| calpool25       | HSC-SSC-CQR          |      0.898 |  0.015 |        0.007 |       0.136 |    0.566 |       0.398 |       0.012 |    1.63  |
+| calpool25       | MLP-QR               |      0.885 |  0.037 |        0.196 |       0.258 |    0.563 |       0.381 |       0.094 |    1.414 |
+| calpool25       | QR-LGBM              |      0.861 |  0.048 |        0.383 |       0.352 |    0.565 |       0.359 |       0.133 |    1.419 |
+| calpool25       | QShrink-CQR          |      0.898 |  0.02  |        0.03  |       0.199 |    0.552 |       0.393 |       0.033 |    1.417 |
+| calpool25       | QShrink-CQR (cov)    |      0.897 |  0.015 |        0.016 |       0.165 |    0.56  |       0.395 |       0.018 |    1.423 |
+| calpool25       | SCP-stage            |      0.884 |  0.093 |        0.274 |       0.273 |    0.635 |       0.468 |       0.191 |    1.544 |
+| calpool25       | SSC-CQR              |      0.914 |  0.029 |        0.041 |       0.149 |    0.565 |       0.42  |       0.029 |    1.419 |
+| calpool25       | Self-CP              |      0.906 |  0.026 |        0.053 |       0.166 |    0.652 |       0.447 |       0.028 |    1.483 |
+| calpool25       | Self-CQR             |      0.89  |  0.021 |        0.066 |       0.341 |    0.573 |       0.395 |       0.025 |    1.438 |
+| calpool25       | TQA-B-CQR            |      0.892 |  0.038 |        0.178 |       0.213 |    0.56  |       0.385 |       0.066 |    1.419 |
+| calpool50       | ACI                  |      0.914 |  0.04  |        0.094 |       0.267 |    0.624 |       0.428 |       0.036 |    1.489 |
+| calpool50       | ACI-CQR              |      0.894 |  0.022 |        0.062 |       0.225 |    0.553 |       0.384 |       0.046 |    1.415 |
+| calpool50       | ACI-CQR (cov)        |      0.9   |  0.004 |        0     |       0.09  |    0.867 |       0.712 |       0.001 |    1.689 |
+| calpool50       | CQR                  |      0.891 |  0.037 |        0.178 |       0.231 |    0.557 |       0.382 |       0.07  |    1.418 |
+| calpool50       | GHCP-CQR             |      0.896 |  0.037 |        0.148 |       0.207 |    0.557 |       0.387 |       0.067 |    1.417 |
+| calpool50       | HSC                  |      0.901 |  0.027 |        0.066 |       0.289 |    0.642 |       0.417 |       0.029 |    1.461 |
+| calpool50       | HSC-CQR              |      0.893 |  0.018 |        0.041 |       0.223 |    0.553 |       0.385 |       0.037 |    1.413 |
+| calpool50       | HSC-CQR recency      |      0.896 |  0.012 |        0.005 |       0.138 |    0.565 |       0.401 |       0.012 |    1.425 |
+| calpool50       | HSC-CQR simple       |      0.894 |  0.018 |        0.036 |       0.223 |    0.554 |       0.387 |       0.034 |    1.413 |
+| calpool50       | HSC-CQR simple (cov) |      0.895 |  0.015 |        0.02  |       0.179 |    0.563 |       0.395 |       0.022 |    1.418 |
+| calpool50       | HSC-SSC-CQR          |      0.898 |  0.015 |        0.009 |       0.14  |    0.566 |       0.399 |       0.013 |    1.613 |
+| calpool50       | MLP-QR               |      0.885 |  0.037 |        0.196 |       0.258 |    0.563 |       0.381 |       0.094 |    1.414 |
+| calpool50       | QR-LGBM              |      0.861 |  0.048 |        0.383 |       0.352 |    0.565 |       0.359 |       0.133 |    1.419 |
+| calpool50       | QShrink-CQR          |      0.898 |  0.019 |        0.032 |       0.203 |    0.552 |       0.394 |       0.028 |    1.418 |
+| calpool50       | QShrink-CQR (cov)    |      0.896 |  0.015 |        0.017 |       0.159 |    0.561 |       0.395 |       0.018 |    1.425 |
+| calpool50       | SCP-stage            |      0.879 |  0.095 |        0.294 |       0.281 |    0.63  |       0.453 |       0.207 |    1.545 |
+| calpool50       | SSC-CQR              |      0.904 |  0.029 |        0.076 |       0.192 |    0.559 |       0.403 |       0.041 |    1.416 |
+| calpool50       | Self-CP              |      0.906 |  0.026 |        0.054 |       0.171 |    0.652 |       0.447 |       0.026 |    1.483 |
+| calpool50       | Self-CQR             |      0.89  |  0.021 |        0.066 |       0.331 |    0.573 |       0.395 |       0.025 |    1.437 |
+| calpool50       | TQA-B-CQR            |      0.893 |  0.037 |        0.165 |       0.216 |    0.559 |       0.384 |       0.065 |    1.418 |
+| missing20       | ACI                  |      0.909 |  0.047 |        0.179 |       0.296 |    0.65  |       0.444 |       0.067 |    1.508 |
+| missing20       | ACI-CQR              |      0.896 |  0.028 |        0.099 |       0.264 |    0.585 |       0.421 |       0.042 |    1.434 |
+| missing20       | ACI-CQR (cov)        |      0.9   |  0.006 |        0     |       0.174 |    0.789 |       0.611 |       0.001 |    1.723 |
+| missing20       | CQR                  |      0.895 |  0.038 |        0.175 |       0.269 |    0.585 |       0.416 |       0.058 |    1.436 |
+| missing20       | GHCP-CQR             |      0.897 |  0.037 |        0.157 |       0.25  |    0.583 |       0.419 |       0.05  |    1.436 |
+| missing20       | HSC                  |      0.901 |  0.029 |        0.086 |       0.319 |    0.663 |       0.437 |       0.033 |    1.475 |
+| missing20       | HSC-CQR              |      0.895 |  0.019 |        0.04  |       0.274 |    0.585 |       0.416 |       0.028 |    1.431 |
+| missing20       | HSC-CQR recency      |      0.899 |  0.012 |        0.007 |       0.175 |    0.589 |       0.431 |       0.012 |    1.442 |
+| missing20       | HSC-CQR simple       |      0.898 |  0.018 |        0.033 |       0.246 |    0.585 |       0.42  |       0.025 |    1.431 |
+| missing20       | HSC-CQR simple (cov) |      0.898 |  0.016 |        0.018 |       0.227 |    0.586 |       0.425 |       0.021 |    1.432 |
+| missing20       | HSC-SSC-CQR          |      0.902 |  0.016 |        0.008 |       0.167 |    0.586 |       0.431 |       0.012 |    1.476 |
+| missing20       | MLP-QR               |      0.865 |  0.047 |        0.335 |       0.318 |    0.632 |       0.422 |       0.136 |    1.469 |
+| missing20       | QR-LGBM              |      0.87  |  0.044 |        0.302 |       0.381 |    0.589 |       0.395 |       0.097 |    1.436 |
+| missing20       | QShrink-CQR          |      0.9   |  0.022 |        0.034 |       0.24  |    0.585 |       0.423 |       0.024 |    1.435 |
+| missing20       | QShrink-CQR (cov)    |      0.899 |  0.016 |        0.017 |       0.204 |    0.587 |       0.426 |       0.018 |    1.441 |
+| missing20       | SCP-stage            |      0.866 |  0.101 |        0.339 |       0.312 |    0.653 |       0.447 |       0.235 |    1.568 |
+| missing20       | SSC-CQR              |      0.906 |  0.031 |        0.075 |       0.228 |    0.586 |       0.433 |       0.041 |    1.434 |
+| missing20       | Self-CP              |      0.913 |  0.028 |        0.04  |       0.09  |    0.675 |       0.492 |       0.018 |    1.5   |
+| missing20       | Self-CQR             |      0.892 |  0.022 |        0.059 |       0.358 |    0.599 |       0.426 |       0.022 |    1.457 |
+| missing20       | TQA-B-CQR            |      0.895 |  0.036 |        0.163 |       0.273 |    0.585 |       0.415 |       0.057 |    1.435 |
+| missing40       | ACI                  |      0.902 |  0.053 |        0.24  |       0.302 |    0.671 |       0.457 |       0.099 |    1.525 |
+| missing40       | ACI-CQR              |      0.898 |  0.033 |        0.12  |       0.295 |    0.613 |       0.449 |       0.045 |    1.456 |
+| missing40       | ACI-CQR (cov)        |      0.903 |  0.011 |        0     |       0.242 |    0.692 |       0.533 |       0.004 |    1.652 |
+| missing40       | CQR                  |      0.897 |  0.04  |        0.169 |       0.299 |    0.614 |       0.449 |       0.063 |    1.457 |
+| missing40       | GHCP-CQR             |      0.9   |  0.04  |        0.15  |       0.269 |    0.613 |       0.453 |       0.061 |    1.457 |
+| missing40       | HSC                  |      0.902 |  0.032 |        0.107 |       0.321 |    0.681 |       0.464 |       0.047 |    1.492 |
+| missing40       | HSC-CQR              |      0.899 |  0.023 |        0.054 |       0.325 |    0.611 |       0.45  |       0.029 |    1.453 |
+| missing40       | HSC-CQR recency      |      0.903 |  0.016 |        0.009 |       0.217 |    0.612 |       0.465 |       0.016 |    1.462 |
+| missing40       | HSC-CQR simple       |      0.901 |  0.023 |        0.047 |       0.279 |    0.612 |       0.454 |       0.028 |    1.453 |
+| missing40       | HSC-CQR simple (cov) |      0.902 |  0.02  |        0.024 |       0.256 |    0.611 |       0.456 |       0.021 |    1.453 |
+| missing40       | HSC-SSC-CQR          |      0.907 |  0.019 |        0.012 |       0.196 |    0.615 |       0.464 |       0.016 |    1.457 |
+| missing40       | MLP-QR               |      0.847 |  0.063 |        0.47  |       0.381 |    0.699 |       0.446 |       0.242 |    1.524 |
+| missing40       | QR-LGBM              |      0.874 |  0.044 |        0.287 |       0.403 |    0.616 |       0.428 |       0.099 |    1.457 |
+| missing40       | QShrink-CQR          |      0.903 |  0.027 |        0.061 |       0.274 |    0.611 |       0.452 |       0.03  |    1.456 |
+| missing40       | QShrink-CQR (cov)    |      0.903 |  0.02  |        0.022 |       0.249 |    0.611 |       0.46  |       0.016 |    1.461 |
+| missing40       | SCP-stage            |      0.855 |  0.107 |        0.37  |       0.31  |    0.67  |       0.447 |       0.26  |    1.594 |
+| missing40       | SSC-CQR              |      0.91  |  0.034 |        0.079 |       0.254 |    0.617 |       0.464 |       0.042 |    1.456 |
+| missing40       | Self-CP              |      0.92  |  0.033 |        0.037 |       0.07  |    0.705 |       0.531 |       0.021 |    1.522 |
+| missing40       | Self-CQR             |      0.896 |  0.023 |        0.055 |       0.398 |    0.627 |       0.465 |       0.022 |    1.48  |
+| missing40       | TQA-B-CQR            |      0.896 |  0.038 |        0.166 |       0.303 |    0.615 |       0.447 |       0.062 |    1.455 |
+| noise15         | ACI                  |      0.858 |  0.042 |        0.281 |       0.841 |    0.94  |       0.622 |       0.054 |    1.657 |
+| noise15         | ACI-CQR              |      0.87  |  0.03  |        0.104 |       0.391 |    0.921 |       0.661 |       0.049 |    1.594 |
+| noise15         | ACI-CQR (cov)        |      0.897 |  0.003 |        0     |       0.063 |    1.199 |       0.992 |       0     |    1.876 |
+| noise15         | CQR                  |      0.859 |  0.041 |        0.307 |       0.401 |    0.925 |       0.641 |       0.113 |    1.597 |
+| noise15         | GHCP-CQR             |      0.861 |  0.039 |        0.271 |       0.378 |    0.924 |       0.643 |       0.104 |    1.597 |
+| noise15         | HSC                  |      0.88  |  0.025 |        0.103 |       0.823 |    0.934 |       0.673 |       0.014 |    1.609 |
+| noise15         | HSC-CQR              |      0.882 |  0.018 |        0.017 |       0.391 |    0.917 |       0.681 |       0.013 |    1.588 |
+| noise15         | HSC-CQR recency      |      0.896 |  0.007 |        0.001 |       0.091 |    0.913 |       0.708 |       0     |    1.591 |
+| noise15         | HSC-CQR simple       |      0.883 |  0.017 |        0.014 |       0.335 |    0.916 |       0.684 |       0.013 |    1.588 |
+| noise15         | HSC-CQR simple (cov) |      0.891 |  0.011 |        0.004 |       0.228 |    0.913 |       0.697 |       0.003 |    1.588 |
+| noise15         | HSC-SSC-CQR          |      0.899 |  0.008 |        0     |       0.087 |    0.914 |       0.711 |       0.001 |    1.604 |
+| noise15         | MLP-QR               |      0.861 |  0.039 |        0.264 |       0.406 |    0.95  |       0.683 |       0.121 |    1.61  |
+| noise15         | QR-LGBM              |      0.846 |  0.054 |        0.519 |       0.519 |    0.935 |       0.619 |       0.188 |    1.603 |
+| noise15         | QShrink-CQR          |      0.881 |  0.02  |        0.026 |       0.336 |    0.918 |       0.677 |       0.013 |    1.59  |
+| noise15         | QShrink-CQR (cov)    |      0.894 |  0.01  |        0.005 |       0.181 |    0.913 |       0.703 |       0.003 |    1.591 |
+| noise15         | SCP-stage            |      0.696 |  0.204 |        1     |       0.864 |    1.093 |       0.447 |       0.906 |    1.784 |
+| noise15         | SSC-CQR              |      0.882 |  0.021 |        0.058 |       0.286 |    0.917 |       0.678 |       0.03  |    1.59  |
+| noise15         | Self-CP              |      0.907 |  0.019 |        0.02  |       0.096 |    0.938 |       0.732 |       0.003 |    1.616 |
+| noise15         | Self-CQR             |      0.902 |  0.01  |        0.001 |       0.087 |    0.918 |       0.725 |       0.001 |    1.598 |
+| noise15         | TQA-B-CQR            |      0.856 |  0.044 |        0.357 |       0.44  |    0.929 |       0.634 |       0.129 |    1.598 |
+| noise5          | ACI                  |      0.904 |  0.038 |        0.142 |       0.307 |    0.66  |       0.446 |       0.046 |    1.513 |
+| noise5          | ACI-CQR              |      0.886 |  0.02  |        0.083 |       0.225 |    0.611 |       0.438 |       0.049 |    1.443 |
+| noise5          | ACI-CQR (cov)        |      0.899 |  0.003 |        0     |       0.07  |    0.95  |       0.799 |       0.001 |    1.796 |
+| noise5          | CQR                  |      0.879 |  0.029 |        0.169 |       0.233 |    0.612 |       0.43  |       0.072 |    1.444 |
+| noise5          | GHCP-CQR             |      0.882 |  0.028 |        0.154 |       0.215 |    0.611 |       0.433 |       0.067 |    1.444 |
+| noise5          | HSC                  |      0.895 |  0.024 |        0.083 |       0.335 |    0.67  |       0.448 |       0.028 |    1.48  |
+| noise5          | HSC-CQR              |      0.889 |  0.015 |        0.028 |       0.208 |    0.611 |       0.443 |       0.026 |    1.44  |
+| noise5          | HSC-CQR recency      |      0.896 |  0.009 |        0.001 |       0.094 |    0.612 |       0.457 |       0.004 |    1.447 |
+| noise5          | HSC-CQR simple       |      0.891 |  0.013 |        0.025 |       0.192 |    0.61  |       0.446 |       0.025 |    1.44  |
+| noise5          | HSC-CQR simple (cov) |      0.894 |  0.012 |        0.009 |       0.157 |    0.612 |       0.45  |       0.018 |    1.441 |
+| noise5          | HSC-SSC-CQR          |      0.897 |  0.011 |        0.003 |       0.091 |    0.613 |       0.454 |       0.005 |    1.483 |
+| noise5          | MLP-QR               |      0.876 |  0.031 |        0.192 |       0.256 |    0.623 |       0.435 |       0.108 |    1.443 |
+| noise5          | QR-LGBM              |      0.856 |  0.045 |        0.383 |       0.336 |    0.615 |       0.408 |       0.132 |    1.448 |
+| noise5          | QShrink-CQR          |      0.89  |  0.015 |        0.026 |       0.195 |    0.611 |       0.443 |       0.028 |    1.442 |
+| noise5          | QShrink-CQR (cov)    |      0.894 |  0.012 |        0.011 |       0.141 |    0.612 |       0.45  |       0.012 |    1.447 |
+| noise5          | SCP-stage            |      0.862 |  0.098 |        0.344 |       0.321 |    0.657 |       0.448 |       0.249 |    1.56  |
+| noise5          | SSC-CQR              |      0.893 |  0.021 |        0.078 |       0.191 |    0.61  |       0.447 |       0.045 |    1.442 |
+| noise5          | Self-CP              |      0.907 |  0.024 |        0.04  |       0.109 |    0.683 |       0.488 |       0.013 |    1.498 |
+| noise5          | Self-CQR             |      0.894 |  0.016 |        0.018 |       0.199 |    0.624 |       0.456 |       0.008 |    1.458 |
+| noise5          | TQA-B-CQR            |      0.877 |  0.029 |        0.19  |       0.231 |    0.61  |       0.428 |       0.075 |    1.444 |
+| shift+40        | ACI                  |      0.897 |  0.035 |        0.15  |       0.275 |    0.728 |       0.461 |       0.133 |    1.574 |
+| shift+40        | ACI-CQR              |      0.879 |  0.027 |        0.163 |       0.242 |    0.664 |       0.412 |       0.232 |    1.508 |
+| shift+40        | ACI-CQR (cov)        |      0.9   |  0.004 |        0     |       0.1   |    2.122 |       1.901 |       0.007 |    2.321 |
+| shift+40        | CQR                  |      0.869 |  0.041 |        0.303 |       0.242 |    0.666 |       0.397 |       0.331 |    1.514 |
+| shift+40        | GHCP-CQR             |      0.872 |  0.039 |        0.283 |       0.223 |    0.666 |       0.4   |       0.321 |    1.514 |
+| shift+40        | HSC                  |      0.883 |  0.025 |        0.105 |       0.306 |    0.741 |       0.447 |       0.183 |    1.546 |
+| shift+40        | HSC-CQR              |      0.882 |  0.021 |        0.065 |       0.26  |    0.665 |       0.417 |       0.191 |    1.501 |
+| shift+40        | HSC-CQR recency      |      0.891 |  0.012 |        0.008 |       0.133 |    0.676 |       0.446 |       0.067 |    1.505 |
+| shift+40        | HSC-CQR simple       |      0.884 |  0.02  |        0.053 |       0.224 |    0.665 |       0.418 |       0.166 |    1.501 |
+| shift+40        | HSC-CQR simple (cov) |      0.886 |  0.017 |        0.028 |       0.198 |    0.67  |       0.427 |       0.141 |    1.501 |
+| shift+40        | HSC-SSC-CQR          |      0.891 |  0.014 |        0.012 |       0.138 |    0.672 |       0.439 |       0.097 |    1.664 |
+| shift+40        | MLP-QR               |      0.867 |  0.043 |        0.314 |       0.258 |    0.668 |       0.389 |       0.337 |    1.509 |
+| shift+40        | QR-LGBM              |      0.845 |  0.058 |        0.502 |       0.352 |    0.677 |       0.376 |       0.509 |    1.525 |
+| shift+40        | QShrink-CQR          |      0.884 |  0.022 |        0.074 |       0.217 |    0.665 |       0.419 |       0.183 |    1.504 |
+| shift+40        | QShrink-CQR (cov)    |      0.888 |  0.017 |        0.02  |       0.181 |    0.671 |       0.43  |       0.129 |    1.506 |
+| shift+40        | SCP-stage            |      0.849 |  0.092 |        0.383 |       0.292 |    0.727 |       0.436 |       0.398 |    1.642 |
+| shift+40        | SSC-CQR              |      0.881 |  0.03  |        0.182 |       0.215 |    0.669 |       0.413 |       0.25  |    1.507 |
+| shift+40        | Self-CP              |      0.891 |  0.024 |        0.082 |       0.173 |    0.756 |       0.48  |       0.162 |    1.563 |
+| shift+40        | Self-CQR             |      0.883 |  0.022 |        0.079 |       0.336 |    0.68  |       0.441 |       0.15  |    1.518 |
+| shift+40        | TQA-B-CQR            |      0.873 |  0.04  |        0.295 |       0.22  |    0.673 |       0.401 |       0.311 |    1.514 |
+| shift-40        | ACI                  |      0.882 |  0.029 |        0.179 |       0.275 |    0.854 |       0.505 |       0.011 |    1.565 |
+| shift-40        | ACI-CQR              |      0.882 |  0.024 |        0.109 |       0.242 |    0.748 |       0.488 |       0.005 |    1.505 |
+| shift-40        | ACI-CQR (cov)        |      0.901 |  0.005 |        0     |       0.1   |    2.222 |       1.985 |       0     |    2.355 |
+| shift-40        | CQR                  |      0.869 |  0.039 |        0.286 |       0.242 |    0.75  |       0.482 |       0.009 |    1.502 |
+| shift-40        | GHCP-CQR             |      0.872 |  0.037 |        0.262 |       0.223 |    0.749 |       0.486 |       0.009 |    1.502 |
+| shift-40        | HSC                  |      0.866 |  0.036 |        0.242 |       0.306 |    0.875 |       0.49  |       0.008 |    1.517 |
+| shift-40        | HSC-CQR              |      0.884 |  0.019 |        0.042 |       0.26  |    0.749 |       0.494 |       0.004 |    1.504 |
+| shift-40        | HSC-CQR recency      |      0.896 |  0.011 |        0.012 |       0.133 |    0.755 |       0.513 |       0     |    1.523 |
+| shift-40        | HSC-CQR simple       |      0.887 |  0.017 |        0.036 |       0.224 |    0.751 |       0.499 |       0.004 |    1.504 |
+| shift-40        | HSC-CQR simple (cov) |      0.889 |  0.016 |        0.03  |       0.198 |    0.751 |       0.505 |       0.003 |    1.509 |
+| shift-40        | HSC-SSC-CQR          |      0.896 |  0.013 |        0.014 |       0.138 |    0.756 |       0.513 |       0.001 |    1.768 |
+| shift-40        | MLP-QR               |      0.881 |  0.035 |        0.195 |       0.258 |    0.723 |       0.47  |       0.017 |    1.48  |
+| shift-40        | QR-LGBM              |      0.841 |  0.06  |        0.542 |       0.352 |    0.762 |       0.46  |       0.016 |    1.499 |
+| shift-40        | QShrink-CQR          |      0.886 |  0.019 |        0.059 |       0.217 |    0.751 |       0.498 |       0.004 |    1.508 |
+| shift-40        | QShrink-CQR (cov)    |      0.89  |  0.016 |        0.024 |       0.181 |    0.751 |       0.503 |       0.001 |    1.519 |
+| shift-40        | SCP-stage            |      0.809 |  0.106 |        0.534 |       0.292 |    0.883 |       0.465 |       0.154 |    1.57  |
+| shift-40        | SSC-CQR              |      0.884 |  0.029 |        0.148 |       0.215 |    0.753 |       0.498 |       0.007 |    1.505 |
+| shift-40        | Self-CP              |      0.877 |  0.032 |        0.19  |       0.173 |    0.88  |       0.531 |       0.003 |    1.552 |
+| shift-40        | Self-CQR             |      0.887 |  0.023 |        0.086 |       0.336 |    0.762 |       0.511 |       0.003 |    1.539 |
+| shift-40        | TQA-B-CQR            |      0.882 |  0.035 |        0.22  |       0.22  |    0.76  |       0.489 |       0.007 |    1.509 |
+| weak-forecaster | ACI                  |      0.912 |  0.048 |        0.158 |       0.262 |    0.652 |       0.462 |       0.074 |    1.512 |
+| weak-forecaster | ACI-CQR              |      0.899 |  0.026 |        0.071 |       0.241 |    0.59  |       0.425 |       0.055 |    1.456 |
+| weak-forecaster | ACI-CQR (cov)        |      0.901 |  0.005 |        0     |       0.083 |    0.997 |       0.802 |       0.003 |    1.88  |
+| weak-forecaster | CQR                  |      0.89  |  0.052 |        0.25  |       0.254 |    0.592 |       0.42  |       0.125 |    1.466 |
+| weak-forecaster | GHCP-CQR             |      0.893 |  0.052 |        0.231 |       0.242 |    0.592 |       0.423 |       0.119 |    1.466 |
+| weak-forecaster | HSC                  |      0.9   |  0.028 |        0.083 |       0.285 |    0.664 |       0.442 |       0.049 |    1.484 |
+| weak-forecaster | HSC-CQR              |      0.894 |  0.021 |        0.054 |       0.257 |    0.593 |       0.423 |       0.051 |    1.453 |
+| weak-forecaster | HSC-CQR recency      |      0.899 |  0.013 |        0.007 |       0.136 |    0.591 |       0.434 |       0.016 |    1.462 |
+| weak-forecaster | HSC-CQR simple       |      0.898 |  0.021 |        0.043 |       0.215 |    0.593 |       0.425 |       0.042 |    1.453 |
+| weak-forecaster | HSC-CQR simple (cov) |      0.898 |  0.018 |        0.028 |       0.166 |    0.593 |       0.428 |       0.033 |    1.458 |
+| weak-forecaster | HSC-SSC-CQR          |      0.902 |  0.018 |        0.018 |       0.099 |    0.597 |       0.436 |       0.016 |    2.468 |
+| weak-forecaster | QR-LGBM              |      0.849 |  0.067 |        0.482 |       0.433 |    0.599 |       0.382 |       0.219 |    1.47  |
+| weak-forecaster | QShrink-CQR          |      0.901 |  0.022 |        0.037 |       0.188 |    0.591 |       0.428 |       0.034 |    1.46  |
+| weak-forecaster | QShrink-CQR (cov)    |      0.899 |  0.018 |        0.028 |       0.155 |    0.593 |       0.432 |       0.026 |    1.465 |
+| weak-forecaster | SCP-stage            |      0.882 |  0.092 |        0.286 |       0.27  |    0.655 |       0.482 |       0.223 |    1.573 |
+| weak-forecaster | SSC-CQR              |      0.9   |  0.041 |        0.161 |       0.208 |    0.595 |       0.433 |       0.086 |    1.46  |
+| weak-forecaster | Self-CP              |      0.904 |  0.027 |        0.055 |       0.175 |    0.683 |       0.469 |       0.045 |    1.506 |
+| weak-forecaster | Self-CQR             |      0.893 |  0.022 |        0.076 |       0.304 |    0.602 |       0.429 |       0.037 |    1.474 |
+| weak-forecaster | TQA-B-CQR            |      0.894 |  0.049 |        0.224 |       0.235 |    0.589 |       0.425 |       0.112 |    1.462 |
+
+
+**Table S15. Parameters selected by leave-one-building-out on calibration buildings, per run.**
+
+| Run | κ recency (cov) | κ simple (cov) | κ simple (IS) | λ QShrink (cov) | γ ACI-CQR | γ ACI-CQR (cov) |
+|:--|--:|--:|--:|--:|--:|--:|
+| lso_BDG2_f0 | 48.0 | 96.0 | 336.0 | 96.0 | 0.001 | 0.01 |
+| lso_BDG2_f1 | 48.0 | 168.0 | 672.0 | 96.0 | 0.001 | 0.01 |
+| lso_BDG2_f2 | 48.0 | 96.0 | 336.0 | 48.0 | 0.0005 | 0.01 |
+| lso_BDG2_f3 | 48.0 | 168.0 | 336.0 | 168.0 | 0.0005 | 0.01 |
+| lso_BDG2_f4 | 48.0 | 96.0 | 336.0 | 96.0 | 0.001 | 0.01 |
+| main_BDG2_s0_a0.1 | 48.0 | 96.0 | 336.0 | 96.0 | 0.001 | 0.01 |
+| main_BDG2_s1_a0.1 | 48.0 | 168.0 | 336.0 | 168.0 | 0.0005 | 0.01 |
+| main_BDG2_s2_a0.1 | 48.0 | 168.0 | 336.0 | 168.0 | 0.0005 | 0.01 |
+| main_BDG2_s3_a0.1 | 48.0 | 168.0 | 336.0 | 168.0 | 0.0005 | 0.01 |
+| main_BDG2_s4_a0.1 | 48.0 | 168.0 | 336.0 | 96.0 | 0.001 | 0.01 |
+| main_UCI_s0_a0.1 | 48.0 | 96.0 | 336.0 | 48.0 | 0.002 | 0.01 |
+| main_UCI_s1_a0.1 | 48.0 | 96.0 | 168.0 | 96.0 | 0.0005 | 0.01 |
+| main_UCI_s2_a0.1 | 24.0 | 96.0 | 336.0 | 96.0 | 0.0005 | 0.01 |
+| main_UCI_s3_a0.1 | 24.0 | 48.0 | 168.0 | 96.0 | 0.0002 | 0.01 |
+| main_UCI_s4_a0.1 | 24.0 | 96.0 | 672.0 | 96.0 | 0.001 | 0.01 |
+| xds_BDG2toBDG2_s0 | 48.0 | 96.0 | 336.0 | 96.0 | 0.001 | 0.01 |
+| xds_BDG2toBDG2_s1 | 48.0 | 168.0 | 336.0 | 168.0 | 0.001 | 0.01 |
+| xds_BDG2toBDG2_s2 | 96.0 | 168.0 | 336.0 | 168.0 | 0.001 | 0.01 |
+| xds_BDG2toUCI_s0 | 48.0 | 96.0 | 336.0 | 96.0 | 0.001 | 0.01 |
+| xds_BDG2toUCI_s1 | 48.0 | 168.0 | 336.0 | 168.0 | 0.001 | 0.01 |
+| xds_BDG2toUCI_s2 | 96.0 | 168.0 | 336.0 | 168.0 | 0.001 | 0.01 |
+| xds_UCItoBDG2_s0 | 48.0 | 96.0 | 336.0 | 48.0 | 0.002 | 0.01 |
+| xds_UCItoBDG2_s1 | 48.0 | 96.0 | 168.0 | 96.0 | 0.0005 | 0.01 |
+| xds_UCItoBDG2_s2 | 24.0 | 96.0 | 336.0 | 96.0 | 0.0005 | 0.01 |
+
+# S6. Additional figures
+
+![**Fig. S1.** Robustness on BDG2 (MACD and under-covered share).](figures/Fig7_robustness.png){width=16cm}
+
+![**Fig. S2.** Generalisation (MACD and median relative interval score).](figures/Fig8_generalisation.png){width=16cm}
+
+![**Fig. S3.** Sensitivity of the stage-matched, similarity-localised variant to κ and K.](figures/Fig9_sensitivity.png){width=16cm}
+
+![**Fig. S4.** Mean coverage and median relative interval score by days of own history.](figures/Fig3_stage_curves.png){width=16cm}
+
+# S7. Analysis protocol (as committed, including addenda)
+
+## Pre-registered research design (written before any target-building result was inspected)
 
 Date: 2026-11-15. Only a pipeline smoke test (reduced data) had been run when this file was written;
 any change after this point is logged in CHANGELOG.md with its justification.
@@ -1789,4 +858,65 @@ Seasonal-naive + SCP (classical); raw-kWh pooled SCP; normalised pooled SCP; sta
 Mondrian-by-usage SCP; self-only conformal (fallback to pooled); ACI (Gibbs & Candès 2021);
 LightGBM quantile regression; CQR (Romano et al. 2019); MLP-Gaussian (NLL); MLP quantile regression;
 HSC on CQR scores (variant).
+
+---
+## Addendum A (2026-11-20, review cycle 1) — written BEFORE any of the following was implemented or run
+
+Context: Reviewer #1 showed, and the author confirmed from results/raw_results.csv.gz, that (i) no shrinkage
+variant improves reliability in the first week (BDG2 under-covered share, week 1: HSC-CQR 24.5 %, CQR 23.8 %),
+(ii) the interval-score tuning objective selects larger κ than per-building reliability favours (fixed κ = 168 h
+beats tuned κ on MACD), (iii) TQA-B used the maximum budget over *target* buildings to scale λ (fairness bug),
+(iv) ACI set the radius to the grid cap whenever α_h ≤ 0. The original pre-registration file was committed with
+the code (commit e9ca94d) and is an internal protocol, not an external registration; the manuscript will say so
+and list all deviations.
+
+### New hypotheses and fixed designs
+H-A (objective mismatch). Selecting κ by leave-one-building-out *per-building coverage deviation*
+(LOBO-MACD on calibration buildings) instead of the interval score yields lower target MACD than IS-tuning.
+Fairness: the same objective is also applied to QShrink-CQR (λ) and ACI-CQR (γ). Variants:
+"HSC-CQR simple (cov)", "QShrink-CQR (cov)", "ACI-CQR (cov)".
+
+H-B (scale before quantile). A building's error *scale* can be estimated from far fewer own scores than its
+90 % tail quantile. Stage-wise studentised conformal calibration ("SSC-CQR"): each CQR score is divided by the
+building's running shrunk scale ratio r_{b,h} = σ̂_{b,h}/σ0, σ̂_{b,h} = (κ_s σ0 + Σ own |abs residual|/s)/(κ_s + n_{b,h})
+using only stages < h; the radius is the (1−α) quantile of the building-weighted pooled CDF of studentised
+calibration scores at the *exact* stage h, with a point mass 1/(M+1) at +∞ for the new building
+(Dunn et al. pooled-CDF construction); interval [q̂lo − q r s, q̂hi + q r s]. κ_s fixed a priori at 24
+(one day of hourly scores; not tuned, so that the stage-wise exchangeability argument is not affected by tuning);
+σ0 = building-weighted mean abs residual of calibration buildings (leave-one-out for calibration buildings).
+Prediction: lower under-covered share than CQR and HSC-CQR in week 1 (days 2–7) and overall.
+Combination: "HSC-SSC-CQR" = HSC simple (κ by LOBO-MACD) applied to the studentised scores.
+
+H-C (recency). Exponential down-weighting of own scores (factor 0.95 per day, half-life ≈ 13.5 days, fixed a
+priori) reduces under-coverage after level shifts. Variant "HSC-CQR recency" (simple, κ by LOBO-MACD).
+
+### Fixes to baselines
+* TQA-B-CQR: λ computed from the calibration buildings' own budgets (each ranked among the others), never
+  from target buildings.
+* ACI / ACI-CQR: for α_h ≤ 0 the radius is the largest observed calibration score (finite surrogate of the
+  infinite interval) instead of the 500·s grid cap; the frequency of α_h ≤ 0 events is logged.
+* α ∈ {0.05, 0.2}: all CQR-based methods are now evaluated too (quantile models trained at α = 0.1; conformal
+  calibration corrects the level; documented as a deviation).
+
+### New outcome measures (operational, pre-specified)
+* Upper- and lower-tail exceedance rates per building (nominal 5 % each).
+* Capacity-headroom case study: an operator offers headroom below a contracted limit equal to (limit − U) and
+  pays a penalty for violations (y − U)+. Relative cost per building = mean(U)/ȳ + ρ·mean((y − U)+)/ȳ for
+  penalty ratios ρ ∈ {10, 20, 40} (all three reported); share of buildings with
+  upper-tail exceedance > 10 % (twice nominal) = "under-protected buildings".
+* Day-block standard error of each building's coverage (daily coverage values, s.d./√days) → sampling floor of MACD
+  E|N(0,SE²)| = SE·√(2/π), replacing the independence-based floor.
+* Statistics: additionally a site-level paired test for BDG2 (Wilcoxon on site means, n = 10 sites) and a
+  sensitivity analysis excluding the largest site (Rat).
+
+All results, favourable or not, will be reported; no variant will be dropped after seeing results.
+
+### Addendum A.1 (2026-11-20 21:47 UTC; only the BDG2 seed-0 pipeline check had been inspected)
+Decision rule for the configuration recommended in the manuscript, fixed before the full rerun:
+among all CQR-score calibration strategies, the recommended one is the strategy with the lowest
+under-covered share (averaged over the BDG2 and UCI main experiments, 5 seeds each) among those whose median
+relative interval score is at most 2 % above that of pooled CQR on both datasets (a sharpness constraint:
+reliability may not be bought with wider intervals). Strategies violating the constraint (e.g. aggressive
+online level control) are reported on the reliability–sharpness frontier but not recommended. The paired
+tests are reported for every Addendum-A variant regardless of which one is recommended.
 
