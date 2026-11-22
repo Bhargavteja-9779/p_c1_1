@@ -329,6 +329,88 @@ def ms_robgen(s):
            "MLP-QR is not available for the weak-forecaster condition ('–').")
 
 
+def ms_main_building():
+    """Main table, one unit per building (averaged over seeds), with the oracle reference and sharpness tails."""
+    wf, tf = os.path.join(TAB, "T2_weekly.csv"), os.path.join(TAB, "T2_tails.csv")
+    if not (os.path.exists(wf) and os.path.exists(tf)):
+        return
+    w, t = pd.read_csv(wf), pd.read_csv(tf)
+    meths = [primary(), "HSC-CQR recency (capped)", "HSC-CQR recency (delay 1d)", "QShrink-CQR recency",
+             "QShrink-CQR (cov)", "HSC-SSC-CQR", "HSC-CQR simple (cov)", "HSC-CQR fixed-κ", "ACI-CQR (cov)",
+             "ACI-CQR", "Self-CQR recency", "Self-CQR", "TQA-B-CQR", "GHCP-CQR", "CQR"]
+    seen, rows = set(), []
+    pc = lambda x: f"{100 * x:.1f}"
+    for ds in ["BDG2", "UCI"]:
+        for m in meths:
+            if (ds, m) in seen:
+                continue
+            seen.add((ds, m))
+            a, b = w[(w.dataset == ds) & (w.method == m)], t[(t.dataset == ds) & (t.method == m)]
+            if not len(a) or not len(b):
+                continue
+            a, b = a.iloc[0], b.iloc[0]
+            rows.append({"Data": ds, "Method": m, "Under-cov. window (%)": pc(a.under),
+                         "Under-cov. wk 1 (%)": pc(a.under_wk1), "Under-cov. per wk 2–8 (%)": pc(a.wk_under_late),
+                         "Any wk < 0.80 (%)": pc(a.anyweek_80), "Rel. IS median": f"{b.rel_IS_median:.3f}",
+                         "Rel. IS mean": f"{b.rel_IS_mean:.3f}", "Width ratio P99 / max": f"{b.width_ratio_p99:.2f} / {b.width_ratio_max:.1f}"})
+        r = w[w.dataset == ds].iloc[0]
+        rows.append({"Data": ds, "Method": "Oracle reference", "Under-cov. window (%)": pc(r.ref_under_win),
+                     "Under-cov. wk 1 (%)": pc(r.ref_under_week), "Under-cov. per wk 2–8 (%)": pc(r.ref_under_week),
+                     "Any wk < 0.80 (%)": "–", "Rel. IS median": "–", "Rel. IS mean": "–", "Width ratio P99 / max": "–"})
+    nb, nu = (int(w[w.dataset == d].n_buildings.iloc[0]) for d in ("BDG2", "UCI"))
+    _write("MS3_main", pd.DataFrame(rows),
+           f"Per-building reliability and sharpness (random-building protocol, nominal 90 %; unit = building, metrics "
+           f"averaged over the seeds in which it is a target: {nb} BDG2 buildings, {nu} UCI clients). Under-cov.: "
+           "share of buildings with coverage < 0.85 over the 56-day window, in the first week, and per week in weeks "
+           "2–8 (mean over weeks); Any wk < 0.80: share with at least one week below 0.80. Oracle reference: share "
+           "expected for a building that is perfectly calibrated but has the observed serial dependence of misses "
+           "(7-day moving-block bootstrap of miss indicators re-centred at 0.90; method-independent). Rel. IS: interval "
+           "score divided by the building's mean load (median and mean over buildings). Width ratio: interval width "
+           "relative to pooled CQR for the same building and seed (99th percentile / maximum). All strategies use the "
+           "same LightGBM quantile models and CQR scores; '(cov)': parameter selected by the constrained "
+           "leave-one-building-out objective; 'delay 1d': own scores used one day later.")
+
+
+def ms_robust_building():
+    """Stress tests (BDG2, 3 seeds, unit = building): window and week-1 shares, under-protection, paired tests."""
+    f = os.path.join(TAB, "T2_robustness.csv")
+    if not os.path.exists(f):
+        return
+    r = pd.read_csv(f)
+    p = primary()
+    labels = [("noise5", "Meter noise 5 %"), ("noise15", "Meter noise 15 %"), ("spikes2", "Spikes (2 % of hours)"),
+              ("missing20", "Missing hours 20 %"), ("missing40", "Missing hours 40 %"), ("outage1-3d", "Outages 1–3 days"),
+              ("shift+40", "Level shift +40 % (day 28)"), ("shift-40", "Level shift −40 % (day 28)"),
+              ("shift+40@d3-14", "Level shift +40 % (random day 3–14)"), ("ramp+40", "Ramp +40 % (days 14–42)"),
+              ("calpool10", "Calibration pool 10 %"), ("calpool25", "Calibration pool 25 %"),
+              ("calpool50", "Calibration pool 50 %"), ("weak-forecaster", "Weak forecaster")]
+    comp = ["QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR"]
+    pc = lambda x: f"{100 * x:.1f}"
+    rows = []
+    for k, lab in labels:
+        x = r[r.perturb == k]
+        a = x[x.method == p]
+        if not len(a):
+            continue
+        a = a.iloc[0]
+        row = {"Condition": lab, f"{p}": f"{pc(a.under)} ± {pc(a.under_sd_seeds)}"}
+        for m in comp:
+            y = x[x.method == m]
+            if len(y):
+                y = y.iloc[0]
+                pv = "" if pd.isna(y.p_mcnemar) else ("*" if y.p_mcnemar < 0.05 else "")
+                row[m] = f"{pc(y.under)}{pv}"
+        row["Wk 1: layer / CQR"] = f"{pc(a.under_wk1)} / {pc(x[x.method == 'CQR'].under_wk1.iloc[0])}"
+        row["Under-prot.: layer / CQR"] = f"{pc(a.underprot)} / {pc(x[x.method == 'CQR'].underprot.iloc[0])}"
+        rows.append(row)
+    _write("MS3_robust", pd.DataFrame(rows),
+           f"Stress tests on BDG2 (3 seeds; unit = building). Columns 2–5: share of buildings (%) with coverage < 0.85 "
+           f"over the 56-day window ({p}: mean ± s.d. over seeds, the s.d. reflecting split variability); * = paired "
+           f"McNemar test against {p}, p < 0.05. Wk 1: under-covered share in the first week. Under-prot.: share of "
+           "buildings whose upper bound is exceeded in more than 10 % of hours (nominal 5 %). Perturbations are "
+           "applied to the target buildings only.")
+
+
 def run():
     s = pd.read_csv(os.path.join(RES, "seed_level_metrics.csv"))
     s = s[~s.exp.isna()]
@@ -342,6 +424,8 @@ def run():
     cost_table()
     if (s.method == "HSC-CQR recency").any():
         ms_main_combined(s)
+        ms_main_building()
+        ms_robust_building()
         ms_tests_primary(st)
         ms_operational(s)
         ms_robgen(s)

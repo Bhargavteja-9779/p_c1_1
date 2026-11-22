@@ -224,11 +224,99 @@ def compute(mode="full"):
             if d in ea:
                 v[f"ea_{d}_rho_CQR"] = f"{ea[d]['rho_cov_cvrmse_CQR']:.2f}"
                 v[f"ea_{d}_rho_primary"] = f"{ea[d]['rho_cov_cvrmse_' + ea[d]['primary']]:.2f}"
+    _extended_tokens(v)
     v["ERROR_ANALYSIS_TEXT"] = _error_text()
     v["ABSTRACT"] = _abstract(v)
     v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"
     json.dump(v, open(os.path.join(RES, f"manuscript_values{tag}.json"), "w"), indent=1, default=str)
     return v
+
+
+def _extended_tokens(v):
+    """Tokens from the extended analyses (per-building unit, averaged over seeds): tables/T2_*.csv,
+    results/extended_analysis.json and results/selection.json."""
+    tab = os.path.join(ROOT, "tables")
+    pc = lambda x: "–" if pd.isna(x) else f"{100 * x:.1f}%"
+    f = os.path.join(tab, "T2_weekly.csv")
+    if os.path.exists(f):
+        w = pd.read_csv(f)
+        for _, r in w.iterrows():
+            k = f"x_{r.dataset}_{_san(r.method)}"
+            for c in ["under", "under_wk1", "wk_under_late", "anyweek_85", "anyweek_80", "anyweek_75"]:
+                v[f"{k}_{c}"] = pc(r[c])
+            v[f"{k}_wk_under_n"] = f"{r.wk_under_n:.1f}"
+            for c in ["excess_win", "excess_wk1", "excess_wk2_8", "excess_anyweek"]:
+                v[f"{k}_{c}"] = f"{100 * r[c]:+.1f}"
+                v[f"{k}_{c}_ci"] = str(r[c + "_ci"])
+            v[f"x_{r.dataset}_ref_win"] = pc(r.ref_under_win)
+            v[f"x_{r.dataset}_ref_week"] = pc(r.ref_under_week)
+            v[f"x_{r.dataset}_ref_anyweek"] = pc(r.ref_anyweek)
+    f = os.path.join(tab, "T2_tails.csv")
+    if os.path.exists(f):
+        t = pd.read_csv(f)
+        for _, r in t.iterrows():
+            k = f"tl_{r.dataset}_{_san(r.method)}"
+            for c in ["rel_IS_median", "rel_IS_mean", "rel_IS_early_median", "cost20_mean", "cost20_worst10"]:
+                v[f"{k}_{c}"] = f"{r[c]:.3f}"
+            v[f"{k}_p99"] = f"{r.width_ratio_p99:.2f}"
+            v[f"{k}_max"] = f"{r.width_ratio_max:.1f}"
+            v[f"{k}_n5x"] = f"{int(r.n_width_gt5x)}"
+            v[f"{k}_underprot"] = pc(r.underprot)
+        for d in ["BDG2", "UCI"]:
+            c = t[(t.dataset == d) & (t.method == "CQR")]
+            if len(c):
+                c = c.iloc[0]
+                for _, r in t[t.dataset == d].iterrows():
+                    k = f"tl_{d}_{_san(r.method)}"
+                    v[f"{k}_meanIS_delta"] = f"{100 * (r.rel_IS_mean / c.rel_IS_mean - 1):+.1f}%"
+                    v[f"{k}_medIS_delta"] = f"{100 * (r.rel_IS_median / c.rel_IS_median - 1):+.1f}%"
+                    v[f"{k}_worst10_delta"] = f"{100 * (r.cost20_worst10 / c.cost20_worst10 - 1):+.1f}%"
+                    v[f"{k}_cost20_delta"] = f"{100 * (r.cost20_mean / c.cost20_mean - 1):+.1f}%"
+    f = os.path.join(tab, "T2_threshold.csv")
+    if os.path.exists(f):
+        for _, r in pd.read_csv(f).iterrows():
+            for c in ["under_2pt", "under_3pt", "under_5pt", "under_10pt"]:
+                v[f"th_{r.dataset}_{_san(r.method)}_{c}"] = pc(r[c])
+    ef = os.path.join(RES, "extended_analysis.json")
+    if os.path.exists(ef):
+        e = json.load(open(ef))
+        for r in e.get("confirmatory", []):
+            k = f"cf_{r['dataset']}_{_san(r['baseline'])}_{r['metric']}"
+            if r["metric"] == "log_rel_IS":
+                v[k + "_ratio"] = f"{100 * (np.exp(r['diff']) - 1):+.2f}%"
+                v[k + "_ci"] = "[" + ", ".join(f"{100 * (np.exp(x) - 1):+.2f}%" for x in r["ci95"]) + "]"
+                v[k + "_tost"] = "equivalent" if r["tost_equiv_2pct"] else "not equivalent"
+            else:
+                v[k + "_diff"] = f"{100 * r['diff']:+.1f}"
+                v[k + "_ci"] = "[" + ", ".join(f"{100 * x:+.1f}" for x in r["ci95"]) + "]"
+                v[k + "_better"] = f"{int(r['discordant_better'])}"
+                v[k + "_worse"] = f"{int(r['discordant_worse'])}"
+            v[k + "_p"] = _p(r["p_holm"])
+            v[k + "_n"] = f"{int(r['n_buildings'])}"
+        for d, o in e.get("offset", {}).items():
+            v[f"off_{d}_offset"] = f"{o['offset']:+.4f}"
+            v[f"off_{d}_under"] = pc(o["under"])
+            v[f"off_{d}_under_removed"] = pc(o["under_offset_removed"])
+    sf = os.path.join(RES, "selection.json")
+    if os.path.exists(sf):
+        se = json.load(open(sf))
+        v["sel_A1"] = se["A1_both"]
+        v["sel_A1_a5"] = se.get("A1_alpha0.05", "–")
+        v["sel_A1_a20"] = se.get("A1_alpha0.2", "–")
+        v["sel_nested"] = se.get("nested_BDG2_pick", "–")
+        nc = se.get("nested_confirmation", {})
+        v["sel_nested_all_rank1"] = "yes" if nc and all(x["rank_of_pick"] == 1 for x in nc.values()) else "no"
+        bf = se.get("bootstrap_selection_freq", {})
+        if bf:
+            v["sel_boot_primary"] = f"{100 * bf.get(se['A1_both'], 0):.1f}%"
+    f = os.path.join(tab, "T2_matched_kappa.csv")
+    if os.path.exists(f):
+        mk = pd.read_csv(f)
+        for _, r in mk.iterrows():
+            for c in mk.columns[2:]:
+                met, fam = [x.strip() for x in c.split("|")]
+                rho = fam.split("decay ")[1].rstrip(")")
+                v[f"mk_{r.dataset}_{met}_rho{rho}_k{r.param:g}"] = pc(r[c])
 
 
 def _p(p):
