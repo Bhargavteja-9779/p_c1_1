@@ -25,7 +25,8 @@ UW = [f"up_w{i}" for i in range(1, NW + 1)]
 
 
 def load():
-    fs = [f for f in glob.glob(os.path.join(RES, "ttsc", "*.csv")) if not f.endswith("_tune.csv")]
+    fs = [f for f in glob.glob(os.path.join(RES, "ttsc", "*.csv"))
+          if not f.endswith("_tune.csv") and os.path.getsize(f) > 0]
     return pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
 
 

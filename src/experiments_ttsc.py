@@ -149,8 +149,9 @@ def run_one(pid, obj, alpha, cols, PT=None, PC=None, meta_idx=None, dsT=None):
                      gamma_edge=info["gamma_edge"]).items():
         df[k] = v
     os.makedirs(OUT, exist_ok=True)
-    df.to_csv(f, index=False)
     gtab.assign(part=pid).to_csv(os.path.join(OUT, pid + "_tune.csv"), index=False)
+    df.to_csv(f + ".tmp", index=False)
+    os.replace(f + ".tmp", f)  # atomic: an interrupted run never leaves a truncated part behind
     ex._log(f"ttsc {pid}: kappa={info['kappa']} gamma={info['gamma']} n={nt} ({time.time() - t0:.0f}s)",
             "ttsc.log")
 
