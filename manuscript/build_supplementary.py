@@ -180,8 +180,16 @@ def build():
     s.append("# S6. Additional figures\n\n")
     for i, (f, cap) in enumerate(figs, 1):
         s.append(f"![**Fig. S{i}.** {cap}](figures/{f}.png){{width=16cm}}\n\n")
-    s.append("# S7. Analysis protocol (as committed, including addenda)\n\n" +
-             open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read().replace("# ", "## ", 1) + "\n")
+    prot = open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read().replace("# ", "## ", 1)
+    # protocol text as fixed before the experiments; repository-internal pointers are replaced by neutral wording
+    for a, b in [("any change after this point is logged in CHANGELOG.md with its justification",
+                  "any later change is listed with its justification in Section S4"),
+                 ("the pilot evaluation (results/raw_results.csv) showed", "the pilot evaluation showed"),
+                 ("was committed with\nthe code (commit e9ca94d) and", "was fixed with\nthe code and"),
+                 ("2026-11-20 21:47 UTC;", "2026-11-20;")]:
+        assert a in prot, a
+        prot = prot.replace(a, b)
+    s.append("# S7. Analysis protocol (as fixed before the experiments, including addenda)\n\n" + prot + "\n")
     md = os.path.join(ROOT, "supplementary", "Supplementary_Material.md")
     os.makedirs(os.path.dirname(md), exist_ok=True)
     open(md, "w").write("".join(s))

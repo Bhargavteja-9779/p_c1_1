@@ -14,6 +14,10 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **FINAL (2026-11-22 14:20 UTC, branch claude/funny-mccarthy-o7embb):** final checks done; S7 protocol text neutralised
+  (no file paths/commit ids), graphical abstract (scripts/graphical_abstract.py), declaration of interest, separate
+  figures, neutral document metadata; package Target_Journal_Submission/ + AAE_Submission_Package.zip. Trace scan clean
+  except the AI-use declaration. Remaining: author placeholders only (SUBMISSION_CHECKLIST.md).
 - **v4 DONE (2026-11-22 12:45 UTC):** manuscript v4 with TTSC, fair weekly-tuned baselines, window sensitivity,
   internal editor/referee review resolved (REVIEW_HISTORY), package rebuilt (Target_Journal_Submission, 6 files, code on
   request). Remaining for the author: placeholders (second author, affiliations, e-mail). Earlier v4 note:

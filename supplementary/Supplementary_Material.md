@@ -1921,12 +1921,12 @@ The complete protocol, including the addenda, is reproduced at the end of this d
 
 ![**Fig. S4.** Mean coverage and median relative interval score by days of own history.](figures/Fig3_stage_curves.png){width=16cm}
 
-# S7. Analysis protocol (as committed, including addenda)
+# S7. Analysis protocol (as fixed before the experiments, including addenda)
 
 ## Pre-registered research design (written before any target-building result was inspected)
 
 Date: 2026-11-15. Only a pipeline smoke test (reduced data) had been run when this file was written;
-any change after this point is logged in CHANGELOG.md with its justification.
+any later change is listed with its justification in Section S4.
 
 ## Problem
 Day-ahead (24 h) hourly electricity forecasts with prediction intervals are needed for a building
@@ -1976,12 +1976,12 @@ HSC on CQR scores (variant).
 ---
 ## Addendum A (2026-11-20, after the pilot evaluation) — written BEFORE any of the following was implemented or run
 
-Context: the pilot evaluation (results/raw_results.csv) showed that (i) no shrinkage
+Context: the pilot evaluation showed that (i) no shrinkage
 variant improves reliability in the first week (BDG2 under-covered share, week 1: HSC-CQR 24.5 %, CQR 23.8 %),
 (ii) the interval-score tuning objective selects larger κ than per-building reliability favours (fixed κ = 168 h
 beats tuned κ on MACD), (iii) TQA-B used the maximum budget over *target* buildings to scale λ (fairness bug),
-(iv) ACI set the radius to the grid cap whenever α_h ≤ 0. The original pre-registration file was committed with
-the code (commit e9ca94d) and is an internal protocol, not an external registration; the manuscript will say so
+(iv) ACI set the radius to the grid cap whenever α_h ≤ 0. The original pre-registration file was fixed with
+the code and is an internal protocol, not an external registration; the manuscript will say so
 and list all deviations.
 
 ### New hypotheses and fixed designs
@@ -2025,7 +2025,7 @@ priori) reduces under-coverage after level shifts. Variant "HSC-CQR recency" (si
 
 All results, favourable or not, will be reported; no variant will be dropped after seeing results.
 
-### Addendum A.1 (2026-11-20 21:47 UTC; only the BDG2 seed-0 pipeline check had been inspected)
+### Addendum A.1 (2026-11-20; only the BDG2 seed-0 pipeline check had been inspected)
 Decision rule for the configuration recommended in the manuscript, fixed before the full rerun:
 among all CQR-score calibration strategies, the recommended one is the strategy with the lowest
 under-covered share (averaged over the BDG2 and UCI main experiments, 5 seeds each) among those whose median

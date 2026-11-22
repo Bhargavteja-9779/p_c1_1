@@ -1,0 +1,13 @@
+Advances in Applied Energy - upload guide (this file is not uploaded)
+
+01_Manuscript.docx              -> Manuscript (01_Manuscript.pdf: layout check only)
+02_Title_page.docx              -> Title page
+03_Highlights.docx              -> Highlights
+04_Cover_letter.docx            -> Cover letter
+05_Supplementary_Material.docx  -> Supplementary material
+06_Graphical_abstract.pdf/.png  -> Graphical abstract
+07_Declaration_of_interest.docx -> Declaration of interest
+08_Figures/Fig1..Fig8           -> Figures (numbered as in the manuscript)
+
+Before uploading, replace the placeholders: [Second Author], affiliations, postal address,
+e-mail (manuscript front matter, title page, cover letter) and the date in the cover letter.
