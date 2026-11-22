@@ -14,6 +14,9 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **2026-11-22 01:45 UTC: CHAIN DONE (23:00 UTC, no failures).** Complete calibration parts (258 files) saved as
+  results/parts_snapshot/parts_c2_full.tgz.part* (restore: `cat ...part* | tar xzf - -C results`). Sensitivity + frontier
+  done. NEXT: timing benchmark (needs trained caches; if lost, skip/retrain), run_all --skip-experiments, manuscript step 4.
 - **LATEST (2026-11-21 20:55 UTC, dazzling-ramanujan session): most advanced branch is now
   `claude/dazzling-ramanujan-j9ysli`** (fast-forwarded from sharp-cori). Deps installed, 17 tests pass, parts snapshot
   17:56 restored (222 parts), `scripts/run_c2_stage.sh` restarted 20:52 UTC as harness-tracked background task.
