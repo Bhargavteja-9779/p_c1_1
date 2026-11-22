@@ -10,9 +10,9 @@ The authors declare that they have no known competing financial interests or per
 
 During the preparation of this work the authors used Claude (Anthropic) to assist with literature screening, code development, running the experiments, and drafting and editing the text. All reported numbers are generated automatically from the released code and result files. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
 
-# Data and code availability
+# Data availability
 
-Both datasets are public. BDG2 (CC-BY-4.0) is available at https://github.com/buds-lab/building-data-genome-project-2 [@miller2020bdg2], and ElectricityLoadDiagrams20112014 (CC-BY-4.0) at https://doi.org/10.24432/C58C86 [@trindade2015]. The complete code (data download and cleaning, models, the calibration layer, all baselines, experiments, statistics, figures, tables and this manuscript's numbers) is provided as supplementary material and will be released in a public repository [repository URL to be inserted upon acceptance]. `python run_all.py --mode full` reproduces all results.
+Both datasets are public. BDG2 (CC-BY-4.0) is available at https://github.com/buds-lab/building-data-genome-project-2 [@miller2020bdg2], and ElectricityLoadDiagrams20112014 (CC-BY-4.0) at https://doi.org/10.24432/C58C86 [@trindade2015]. The code used in this study will be made available on request.
 
 # Funding
 

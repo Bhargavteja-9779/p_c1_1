@@ -28,24 +28,23 @@ def build(mode="full"):
     title = re.search(r'title:\s*"(.*?)"', open(os.path.join(HERE, "sections", "01_front.md")).read()).group(1)
     P(f"We are pleased to submit our manuscript entitled “{title}” for consideration as a Research Article in "
       "Advances in Applied Energy.")
-    P("Demand-response baselines, flexibility offers and measurement-and-verification act on day-ahead load "
-      "intervals of individual buildings, and these intervals are needed most when a building has just been "
-      "connected to a platform and has almost no data. We evaluate calibration strategies building by building "
-      "during this onboarding period. Pooled conformalised quantile regression, although close to nominal on "
-      f"average, leaves {v['x_BDG2_CQR_under']} of newly metered buildings (Building Data Genome 2) and "
-      f"{v['x_UCI_CQR_under']} of new electricity clients (UCI, Portugal) with coverage more than five points below "
-      "the 90 % target over their first eight weeks. Shrinking each building's calibration toward its own "
-      f"recency-weighted scores reduces these shares to {v['x_BDG2_HSCCQR_recency_under']} and "
-      f"{v['x_UCI_HSCCQR_recency_under']} at an equivalent interval score, and brings first-week reliability to the "
-      "level of a perfectly calibrated building. We also report what the window metric hides: weekly coverage of "
-      "single buildings remains noisy for every strategy, which operators need to budget for.")
+    P("Aggregators and demand-response programmes check the performance of each enrolled building in each "
+      "settlement period, so they need day-ahead load intervals that are reliable building by building and week by "
+      "week, from the first days after a building is metered. We show that pooled conformal calibration, although "
+      f"well calibrated on average, leaves {v['tt_BDG2_CQR_wk_late']} of newly metered buildings (Building Data "
+      f"Genome 2) and {v['tt_UCI_CQR_wk_late']} of new electricity clients (UCI, Portugal) under-covered in a "
+      "typical week. We propose two-timescale shrinkage conformal calibration (TTSC), which combines a prior learned "
+      "from previously onboarded buildings with a per-building correction from the last week's misses. It reduces "
+      f"these shares to {v['tt_BDG2_TTSC_wk_late']} and {v['tt_UCI_TTSC_wk_late']}, below what perfectly calibrated "
+      "static intervals would achieve, and reduces failed weekly performance checks of capacity-headroom offers, "
+      "with results confirmed on runs held out from the method's design, on unseen sites, after cross-country "
+      "transfer and in fourteen stress tests.")
     P("We believe the work fits the journal's focus on applied energy innovation and complements recent "
       "Advances in Applied Energy papers on load forecasting, probabilistic forecasting and transfer learning for "
       "buildings. The study uses two public datasets "
-      f"({v['n_bdg2_plus_uci']} buildings and clients), a committed analysis protocol, one tuning rule for all "
-      "strategies, nested selection, per-building confirmatory tests with site-cluster confidence intervals, a "
-      "method-independent reference for sampling noise, leave-site-out and cross-country transfer and fourteen "
-      "stress tests. All code and machine-generated results are provided for full reproducibility.")
+      f"({v['n_bdg2_plus_uci']} buildings and clients), one tuning rule for all strategies, per-building "
+      "confirmatory tests with site-cluster confidence intervals and a method-independent reference for sampling "
+      "noise. The code will be made available on request.")
     P("We confirm that this manuscript is original, has not been published previously, and is not under "
       "consideration for publication elsewhere. All authors have approved the manuscript and agree with its "
       "submission. The study uses only publicly available, anonymised meter data and raised no ethical issues "

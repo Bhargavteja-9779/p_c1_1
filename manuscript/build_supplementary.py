@@ -51,8 +51,8 @@ def build():
     import values as V
     vals = json.load(open(os.path.join(ROOT, "results", "manuscript_values.json")))
     rec = vals.get("PRIMARY", "HSC-CQR recency")
-    s = ["---\ntitle: \"Supplementary material: Reliable day-ahead load intervals for newly metered building"
-         "s: shrinkage conformal calibration evaluated building by building\"\n---\n"]
+    s = ["---\ntitle: \"Supplementary material: Two-timescale conformal calibration for week-by-week re"
+         "liable day-ahead load intervals of newly enrolled buildings\"\n---\n"]
     s.append("# S1. Input features of the global forecasters\n\n")
     s.append(_tab("MS_features", "Table S1. Input features (identical for LightGBM and MLP models)."))
     s.append("# S2. Refinements examined: onboarding-stage matching and similarity-localised population distribution\n\n"
@@ -157,6 +157,20 @@ def build():
         s.append(f"**Table S{n}. Stage-wise coverage (coverage over all target buildings at each onboarding day, mean "
                  "over five seeds; nominal 0.90). The stage-wise guarantee of SSC-CQR assumes exchangeable calibration "
                  "and target periods, which does not hold in this protocol.**\n\n" + "\n".join(rows) + "\n\n")
+    n += 1
+    for name, cap in [("TT_tests", "TTSC: paired per-building comparisons (difference TTSC minus baseline in shares; 95 % "
+                       "site-cluster (BDG2) or building (UCI) bootstrap CI; Wilcoxon signed-rank; Holm over the declared "
+                       "family; 'seeds 2–4' = held-out runs)"),
+                      ("TT_main", "TTSC and comparators, main protocol (90 %), all metrics, all and held-out seeds"),
+                      ("TT_other", "TTSC and comparators under all other protocols, stress tests and nominal levels"),
+                      ("TT_params", "Pseudo-count κ and feedback gain γ selected by leave-one-building-out, per run"),
+                      ("MS3_main", "Single-timescale strategies: per-building reliability and sharpness (90 %)"),
+                      ("MS3_robust", "Single-timescale strategies: stress tests on BDG2"),
+                      ("MS2_operational", "Single-timescale strategies: capacity-headroom cost")]:
+        f = os.path.join(ROOT, "tables", name + ".md")
+        if os.path.exists(f):
+            s.append(_tab(name, f"Table S{n}. {cap}."))
+            n += 1
     figs = [("Fig7_robustness", "Robustness on BDG2 (MACD and under-covered share)."),
             ("Fig8_generalisation", "Generalisation (MACD and median relative interval score)."),
             ("Fig9_sensitivity", "Sensitivity of the stage-matched, similarity-localised variant to κ and K."),

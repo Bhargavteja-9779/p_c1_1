@@ -1,5 +1,5 @@
 ---
-title: "Reliable day-ahead load intervals for newly metered buildings: shrinkage conformal calibration evaluated building by building"
+title: "Two-timescale conformal calibration for week-by-week reliable day-ahead load intervals of newly enrolled buildings"
 ---
 
 **Authors:** P N Bhargav Teja^a,\*^, [Second Author]^b^
@@ -10,14 +10,14 @@ title: "Reliable day-ahead load intervals for newly metered buildings: shrinkage
 
 # Highlights
 
-- Pooled conformal intervals leave many newly metered buildings under-covered
-- Shrinkage toward each building's own scores removes most of this excess
-- Under-covered buildings fall from {{x_BDG2_CQR_under}} to {{x_BDG2_HSCCQR_recency_under}} at equivalent interval score
-- First-week reliability reaches the level of a perfectly calibrated building
-- Weekly coverage stays noisy; tested on {{n_bdg2_plus_uci}} buildings and clients
+- Flexibility programmes need load intervals reliable per building and per week
+- Pooled conformal intervals leave many newly enrolled buildings under-covered
+- Two-timescale calibration: population prior plus 7-day per-building feedback
+- Weekly under-coverage falls below the level of perfectly calibrated intervals
+- Confirmed on held-out runs, unseen sites, transfer and 14 stress tests
 
 # Abstract
 
 {{ABSTRACT}}
 
-**Keywords:** probabilistic load forecasting; conformal prediction; cold start; building energy; demand response; prediction intervals
+**Keywords:** probabilistic load forecasting; conformal prediction; cold start; demand response; building energy flexibility; adaptive calibration

@@ -11,6 +11,7 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "Target_Journal_Submission")
 M = os.path.join(ROOT, "manuscript")
+WITH_CODE = False  # code available on request (data availability statement)
 
 UPLOAD = [(os.path.join(M, "Final_Manuscript.docx"), "01_Manuscript.docx"),
           (os.path.join(M, "Final_Manuscript.pdf"), "01_Manuscript.pdf"),
@@ -60,6 +61,9 @@ def main():
     os.makedirs(OUT)
     for src, name in UPLOAD:
         shutil.copy2(src, os.path.join(OUT, name))
+    if not WITH_CODE:  # code is available on request: no code archive in the upload set
+        print(f"packaged {len(UPLOAD)} upload files into {OUT}")
+        return
     zpath = os.path.join(OUT, "06_Code_and_data.zip")
     hits = []
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
