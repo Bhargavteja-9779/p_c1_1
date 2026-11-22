@@ -27,8 +27,10 @@ def include_tables(text):
     """<<TABLE:MS_name|tbl:label>> -> caption line + generated markdown table (tables/MS_name.*)."""
     def rep(m):
         name, lab = m.group(1), m.group(2)
-        md = open(os.path.join(ROOT, "tables", name + ".md")).read().strip()
-        cap = open(os.path.join(ROOT, "tables", name + ".caption.txt")).read().strip()
+        d = os.path.join(HERE, "tables_static") if os.path.exists(
+            os.path.join(HERE, "tables_static", name + ".md")) else os.path.join(ROOT, "tables")
+        md = open(os.path.join(d, name + ".md")).read().strip()
+        cap = open(os.path.join(d, name + ".caption.txt")).read().strip()
         return f"Table: {cap} {{#{lab}}}\n\n{md}\n"
     return re.sub(r"<<TABLE:([\w\-.]+)\|(tbl:[\w-]+)>>", rep, text)
 

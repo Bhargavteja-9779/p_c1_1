@@ -1,0 +1,1 @@
+Positioning of this study relative to the closest calibration approaches. ✓ = feature present; – = absent; n/s = not stated in the source. 'Prior from other units': calibration information learned from units other than the one being calibrated; 'Online feedback': level or quantile updated from the unit's own observed misses.
