@@ -477,8 +477,8 @@ def ms_ttsc():
             continue
         v = lambda m, k: x[x.method == m][k].iloc[0] if (x.method == m).any() else np.nan  # noqa: E731
         rows.append({"Condition": lab,
-                     "Wk 2–8: TTSC / shrinkage / ACI / CQR (%)":
-                         " / ".join(pc(v(m, "wk_late")) for m in ["TTSC", "HSC-CQR recency (capped)", "ACI-CQR (cov)", "CQR"]),
+                     "Wk 2–8: TTSC / shrinkage / ACI weekly-tuned / CQR (%)":
+                         " / ".join(pc(v(m, "wk_late")) for m in ["TTSC", "HSC-CQR recency (capped)", "ACI (weekly-tuned)", "CQR"]),
                      "Week 1: TTSC / CQR (%)": f"{pc(v('TTSC', 'wk1'))} / {pc(v('CQR', 'wk1'))}",
                      "Any week < target − 10 pts: TTSC / CQR (%)": f"{pc(v('TTSC', 'any_m10'))} / {pc(v('CQR', 'any_m10'))}",
                      "Breach weeks: TTSC / CQR (%)": f"{pc(v('TTSC', 'breach_wk'))} / {pc(v('CQR', 'breach_wk'))}",
@@ -486,7 +486,7 @@ def ms_ttsc():
                      "Oracle wk (%)": pc(v("TTSC", "ref_week"))})
     _write("MS5_robust", pd.DataFrame(rows),
            "Generalisation, nominal levels and stress tests (unit = building). Wk 2–8: share of buildings under-covered "
-           "in a week of weeks 2–8 (coverage < target − 5 points) for TTSC, shrinkage only, ACI and pooled CQR. Any "
+           "in a week of weeks 2–8 (coverage < target − 5 points) for TTSC, shrinkage only, weekly-tuned ACI (main, unseen-site and transfer protocols only; '–' for stress tests) and pooled CQR. Any "
            "week: share of buildings with at least one week below target − 10 points (0.80 at 90 %, as in Table 2). Breach weeks: share of "
            "building-weeks with upper-bound exceedance above twice the nominal rate. Rel. IS Δ: change of the median "
            "relative interval score of TTSC versus pooled CQR. Oracle wk: weekly reference for perfectly calibrated "

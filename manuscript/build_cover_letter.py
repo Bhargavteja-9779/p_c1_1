@@ -35,8 +35,8 @@ def build(mode="full"):
       f"Genome 2) and {v['tt_UCI_CQR_wk_late']} of new electricity clients (UCI, Portugal) under-covered in a "
       "typical week. We propose two-timescale shrinkage conformal calibration (TTSC), which combines a prior learned "
       "from previously onboarded buildings with a per-building correction from the last week's misses. It reduces "
-      f"these shares to {v['tt_BDG2_TTSC_wk_late']} and {v['tt_UCI_TTSC_wk_late']}, below what perfectly calibrated "
-      "static intervals would achieve, and reduces failed weekly performance checks of capacity-headroom offers, "
+      f"these shares to {v['tt_BDG2_TTSC_wk_late']} and {v['tt_UCI_TTSC_wk_late']}, below a static-calibration oracle "
+      "reference, and reduces failed weekly performance checks of capacity-headroom offers, "
       "with results confirmed on runs held out from the method's design, on unseen sites, after cross-country "
       "transfer and in fourteen stress tests.")
     P("We believe the work fits the journal's focus on applied energy innovation and complements recent "

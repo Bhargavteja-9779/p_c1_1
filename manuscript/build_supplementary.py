@@ -129,7 +129,7 @@ def build():
     # extended analyses (per-building unit): S16 confirmatory family, S17 weekly, S18 tails, S19 matched kappa,
     # S20 stress tests (all strategies), S21 threshold sensitivity, S22 SSC stage-wise coverage
     n += 1
-    for name, cap in [("T2_confirmatory", "Confirmatory family: recommended configuration versus pooled CQR, QShrink-CQR (cov), "
+    for name, cap in [("T2_confirmatory", "Single-timescale analysis: confirmatory family of the recommended single-timescale configuration (HSC-CQR recency) versus pooled CQR, QShrink-CQR (cov), "
                        "ACI-CQR (cov) and Self-CQR (paired share differences with 95 % site-cluster (BDG2) or building (UCI) "
                        "bootstrap CI, McNemar tests, TOST equivalence of the interval score within 2 %; Holm over the family)"),
                       ("T2_weekly", "Window, first-week and weekly under-coverage with the oracle reference and excess over it"),
@@ -166,7 +166,9 @@ def build():
                       ("TT_params", "Pseudo-count κ and feedback gain γ selected by leave-one-building-out, per run"),
                       ("MS3_main", "Single-timescale strategies: per-building reliability and sharpness (90 %)"),
                       ("MS3_robust", "Single-timescale strategies: stress tests on BDG2"),
-                      ("MS2_operational", "Single-timescale strategies: capacity-headroom cost")]:
+                      ("MS2_operational", "Single-timescale strategies: capacity-headroom cost"),
+                      ("TT_window", "TTSC: sensitivity to the feedback window W (γ re-selected for each W; mean over five "
+                       "seeds, building × seed units) and share of building-days at the radius cap")]:
         f = os.path.join(ROOT, "tables", name + ".md")
         if os.path.exists(f):
             s.append(_tab(name, f"Table S{n}. {cap}."))

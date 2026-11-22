@@ -367,11 +367,16 @@ def _ttsc_tokens(v):
                 v[f"{k}_{c}"] = pc(r[c]) if c in r else "–"
             v[f"{k}_ref_week"] = pc(r.ref_week)
         t = O[O.method == "TTSC"].set_index(["condition", "dataset"])
-        others = ["HSC-CQR recency (capped)", "ACI-CQR (cov)", "CQR", "QShrink-CQR (cov)"]
-        wins = 0
+        wins, wins_fb, n_fb = 0, 0, 0
         for idx, r in t.iterrows():
-            x = O[(O.condition == idx[0]) & (O.dataset == idx[1]) & O.method.isin(others)]
+            x = O[(O.condition == idx[0]) & (O.dataset == idx[1]) & ~O.method.str.startswith("TTSC")]
             wins += int(r.wk_late <= x.wk_late.min() + 1e-12)
+            w = x[x.method == "Windowed ACI (weekly-tuned)"]
+            if len(w):
+                n_fb += 1
+                wins_fb += int(r.wk_late <= w.wk_late.iloc[0] + 1e-12)
+        v["to_n_fb_conditions"] = f"{n_fb}"
+        v["to_n_ttsc_beats_windowed"] = f"{wins_fb}"
         v["to_n_conditions"] = f"{len(t)}"
         v["to_n_ttsc_lowest_weekly"] = f"{wins}"
         ratio = []
@@ -418,7 +423,7 @@ def _error_text():
         t.append(f"Across usage classes with at least 30 building × seed units, the largest reduction of the absolute "
                  f"coverage deviation is observed for '{b['usage_largest_reduction']}' and the smallest for "
                  f"'{b['usage_smallest_reduction']}' (Fig. [-@fig:errors]b).")
-    if "n_under" in b:
+    if False and "n_under" in b:
         s_ = (f"Of the {b['n_units']} BDG2 building × seed units, {b['n_under']} remain under-covered")
         if "shift_p" in b:
             sig = b["shift_p"] < 0.05
@@ -429,7 +434,7 @@ def _error_text():
                    + ("indicate an association with level changes" if sig else "are not conclusive") + "")
         t.append(s_ + ".")
     u = e.get("UCI", {})
-    if "n_under" in u:
+    if False and "n_under" in u:
         t.append(f"On UCI, {u['n_under']} of {u['n_units']} units remain under-covered.")
     return " ".join(t)
 
@@ -446,15 +451,14 @@ def _abstract(v):
         f"{v['n_bdg2']:,} buildings (Building Data Genome 2) and {v['n_uci']} Portuguese electricity clients, compared "
         "with pooled, online, temporal, hierarchical and shrinkage calibration on the same forecasts, pooled "
         f"conformalised quantile regression left {v['tt_BDG2_CQR_wk_late']} and {v['tt_UCI_CQR_wk_late']} of new "
-        "buildings under-covered in a typical week. TTSC reduced this to "
-        f"{v['tt_BDG2_TTSC_wk_late']} and {v['tt_UCI_TTSC_wk_late']}, below the "
-        f"{v['tt_BDG2_ref_week']} and {v['tt_UCI_ref_week']} that perfectly calibrated static intervals would show, "
-        f"and buildings with any week below 0.80 from {v['tt_BDG2_CQR_any80']} to {v['tt_BDG2_TTSC_any80']} (BDG2), "
-        "at a median interval score about 2–3 % higher. Neither timescale alone achieved this. Results held on runs "
-        "held out from the method's design, unseen sites, cross-country transfer and fourteen stress tests. In "
-        "weekly-settled capacity-headroom offers, TTSC reduced failed weekly performance checks from "
-        f"{v['tt_BDG2_CQR_breach_wk']} to {v['tt_BDG2_TTSC_breach_wk']} of building-weeks at similar average cost "
-        "and negligible computational cost."
+        f"buildings under-covered in a typical week. TTSC reduced this to {v['tt_BDG2_TTSC_wk_late']} and "
+        f"{v['tt_UCI_TTSC_wk_late']}, below a static-calibration oracle reference, and buildings with any week below "
+        f"0.80 from {v['tt_BDG2_CQR_any80']} to {v['tt_BDG2_TTSC_any80']} (BDG2), at a median interval score 3–4 % "
+        "higher. Feedback tuned for weekly reliability provided most of the weekly gain; the shrinkage prior kept "
+        "window-level and early under-coverage low. Results held on runs held out from the method's design, unseen "
+        "sites, cross-country transfer and fourteen stress tests. In stylised weekly-settled capacity-headroom offers, "
+        f"TTSC reduced failed weekly checks from {v['tt_BDG2_CQR_breach_wk']} to {v['tt_BDG2_TTSC_breach_wk']} of "
+        "building-weeks at unchanged average cost."
     )
     n = len(a.split())
     assert n <= 250, f"abstract has {n} words (> 250)"
