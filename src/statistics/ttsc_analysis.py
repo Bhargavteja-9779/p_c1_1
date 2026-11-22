@@ -46,6 +46,9 @@ def unit_metrics(d):
         breach_wk=np.nanmean(np.where(np.isnan(u), np.nan, u > (a / 2) * 2), axis=1),
         breach_any=(np.nanmax(u, axis=1) > (a / 2) * 2).astype(float),
         rel_IS=d.rel_IS.values, rel_width=d.rel_width.values,
+        cost10=(d.u_rel + 10 * d.viol_rel).values if "u_rel" in d else np.nan,
+        cost20=(d.u_rel + 20 * d.viol_rel).values if "u_rel" in d else np.nan,
+        cost40=(d.u_rel + 40 * d.viol_rel).values if "u_rel" in d else np.nan,
         ref_win=d.ref_under_win.values, ref_week=d.ref_under_week.values, ref_any=d.ref_anyweek.values))
     return out
 
@@ -76,8 +79,15 @@ def summarise(b, ds):
                          breach_wk=x.breach_wk.mean(), breach_any=x.breach_any.mean(),
                          rel_IS_median=x.rel_IS.median(), rel_IS_mean=x.rel_IS.mean(),
                          rel_width_median=x.rel_width.median(),
+                         cost10=x.cost10.mean(), cost20=x.cost20.mean(), cost40=x.cost40.mean(),
+                         cost20_worst10=x.cost20[x.cost20 >= x.cost20.quantile(0.9)].mean(),
                          ref_win=x.ref_win.mean(), ref_week=x.ref_week.mean(), ref_any=x.ref_any.mean()))
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    if len(out) and (out.method == "CQR").any():
+        c = out[out.method == "CQR"].iloc[0]
+        for k in ["cost10", "cost20", "cost40", "cost20_worst10", "rel_IS_median", "rel_IS_mean"]:
+            out[k + "_vs_cqr"] = out[k] / c[k] - 1
+    return out
 
 
 def paired(b, ds, prim="TTSC"):
@@ -157,7 +167,11 @@ def run():
     gam = df.groupby("part")[["gamma", "kappa", "gamma_edge"]].first().reset_index()
     fmt = {c: pc for c in ["under", "wk1", "wk_late", "any85", "any80", "breach_wk", "breach_any", "ref_win",
                            "ref_week", "ref_any"]}
-    fmt.update({c: f3 for c in ["rel_IS_median", "rel_IS_mean", "rel_width_median"]})
+    fmt.update({c: f3 for c in ["rel_IS_median", "rel_IS_mean", "rel_width_median", "cost10", "cost20", "cost40",
+                                "cost20_worst10"]})
+    fmt.update({c: (lambda x: "–" if pd.isna(x) else f"{100 * x:+.1f}") for c in
+                ["cost10_vs_cqr", "cost20_vs_cqr", "cost40_vs_cqr", "cost20_worst10_vs_cqr", "rel_IS_median_vs_cqr",
+                 "rel_IS_mean_vs_cqr"]})
     _md(S, "TT_main", "TTSC and comparators, main protocol (90 %), unit = building; shares in %", fmt)
     _md(T, "TT_tests", "Paired per-building comparisons of TTSC (difference TTSC minus baseline; 95 % site-cluster "
                        "(BDG2) or building (UCI) bootstrap CI; Wilcoxon signed-rank; Holm over the declared family)",

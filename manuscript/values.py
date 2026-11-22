@@ -225,6 +225,7 @@ def compute(mode="full"):
                 v[f"ea_{d}_rho_CQR"] = f"{ea[d]['rho_cov_cvrmse_CQR']:.2f}"
                 v[f"ea_{d}_rho_primary"] = f"{ea[d]['rho_cov_cvrmse_' + ea[d]['primary']]:.2f}"
     _extended_tokens(v)
+    _ttsc_tokens(v)
     v["ERROR_ANALYSIS_TEXT"] = _error_text()
     v["ABSTRACT"] = _abstract(v)
     v["n_bdg2_plus_uci"] = f"{v['n_bdg2'] + v['n_uci']:,}"
@@ -318,6 +319,75 @@ def _extended_tokens(v):
                 met, fam = [x.strip() for x in c.split("|")]
                 rho = fam.split("decay ")[1].rstrip(")")
                 v[f"mk_{r.dataset}_{met}_rho{rho}_k{r.param:g}"] = pc(r[c])
+
+
+def _ttsc_tokens(v):
+    """Tokens for the two-timescale calibration (tables/TT_*.csv, results/ttsc_summary.json).
+    Prefixes: tt_ (main, per dataset; 'BDG2h'/'UCIh' = held-out seeds 2-4), tc_ (paired tests), to_ (other
+    conditions), tp_ (parameters)."""
+    tab = os.path.join(ROOT, "tables")
+    pc = lambda x: "–" if pd.isna(x) else f"{100 * x:.1f}%"  # noqa: E731
+    dl = lambda x: "–" if pd.isna(x) else f"{100 * x:+.1f}%"  # noqa: E731
+    f = os.path.join(tab, "TT_main.csv")
+    if os.path.exists(f):
+        for _, r in pd.read_csv(f).iterrows():
+            d = r.dataset.replace(" (seeds 2–4)", "h")
+            k = f"tt_{d}_{_san(r.method)}"
+            for c in ["under", "wk1", "wk_late", "any85", "any80", "breach_wk", "breach_any"]:
+                v[f"{k}_{c}"] = pc(r[c])
+            for c in ["rel_IS_median", "rel_IS_mean", "cost20"]:
+                v[f"{k}_{c}"] = f"{r[c]:.3f}" if c in r and not pd.isna(r[c]) else "–"
+            for c in ["cost10_vs_cqr", "cost20_vs_cqr", "cost40_vs_cqr", "cost20_worst10_vs_cqr",
+                      "rel_IS_median_vs_cqr", "rel_IS_mean_vs_cqr"]:
+                v[f"{k}_{c}"] = dl(r[c]) if c in r else "–"
+            v[f"tt_{d}_ref_win"], v[f"tt_{d}_ref_week"], v[f"tt_{d}_ref_any"] = pc(r.ref_win), pc(r.ref_week), pc(r.ref_any)
+            v[f"tt_{d}_n"] = f"{int(r.n)}"
+    f = os.path.join(tab, "TT_tests.csv")
+    if os.path.exists(f):
+        for _, r in pd.read_csv(f).iterrows():
+            d = r.dataset.replace(" (seeds 2–4)", "h")
+            k = f"tc_{d}_{_san(r.baseline)}_{r.metric}"
+            if r.metric == "log_rel_IS":
+                v[k] = f"{100 * (np.exp(r['diff']) - 1):+.1f}%"
+                v[k + "_ci"] = f"[{100 * (np.exp(r.lo) - 1):+.1f}, {100 * (np.exp(r.hi) - 1):+.1f}]%"
+            else:
+                v[k] = f"{100 * r['diff']:+.1f}"
+                v[k + "_ci"] = f"[{100 * r.lo:+.1f}, {100 * r.hi:+.1f}]"
+            pp = r.p_holm if not pd.isna(r.get("p_holm", np.nan)) else r.p
+            v[k + "_p"] = _p(pp)
+            v[k + "_better"] = f"{100 * r.better:.0f}%"
+    f = os.path.join(tab, "TT_other.csv")
+    if os.path.exists(f):
+        O = pd.read_csv(f)
+        for _, r in O.iterrows():
+            cnd = r.condition.replace("robust:", "").replace("main:none:alpha=", "a").replace(":none", "")
+            cnd = cnd.replace("->", "to").replace("@", "at").replace("+", "p").replace("-", "m").replace(".", "")
+            k = f"to_{cnd}_{r.dataset}_{_san(r.method)}"
+            for c in ["under", "wk1", "wk_late", "any85", "breach_wk"]:
+                v[f"{k}_{c}"] = pc(r[c])
+            v[f"{k}_ref_week"] = pc(r.ref_week)
+        t = O[O.method == "TTSC"].set_index(["condition", "dataset"])
+        others = ["HSC-CQR recency (capped)", "ACI-CQR (cov)", "CQR", "QShrink-CQR (cov)"]
+        wins = 0
+        for idx, r in t.iterrows():
+            x = O[(O.condition == idx[0]) & (O.dataset == idx[1]) & O.method.isin(others)]
+            wins += int(r.wk_late <= x.wk_late.min() + 1e-12)
+        v["to_n_conditions"] = f"{len(t)}"
+        v["to_n_ttsc_lowest_weekly"] = f"{wins}"
+        ratio = []
+        for idx, r in t.iterrows():
+            c = O[(O.condition == idx[0]) & (O.dataset == idx[1]) & (O.method == "CQR")]
+            if len(c):
+                ratio.append(r.rel_IS_median / c.rel_IS_median.iloc[0] - 1)
+        if ratio:
+            v["to_isdelta_min"], v["to_isdelta_max"] = dl(min(ratio)), dl(max(ratio))
+    f = os.path.join(tab, "TT_params.csv")
+    if os.path.exists(f):
+        P = pd.read_csv(f)
+        m = P[P.part.str.startswith("main_") & P.part.str.endswith("_a0.1")]
+        v["tp_gamma_main"] = ", ".join(f"{g:g}" for g in sorted(m.gamma.unique()))
+        v["tp_gamma_edge_share"] = f"{100 * P.gamma_edge.mean():.0f}%"
+        v["tp_n_parts"] = f"{len(P)}"
 
 
 def _p(p):

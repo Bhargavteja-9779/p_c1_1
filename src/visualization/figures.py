@@ -454,6 +454,41 @@ def fig_weekly(s):
     _save(fig, "Fig_weekly")
 
 
+def fig_ttsc_weekly():
+    """Week-by-week share of under-covered buildings for TTSC and its two single-timescale components (results/ttsc,
+    main protocol, 90 %; unit = building averaged over seeds), with the oracle reference for static calibration."""
+    import glob as _g
+    fs = [f for f in _g.glob(os.path.join(RES, "ttsc", "main_*_a0.1.csv"))]
+    if not fs:
+        return
+    d = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
+    meths = [("TTSC", "TTSC (proposed)", "#2a78d6", "o", "-", 2.0),
+             ("HSC-CQR recency (capped)", "Shrinkage only (γ = 0)", "#008300", "P", (0, (3, 1)), 1.1),
+             ("ACI-CQR (cov)", "Feedback only (ACI)", "#1baf7a", "^", (0, (3, 1)), 1.1),
+             ("CQR", "Pooled CQR", "#eb6834", "s", (0, (3, 1)), 1.1)]
+    fig, axs = plt.subplots(1, 2, figsize=(190 * MM, 64 * MM), sharey=True)
+    for j, ds in enumerate(["BDG2", "UCI"]):
+        ax = axs[j]
+        x = d[d.dataset == ds]
+        for m, lab, col, mk, ls, lw in meths:
+            y = x[x.method == m]
+            if not len(y):
+                continue
+            wk = [f"cov_w{i}" for i in range(1, 9)]
+            per_b = (y[wk] < 0.85).astype(float).where(~y[wk].isna()).groupby(y.building_id).mean()
+            ax.plot(range(1, 9), 100 * per_b.mean().values, color=col, marker=mk, ms=3.5, lw=lw, ls=ls, label=lab)
+        ref = x.groupby("building_id").ref_under_week.mean().mean()
+        ax.axhline(100 * ref, color=INK2, lw=0.9, ls=":", label="Oracle reference (static, perfectly calibrated)")
+        ax.set_xlabel("Week after metering started")
+        ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
+        ax.set_xticks(range(1, 9))
+    axs[0].set_ylabel("Buildings with weekly coverage < 0.85 (%)")
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=3, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.09), fontsize=6.5)
+    fig.subplots_adjust(bottom=0.3, wspace=0.12)
+    _save(fig, "Fig_ttsc_weekly")
+
+
 def run(mode="full"):
     import sys
     sys.path.insert(0, ROOT)
@@ -467,6 +502,7 @@ def run(mode="full"):
     _set_primary()
     fig_frontier(tag)
     fig_weekly(s)
+    fig_ttsc_weekly()
     fig_schematic()
     b, u = get_ds("BDG2"), get_ds("UCI")
     fig_data(b["meta"], u["meta"], b["load"], u["load"])

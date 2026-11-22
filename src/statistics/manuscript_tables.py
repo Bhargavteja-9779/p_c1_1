@@ -411,6 +411,86 @@ def ms_robust_building():
            "applied to the target buildings only.")
 
 
+TT_LABEL = {"TTSC": "TTSC (proposed)", "HSC-CQR recency (capped)": "Shrinkage only (γ = 0)",
+            "QShrink-CQR (cov)": "Quantile shrinkage", "ACI-CQR (cov)": "ACI (feedback only)", "CQR": "Pooled CQR",
+            "TTSC (cumulative feedback)": "TTSC, cumulative feedback", "TTSC (delay 1d)": "TTSC, own data 1 day later",
+            "TTSC (uncapped)": "TTSC, no cap"}
+
+
+def ms_ttsc():
+    """Main tables of the two-timescale calibration (tables/TT_*.csv from src/statistics/ttsc_analysis.py)."""
+    f, g = os.path.join(TAB, "TT_main.csv"), os.path.join(TAB, "TT_other.csv")
+    if not (os.path.exists(f) and os.path.exists(g)):
+        return
+    S, O = pd.read_csv(f), pd.read_csv(g)
+    pc = lambda x: "–" if pd.isna(x) else f"{100 * x:.1f}"  # noqa: E731
+    dl = lambda x: "–" if pd.isna(x) else f"{100 * x:+.1f}"  # noqa: E731
+    rows = []
+    order = ["TTSC", "HSC-CQR recency (capped)", "QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR",
+             "TTSC (cumulative feedback)", "TTSC (delay 1d)"]
+    for ds in ["BDG2", "UCI", "BDG2 (seeds 2–4)", "UCI (seeds 2–4)"]:
+        x = S[S.dataset == ds]
+        meths = order if "seeds" not in ds else ["TTSC", "HSC-CQR recency (capped)", "CQR"]
+        for m in meths:
+            r = x[x.method == m]
+            if not len(r):
+                continue
+            r = r.iloc[0]
+            rows.append({"Data": ds.replace(" (seeds 2–4)", " held-out"), "Strategy": TT_LABEL.get(m, m),
+                         "Window (%)": pc(r.under), "Week 1 (%)": pc(r.wk1), "Weeks 2–8 (%)": pc(r.wk_late),
+                         "Any week < 0.80 (%)": pc(r.any80), "Breach weeks (%)": pc(r.breach_wk),
+                         "Rel. IS (median)": f"{r.rel_IS_median:.3f}",
+                         "Cost Δ ρ=20 (%)": dl(r.get("cost20_vs_cqr", np.nan))})
+        if "seeds" not in ds and len(x):
+            r = x.iloc[0]
+            rows.append({"Data": ds, "Strategy": "Oracle reference", "Window (%)": pc(r.ref_win),
+                         "Week 1 (%)": pc(r.ref_week), "Weeks 2–8 (%)": pc(r.ref_week), "Any week < 0.80 (%)": "–",
+                         "Breach weeks (%)": "–", "Rel. IS (median)": "–", "Cost Δ ρ=20 (%)": "–"})
+    _write("MS5_main", pd.DataFrame(rows),
+           "Week-by-week reliability of new buildings (random-building protocol, nominal 90 %; unit = building, "
+           "averaged over the seeds in which it is a target). Window, Week 1, Weeks 2–8: share of buildings with "
+           "coverage < 0.85 over the 56-day window, in the first week, and per week in weeks 2–8. Any week < 0.80: "
+           "share of buildings with at least one week below 0.80. Breach weeks: share of building-weeks in which the "
+           "upper bound is exceeded in more than 10 % of hours (twice the nominal 5 %), i.e. a failed weekly "
+           "performance check of a headroom contract. Rel. IS: interval score / mean load. Cost Δ: change of the "
+           "mean capacity-headroom cost (Eq. 9, ρ_p = 20) versus pooled CQR. Held-out: seeds 2–4, not inspected "
+           "while TTSC was designed. Oracle reference: perfectly calibrated static intervals with the observed "
+           "serial dependence of misses (block bootstrap). All strategies use the same LightGBM quantile models and "
+           "CQR scores and are tuned by leave-one-building-out on calibration buildings.")
+    labels = [("lso:none", "BDG2", "Unseen sites (5 folds)"), ("xds:BDG2->UCI", "UCI", "BDG2 → UCI"),
+              ("xds:UCI->BDG2", "BDG2", "UCI → BDG2"), ("xds:BDG2->BDG2", "BDG2", "BDG2, no weather"),
+              ("main:none:alpha=0.05", "BDG2", "Nominal 95 % (BDG2)"), ("main:none:alpha=0.05", "UCI", "Nominal 95 % (UCI)"),
+              ("main:none:alpha=0.2", "BDG2", "Nominal 80 % (BDG2)"), ("main:none:alpha=0.2", "UCI", "Nominal 80 % (UCI)"),
+              ("robust:noise5", "BDG2", "Meter noise 5 %"), ("robust:noise15", "BDG2", "Meter noise 15 %"),
+              ("robust:spikes2", "BDG2", "Spikes"), ("robust:missing20", "BDG2", "Missing hours 20 %"),
+              ("robust:missing40", "BDG2", "Missing hours 40 %"), ("robust:outage1-3d", "BDG2", "Outages 1–3 days"),
+              ("robust:shift+40", "BDG2", "Level shift +40 %"), ("robust:shift-40", "BDG2", "Level shift −40 %"),
+              ("robust:shift+40@d3-14", "BDG2", "Early level shift"), ("robust:ramp+40", "BDG2", "Ramp +40 %"),
+              ("robust:calpool10", "BDG2", "Calibration pool 10 %"), ("robust:calpool25", "BDG2", "Calibration pool 25 %"),
+              ("robust:calpool50", "BDG2", "Calibration pool 50 %"), ("robust:weak-forecaster", "BDG2", "Weak forecaster")]
+    rows = []
+    for c, ds, lab in labels:
+        x = O[(O.condition == c) & (O.dataset == ds)]
+        if not len(x):
+            continue
+        v = lambda m, k: x[x.method == m][k].iloc[0] if (x.method == m).any() else np.nan  # noqa: E731
+        rows.append({"Condition": lab,
+                     "Wk 2–8: TTSC / shrinkage / ACI / CQR (%)":
+                         " / ".join(pc(v(m, "wk_late")) for m in ["TTSC", "HSC-CQR recency (capped)", "ACI-CQR (cov)", "CQR"]),
+                     "Week 1: TTSC / CQR (%)": f"{pc(v('TTSC', 'wk1'))} / {pc(v('CQR', 'wk1'))}",
+                     "Any week < target − 5 pts: TTSC / CQR (%)": f"{pc(v('TTSC', 'any85'))} / {pc(v('CQR', 'any85'))}",
+                     "Breach weeks: TTSC / CQR (%)": f"{pc(v('TTSC', 'breach_wk'))} / {pc(v('CQR', 'breach_wk'))}",
+                     "Rel. IS Δ vs CQR (%)": dl(v("TTSC", "rel_IS_median") / v("CQR", "rel_IS_median") - 1),
+                     "Oracle wk (%)": pc(v("TTSC", "ref_week"))})
+    _write("MS5_robust", pd.DataFrame(rows),
+           "Generalisation, nominal levels and stress tests (unit = building). Wk 2–8: share of buildings under-covered "
+           "in a week of weeks 2–8 (coverage < target − 5 points) for TTSC, shrinkage only, ACI and pooled CQR. Any "
+           "week: share of buildings with at least one week below target − 5 points. Breach weeks: share of "
+           "building-weeks with upper-bound exceedance above twice the nominal rate. Rel. IS Δ: change of the median "
+           "relative interval score of TTSC versus pooled CQR. Oracle wk: weekly reference for perfectly calibrated "
+           "static intervals. Unseen sites: 5 folds; transfer and stress tests: 3 seeds; nominal levels: 5 seeds.")
+
+
 def run():
     s = pd.read_csv(os.path.join(RES, "seed_level_metrics.csv"))
     s = s[~s.exp.isna()]
@@ -426,6 +506,7 @@ def run():
         ms_main_combined(s)
         ms_main_building()
         ms_robust_building()
+        ms_ttsc()
         ms_tests_primary(st)
         ms_operational(s)
         ms_robgen(s)
