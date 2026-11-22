@@ -14,6 +14,9 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **v4 DONE (2026-11-22 12:45 UTC):** manuscript v4 with TTSC, fair weekly-tuned baselines, window sensitivity,
+  internal editor/referee review resolved (REVIEW_HISTORY), package rebuilt (Target_Journal_Submission, 6 files, code on
+  request). Remaining for the author: placeholders (second author, affiliations, e-mail). Earlier v4 note:
 - **v4 STATUS (2026-11-22 12:00 UTC):** TTSC full rerun with cost columns running (results/ttsc; old copy in
   results/ttsc_prev, delete after rerun, do not commit). Manuscript v4 text DONE (title, highlights, abstract in
   values._abstract, intro gaps/contributions + positioning table (manuscript/tables_static), method §TTSC + Fig1,

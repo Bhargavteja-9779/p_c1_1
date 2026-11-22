@@ -47,3 +47,16 @@ HSC-CQR recency (bootstrap selection frequency 99.7 %; rank 1 in UCI, LSO and bo
 on BDG2 remains +2.5 pp [1.5, 3.3] (reported as limitation). Tail blow-ups (max width ratio 6.5×) are removed by the
 capped variant (recommended for deployment). The result is framed as a shrinkage-family result (QShrink tied in week 1).
 New main tables: MS3_main (per-building unit, oracle reference, weekly, tails), MS3_robust (14 stress conditions).
+
+## v4 internal review (editor + expert referee, 2026-11-22) — resolved
+| Issue | Resolution |
+|---|---|
+| B1 asymmetric tuning: ACI window-tuned and uncapped vs TTSC weekly-tuned and capped | Weekly-tuned ACI and weekly-tuned windowed feedback (kappa = inf), same cap, run on main/LSO/xds; in Table 2, Table 3, Holm family. Result reported honestly: weekly-tuned feedback gives most of the weekly gain; TTSC still better vs cumulative ACI (−2.3 pp BDG2), not significantly different from windowed feedback on weekly share but better on window-level and BDG2 first week |
+| B2 overclaims ("neither timescale alone", oracle) | Removed; "static-calibration oracle reference"; oracle definition corrected to match code |
+| B3 sharpness cost understated | Ratio of medians (+3.6/+4.0 %), paired log ratio, 95 % level (6–7 %), 2 % rule not met — all stated |
+| B4 designed after seeing seeds | Held-out seeds are primary evidence; family "declared after design"; W sensitivity (3/7/14/28) |
+| B5 threshold mismatch / hidden losses | Table 3 uses target − 10 pts as Table 2; text states target − 5 losses |
+| B6 bounded level vacuous | Numeric band given; cap presented as part of method; cap frequency 4 % of building-days |
+| B7 novelty | Framed as instantiation of PID/ACI integral term on a learned credibility prior; novelty = combination + weekly selection + evaluation |
+| B8 operational framing | Explicitly stylised; window gives no breach benefit acknowledged |
+| B9–B12 leftovers, numbers, protocol | Terminology, ACI grid, kappa grid, stress-test list, SI numbering, code-on-request wording fixed |

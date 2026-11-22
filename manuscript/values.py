@@ -352,6 +352,7 @@ def _ttsc_tokens(v):
                 v[k + "_ci"] = f"[{100 * (np.exp(r.lo) - 1):+.1f}, {100 * (np.exp(r.hi) - 1):+.1f}]%"
             else:
                 v[k] = f"{100 * r['diff']:+.1f}"
+                v[k + "_abs"] = f"{abs(100 * r['diff']):.1f}"
                 v[k + "_ci"] = f"[{100 * r.lo:+.1f}, {100 * r.hi:+.1f}]"
             pp = r.p_holm if not pd.isna(r.get("p_holm", np.nan)) else r.p
             v[k + "_p"] = _p(pp)

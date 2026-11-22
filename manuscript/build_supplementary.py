@@ -92,7 +92,7 @@ def build():
              "counted; (b) the running scale σ0 is estimated on training buildings; (c) every parametrised strategy is "
              "tuned by the same constrained leave-one-building-out rule (minimum MACD subject to an interval score at "
              "most 2 % above pooled CQR), with grids extended to κ, λ ∈ {6, 12} h and γ ≤ 0.05 and grid-edge selections "
-             "reported; (d) QShrink-CQR recency, Self-CQR recency, a one-day-delayed and a capped variant, the layer on "
+             "reported; (d) QShrink-CQR recency, Self-CQR recency, a one-day-delayed and a capped variant, the shrinkage component on "
              "MLP quantiles and five further stress conditions were added; (e) the method-specific noise reference was "
              "replaced by a method-independent oracle reference (7-day moving-block bootstrap); (f) one confirmatory "
              "family was declared and the recommended configuration is selected by a nested rule (BDG2 selection, "
