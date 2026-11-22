@@ -70,3 +70,7 @@
   `download()` now writes to a temporary file with retries and renames atomically; an invalid UCI zip is re-fetched.
   Processed caches were rebuilt; no results affected (no part was computed from the bad file). Training restarted 21:08 UTC.
 - Renamed src/statistics/cycle2.py -> extended_analysis.py (output results/extended_analysis.json).
+- Archived raw results now xz-compressed (results/raw_results.csv.xz, 55 MB): the gzip copy of the cycle-2 results
+  (104 MB) exceeded GitHub's 100 MB file limit.
+- Cycle-2 rerun complete (training 21:06-22:17, calibration to 22:44, sensitivity+frontier to 23:00 UTC; no failures);
+  timing benchmark run alone; statistics/tables/figures regenerated. Rule A.1 again selects HSC-CQR recency.

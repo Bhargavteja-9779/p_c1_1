@@ -379,7 +379,7 @@ def collect():
     fs = sorted(f for f in glob.glob(os.path.join(PARTS, "*.csv")) if not f.endswith("_curves.csv"))
     df = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
     df.to_csv(os.path.join(RES, "raw_results.csv"), index=False)  # local working copy (gitignored, ~75 MB)
-    df.to_csv(os.path.join(RES, "raw_results.csv.gz"), index=False, compression="gzip")  # archived copy
+    df.to_csv(os.path.join(RES, "raw_results.csv.xz"), index=False, compression={"method": "xz", "preset": 9})  # archived copy (<100 MB)
     cv = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(os.path.join(PARTS, "*_curves.csv")))], ignore_index=True)
     cv.to_csv(os.path.join(RES, "stage_curves.csv"), index=False)
     info = {}

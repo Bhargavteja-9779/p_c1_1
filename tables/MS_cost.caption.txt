@@ -1,1 +1,1 @@
-Computational cost on a 4-core CPU (mean over 5 seeds). HSC tuning = leave-one-building-out grid search over (κ, K) on all calibration buildings; HSC update = computing one building's radius for one day (including neighbour search) once its scores are stored.
+Computational cost, isolated benchmark (x86_64, calibration single-threaded); median [IQR] over repetitions and 5 seeds. Online step = binning one day's 24 scores into the building's decayed count state and computing its radius; deployment needs one prior vector and one state vector per building (16 KB each).

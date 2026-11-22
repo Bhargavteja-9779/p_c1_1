@@ -35,7 +35,7 @@ def main():
     for f in ["run_all.py", "requirements.txt", "environment.yml", "README.md"]:
         cp(os.path.join(ROOT, f), os.path.join(code, f))
     r = os.path.join(ROOT, "results")
-    cp(os.path.join(r, "raw_results.csv.gz"), os.path.join(OUT, "results", "raw_results.csv.gz"))
+    cp(os.path.join(r, "raw_results.csv.xz"), os.path.join(OUT, "results", "raw_results.csv.xz"))
     cp(os.path.join(r, "metrics.json"), os.path.join(OUT, "results", "metrics.json"))
     cp(os.path.join(r, "statistics.json"), os.path.join(OUT, "results", "statistics.json"))
     for f in ["statistics.csv", "seed_level_metrics.csv", "stage_curves.csv", "run_info.json", "error_analysis.json",

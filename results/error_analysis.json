@@ -1,76 +1,76 @@
 {
  "BDG2": {
-  "rho_cov_cvrmse_CQR": -0.6504353463325391,
-  "p_cov_cvrmse_CQR": 4.881668945251813e-153,
-  "rho_cov_cvrmse_HSC-CQR recency": -0.06092782344378379,
-  "p_cov_cvrmse_HSC-CQR recency": 0.03024392480851284,
-  "rho_cov_cvrmse_HSC-CQR": -0.35820567634128164,
-  "p_cov_cvrmse_HSC-CQR": 1.3581580011383737e-39,
-  "rho_cov_cvrmse_SCP-stage": -0.9558042106575318,
+  "rho_cov_cvrmse_CQR": -0.6020882246798394,
+  "p_cov_cvrmse_CQR": 2.5062941535831724e-149,
+  "rho_cov_cvrmse_HSC-CQR recency": -0.21809612791163843,
+  "p_cov_cvrmse_HSC-CQR recency": 1.1019029811679628e-17,
+  "rho_cov_cvrmse_HSC-CQR": -0.35336074929161165,
+  "p_cov_cvrmse_HSC-CQR": 1.4955572974278526e-45,
+  "rho_cov_cvrmse_SCP-stage": -0.9607062408139458,
   "p_cov_cvrmse_SCP-stage": 0.0,
-  "rho_cov_cvrmse_HSC": -0.5944752308588114,
-  "p_cov_cvrmse_HSC": 9.828746148216981e-122,
-  "shift_median_under": 0.2506488561630249,
-  "shift_median_other": 0.05371437221765518,
-  "shift_p": 0.07050944864749908,
-  "vol_median_under": 0.011775783263146877,
-  "vol_median_other": 0.11326828598976135,
-  "vol_p": 0.005352790467441082,
-  "n_under": 5,
-  "n_units": 1265,
-  "rho_absdev_shift": 0.11487252974835313,
-  "p_absdev_shift": 4.2184669038063755e-05,
+  "rho_cov_cvrmse_HSC": -0.6062591229957474,
+  "p_cov_cvrmse_HSC": 6.340096864338351e-152,
+  "n_under": 2,
+  "n_units": 1507,
+  "rho_absdev_shift": 0.06249793249622831,
+  "p_absdev_shift": 0.015243779469522592,
   "usage_table": [
    {
     "usage": "Education",
-    "CQR": 0.0394,
-    "HSC-CQR recency": 0.0124,
-    "reduction": 0.027
+    "CQR": 0.0356,
+    "HSC-CQR recency": 0.012,
+    "reduction": 0.0236
    },
    {
     "usage": "Entertainment/public assembly",
-    "CQR": 0.0375,
-    "HSC-CQR recency": 0.0103,
-    "reduction": 0.0272
+    "CQR": 0.0428,
+    "HSC-CQR recency": 0.0126,
+    "reduction": 0.0302
+   },
+   {
+    "usage": "Healthcare",
+    "CQR": 0.0378,
+    "HSC-CQR recency": 0.0116,
+    "reduction": 0.0261
    },
    {
     "usage": "Lodging/residential",
-    "CQR": 0.0304,
-    "HSC-CQR recency": 0.01,
-    "reduction": 0.0204
+    "CQR": 0.026,
+    "HSC-CQR recency": 0.0116,
+    "reduction": 0.0143
    },
    {
     "usage": "Office",
-    "CQR": 0.0372,
-    "HSC-CQR recency": 0.0121,
-    "reduction": 0.025
+    "CQR": 0.0371,
+    "HSC-CQR recency": 0.0117,
+    "reduction": 0.0254
    },
    {
     "usage": "Public services",
-    "CQR": 0.0391,
-    "HSC-CQR recency": 0.0103,
-    "reduction": 0.0289
+    "CQR": 0.039,
+    "HSC-CQR recency": 0.0127,
+    "reduction": 0.0264
    }
   ],
-  "usage_largest_reduction": "Public services",
+  "usage_largest_reduction": "Entertainment/public assembly",
   "usage_smallest_reduction": "Lodging/residential",
   "primary": "HSC-CQR recency"
  },
  "UCI": {
-  "rho_cov_cvrmse_CQR": -0.5537285258393286,
-  "p_cov_cvrmse_CQR": 1.6193974428990043e-39,
-  "rho_cov_cvrmse_HSC-CQR recency": -0.019811585251260633,
-  "p_cov_cvrmse_HSC-CQR recency": 0.666695163361611,
-  "rho_cov_cvrmse_HSC-CQR": -0.2436707966440225,
-  "p_cov_cvrmse_HSC-CQR": 7.533382446418112e-08,
-  "rho_cov_cvrmse_SCP-stage": -0.9602923122560442,
-  "p_cov_cvrmse_SCP-stage": 2.2362464590716113e-264,
-  "rho_cov_cvrmse_HSC": -0.4607522304194293,
-  "p_cov_cvrmse_HSC": 2.442227173507423e-26,
+  "rho_cov_cvrmse_CQR": -0.5719414218040546,
+  "p_cov_cvrmse_CQR": 1.2965046816923673e-42,
+  "rho_cov_cvrmse_HSC-CQR recency": 0.010156091761187688,
+  "p_cov_cvrmse_HSC-CQR recency": 0.825272003562018,
+  "rho_cov_cvrmse_HSC-CQR": -0.2986676798559191,
+  "p_cov_cvrmse_HSC-CQR": 3.04428718014132e-11,
+  "rho_cov_cvrmse_SCP-stage": -0.9570183682048571,
+  "p_cov_cvrmse_SCP-stage": 2.0743200076048863e-256,
+  "rho_cov_cvrmse_HSC": -0.41265764132673033,
+  "p_cov_cvrmse_HSC": 5.9002941050464044e-21,
   "n_under": 0,
   "n_units": 475,
-  "rho_absdev_shift": 0.0002017613320339525,
-  "p_absdev_shift": 0.9965007285121279,
+  "rho_absdev_shift": 0.02286758400471053,
+  "p_absdev_shift": 0.6190908119663646,
   "primary": "HSC-CQR recency"
  }
 }

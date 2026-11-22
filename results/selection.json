@@ -1,0 +1,366 @@
+{
+ "A1_both": "HSC-CQR recency",
+ "A1_table": [
+  {
+   "method": "HSC-CQR recency",
+   "under": 0.0006635700066357001,
+   "is_ratio_max": 1.005420292836268,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR recency",
+   "under": 0.00232249502322495,
+   "is_ratio_max": 1.0075123021981902,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR recency (capped)",
+   "under": 0.003043341598854469,
+   "is_ratio_max": 1.005420292636367,
+   "eligible": true
+  },
+  {
+   "method": "HSC-SSC-CQR",
+   "under": 0.004370481612125869,
+   "is_ratio_max": 1.0096414793217574,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR (cov)",
+   "under": 0.00802011664862222,
+   "is_ratio_max": 1.006347112801841,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR recency",
+   "under": 0.00835190165194007,
+   "is_ratio_max": 1.0165476413900947,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR fixed-\u03ba",
+   "under": 0.009187301365557225,
+   "is_ratio_max": 1.0041394431203068,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple (cov)",
+   "under": 0.009850871372192923,
+   "is_ratio_max": 1.0053206317645382,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple",
+   "under": 0.01771103272447875,
+   "is_ratio_max": 1.00162789436357,
+   "eligible": true
+  },
+  {
+   "method": "ACI-CQR (cov)",
+   "under": 0.02374043935319387,
+   "is_ratio_max": 1.0009306024618048,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR",
+   "under": 0.025182132504452906,
+   "is_ratio_max": 1.0035038029607004,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR",
+   "under": 0.03584465476897286,
+   "is_ratio_max": 1.0155796050016446,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR",
+   "under": 0.04304124611462298,
+   "is_ratio_max": 1.0008844133135237,
+   "eligible": true
+  },
+  {
+   "method": "ACI-CQR",
+   "under": 0.05003248000558796,
+   "is_ratio_max": 0.9986393959793508,
+   "eligible": true
+  },
+  {
+   "method": "SSC-CQR",
+   "under": 0.05924143470820382,
+   "is_ratio_max": 1.0106310157428762,
+   "eligible": true
+  },
+  {
+   "method": "GHCP-CQR",
+   "under": 0.11919393706562359,
+   "is_ratio_max": 1.0013362302150792,
+   "eligible": true
+  },
+  {
+   "method": "TQA-B-CQR",
+   "under": 0.1282212831348444,
+   "is_ratio_max": 1.0009886383372177,
+   "eligible": true
+  },
+  {
+   "method": "CQR",
+   "under": 0.13613872105612404,
+   "is_ratio_max": 1.0,
+   "eligible": true
+  }
+ ],
+ "nested_BDG2_pick": "HSC-CQR recency",
+ "nested_confirmation": {
+  "UCI": {
+   "rank_of_pick": 1,
+   "pick_under": 0.0,
+   "best": "HSC-CQR recency",
+   "best_under": 0.0
+  },
+  "LSO": {
+   "rank_of_pick": 1,
+   "pick_under": 0.004016064257028112,
+   "best": "HSC-CQR recency",
+   "best_under": 0.004016064257028112
+  },
+  "BDG2->UCI": {
+   "rank_of_pick": 1,
+   "pick_under": 0.0,
+   "best": "HSC-CQR recency",
+   "best_under": 0.0
+  },
+  "UCI->BDG2": {
+   "rank_of_pick": 1,
+   "pick_under": 0.013172338090010977,
+   "best": "HSC-CQR recency",
+   "best_under": 0.013172338090010977
+  }
+ },
+ "A1_alpha0.05": "HSC-CQR recency",
+ "A1_alpha0.05_table": [
+  {
+   "method": "HSC-CQR recency",
+   "under": 0.00033178500331785003,
+   "is_ratio_max": 1.0197965633358876,
+   "eligible": true
+  },
+  {
+   "method": "HSC-SSC-CQR",
+   "under": 0.00033178500331785003,
+   "is_ratio_max": 1.016228423578963,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR fixed-\u03ba",
+   "under": 0.0006635700066357001,
+   "is_ratio_max": 1.0081707296836082,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple (cov)",
+   "under": 0.0009953550099535502,
+   "is_ratio_max": 1.0123651364366495,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR recency",
+   "under": 0.0009953550099535502,
+   "is_ratio_max": 1.0300013090815676,
+   "eligible": false
+  },
+  {
+   "method": "QShrink-CQR recency",
+   "under": 0.0036496350364963502,
+   "is_ratio_max": 1.0138935460445553,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR (cov)",
+   "under": 0.0043132050431320505,
+   "is_ratio_max": 1.0131199179491166,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR recency (capped)",
+   "under": 0.005148604756749206,
+   "is_ratio_max": 1.0197965619886917,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR",
+   "under": 0.007528376348967974,
+   "is_ratio_max": 1.0081187298940895,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple",
+   "under": 0.007860161352285823,
+   "is_ratio_max": 1.0065084414999697,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR",
+   "under": 0.01001082666852932,
+   "is_ratio_max": 1.0265580733044928,
+   "eligible": false
+  },
+  {
+   "method": "SSC-CQR",
+   "under": 0.01797366674815772,
+   "is_ratio_max": 1.0419240420972646,
+   "eligible": false
+  },
+  {
+   "method": "QShrink-CQR",
+   "under": 0.023396779939230956,
+   "is_ratio_max": 1.0035548233686498,
+   "eligible": true
+  },
+  {
+   "method": "ACI-CQR (cov)",
+   "under": 0.025456640938776934,
+   "is_ratio_max": 1.0043994943955665,
+   "eligible": true
+  },
+  {
+   "method": "ACI-CQR",
+   "under": 0.040673348933049275,
+   "is_ratio_max": 1.0042372235117627,
+   "eligible": true
+  },
+  {
+   "method": "GHCP-CQR",
+   "under": 0.08975587608703245,
+   "is_ratio_max": 1.026491891056049,
+   "eligible": false
+  },
+  {
+   "method": "CQR",
+   "under": 0.10475535221597458,
+   "is_ratio_max": 1.0,
+   "eligible": true
+  },
+  {
+   "method": "TQA-B-CQR",
+   "under": 0.10481262878496839,
+   "is_ratio_max": 1.0023620718934845,
+   "eligible": true
+  }
+ ],
+ "A1_alpha0.2": "ACI-CQR (cov)",
+ "A1_alpha0.2_table": [
+  {
+   "method": "ACI-CQR (cov)",
+   "under": 0.0058121747633849054,
+   "is_ratio_max": 1.0028901764329123,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR recency",
+   "under": 0.019415359899416756,
+   "is_ratio_max": 0.999121684913119,
+   "eligible": true
+  },
+  {
+   "method": "ACI-CQR",
+   "under": 0.019529913037404395,
+   "is_ratio_max": 0.9993530068896367,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR recency (capped)",
+   "under": 0.021131561484999825,
+   "is_ratio_max": 0.9991216852228556,
+   "eligible": true
+  },
+  {
+   "method": "HSC-SSC-CQR",
+   "under": 0.022687807774246498,
+   "is_ratio_max": 0.9982718302141887,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR recency",
+   "under": 0.03246952816680054,
+   "is_ratio_max": 0.9986870361122463,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR recency",
+   "under": 0.0407641532497468,
+   "is_ratio_max": 1.0078699892995524,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR fixed-\u03ba",
+   "under": 0.04376209269025251,
+   "is_ratio_max": 0.9998066556243632,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple (cov)",
+   "under": 0.044425662696888205,
+   "is_ratio_max": 0.9986580689737781,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR",
+   "under": 0.05074145217057242,
+   "is_ratio_max": 0.994763306747022,
+   "eligible": true
+  },
+  {
+   "method": "HSC-CQR simple",
+   "under": 0.05189676247686236,
+   "is_ratio_max": 0.9995683065411286,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR (cov)",
+   "under": 0.05693081409562393,
+   "is_ratio_max": 0.9984590921712209,
+   "eligible": true
+  },
+  {
+   "method": "TQA-B-CQR",
+   "under": 0.08658820242377677,
+   "is_ratio_max": 1.0045308273336564,
+   "eligible": true
+  },
+  {
+   "method": "QShrink-CQR",
+   "under": 0.09616246987741417,
+   "is_ratio_max": 0.9982209140355872,
+   "eligible": true
+  },
+  {
+   "method": "Self-CQR",
+   "under": 0.10213459993713547,
+   "is_ratio_max": 1.0059045456953069,
+   "eligible": true
+  },
+  {
+   "method": "GHCP-CQR",
+   "under": 0.15439877064925087,
+   "is_ratio_max": 1.0047510293992405,
+   "eligible": true
+  },
+  {
+   "method": "CQR",
+   "under": 0.16574861174169664,
+   "is_ratio_max": 1.0,
+   "eligible": true
+  },
+  {
+   "method": "SSC-CQR",
+   "under": 0.1705081549261342,
+   "is_ratio_max": 1.0123652763616398,
+   "eligible": true
+  }
+ ],
+ "bootstrap_selection_freq": {
+  "HSC-CQR recency": 0.9966666666666667,
+  "QShrink-CQR recency": 0.0033333333333333335
+ }
+}
