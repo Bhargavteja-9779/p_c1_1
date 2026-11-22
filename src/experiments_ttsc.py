@@ -75,7 +75,11 @@ def evaluate(out, PT, alpha):
         vw = ok.reshape(nt, NW, -1).sum(-1)
         cw = np.where(vw > 0, hit.reshape(nt, NW, -1).sum(-1) / np.maximum(vw, 1), np.nan)
         uw = np.where(vw > 0, up.reshape(nt, NW, -1).sum(-1) / np.maximum(vw, 1), np.nan)
-        r = pd.DataFrame(dict(method=m, cov=hit.reshape(nt, -1).sum(1) / np.maximum(v, 1),
+        # capacity-headroom planning on the upper bound: planned level and violation, relative to mean load
+        u_rel = np.where(ok, hi, 0).reshape(nt, -1).sum(1) / np.maximum(v, 1) / ybar
+        viol_rel = np.where(ok, np.maximum(y - hi, 0), 0).reshape(nt, -1).sum(1) / np.maximum(v, 1) / ybar
+        r = pd.DataFrame(dict(method=m, u_rel=u_rel, viol_rel=viol_rel,
+                              cov=hit.reshape(nt, -1).sum(1) / np.maximum(v, 1),
                               up=up.reshape(nt, -1).sum(1) / np.maximum(v, 1), rel_IS=is_b, rel_width=w_b))
         for w in range(NW):
             r[f"cov_w{w + 1}"] = cw[:, w]

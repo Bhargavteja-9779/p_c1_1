@@ -1,5 +1,5 @@
 {
- "gamma_edge_share": 0.22580645161290322,
+ "gamma_edge_share": 0.09302325581395349,
  "gamma_median_main": 0.005,
- "n_parts": 31
+ "n_parts": 86
 }
