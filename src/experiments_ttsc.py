@@ -130,6 +130,22 @@ def calibrate(PC, PT, alpha):
     # fixed-gain ablation: cumulative (non-windowed) feedback with the same gamma
     q_c = cb.hsc_aci_quantiles(St, cct, binc, alpha, kap, g, stages, decay=pl.RECENCY, window=None)
     out["TTSC (cumulative feedback)"] = band(np.minimum(q_c, q_cap))
+    # fairness check: feedback-only strategies tuned with the SAME weekly objective, constraint and cap as TTSC
+    KINF = 1e9  # kappa -> infinity: the building-weighted population distribution only (no shrinkage)
+    g_w, _ = tune_ttsc(Sc, ccc, binc, alpha, KINF, ref_is, cap_lobo, base_w)
+    q_w = cb.hsc_aci_quantiles(St, cct, binc, alpha, KINF, g_w, stages, decay=pl.RECENCY, window=WINDOW)
+    out["Windowed ACI (weekly-tuned)"] = band(np.minimum(q_w, q_cap))
+    info["gamma_windowed_aci"] = g_w
+    rows = []
+    for gg in pl.GAMMAS:
+        qa = np.minimum(cb.aci_quantiles(Sc, binc.sum(axis=0)[None] - binc, alpha, gg, stages), cap_lobo)
+        rows.append(dict(gamma=gg, IS=float(cb.normalized_IS(qa[None], Sc, base_w, alpha)[0]),
+                         WMACD=weekly_macd(qa, Sc, alpha)))
+    ta = pd.DataFrame(rows)
+    feas = ta[ta.IS <= pl.IS_TOL * ref_is + 1e-12]
+    g_a = float((feas if len(feas) else ta.iloc[[0]]).sort_values(["WMACD", "IS"]).iloc[0].gamma)
+    out["ACI (weekly-tuned)"] = band(np.minimum(cb.aci_quantiles(St, binc.sum(axis=0), alpha, g_a, stages), q_cap))
+    info["gamma_aci_weekly"] = g_a
     return out, info, gtab
 
 
@@ -150,7 +166,8 @@ def run_one(pid, obj, alpha, cols, PT=None, PC=None, meta_idx=None, dsT=None):
     for k, v in ref.items():
         df[k] = np.tile(v, len(out))
     for k, v in dict(cols, alpha=alpha, part=pid, kappa=info["kappa"], gamma=info["gamma"],
-                     gamma_edge=info["gamma_edge"]).items():
+                     gamma_edge=info["gamma_edge"], gamma_windowed_aci=info["gamma_windowed_aci"],
+                     gamma_aci_weekly=info["gamma_aci_weekly"]).items():
         df[k] = v
     os.makedirs(OUT, exist_ok=True)
     gtab.assign(part=pid).to_csv(os.path.join(OUT, pid + "_tune.csv"), index=False)

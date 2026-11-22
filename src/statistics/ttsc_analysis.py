@@ -18,8 +18,10 @@ NW = 8
 THR_MARGIN = 0.05
 BREACH = 0.10  # weekly-settled contract: upper bound exceeded in > 10 % of a week's hours (2 x nominal 5 %)
 METHODS = ["TTSC", "HSC-CQR recency (capped)", "HSC-CQR recency", "QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR",
+           "ACI (weekly-tuned)", "Windowed ACI (weekly-tuned)",
            "TTSC (cumulative feedback)", "TTSC (uncapped)", "TTSC (delay 1d)"]
-COMPARE = ["HSC-CQR recency (capped)", "QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR"]
+COMPARE = ["HSC-CQR recency (capped)", "QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR", "ACI (weekly-tuned)",
+           "Windowed ACI (weekly-tuned)"]
 CW = [f"cov_w{i}" for i in range(1, NW + 1)]
 UW = [f"up_w{i}" for i in range(1, NW + 1)]
 
@@ -95,6 +97,8 @@ def paired(b, ds, prim="TTSC"):
     p = b[b.method == prim].set_index("building_id")
     cl_key = "site_id" if ds.startswith("BDG2") else None
     for m in COMPARE:
+        if not (b.method == m).any():
+            continue
         q = b[b.method == m].set_index("building_id").reindex(p.index)
         for met in ["wk_late", "any80", "breach_wk", "under", "wk1"]:
             d = (p[met] - q[met]).values

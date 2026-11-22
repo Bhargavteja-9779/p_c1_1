@@ -414,7 +414,8 @@ def ms_robust_building():
 TT_LABEL = {"TTSC": "TTSC (proposed)", "HSC-CQR recency (capped)": "Shrinkage only (γ = 0)",
             "QShrink-CQR (cov)": "Quantile shrinkage", "ACI-CQR (cov)": "ACI (feedback only)", "CQR": "Pooled CQR",
             "TTSC (cumulative feedback)": "TTSC, cumulative feedback", "TTSC (delay 1d)": "TTSC, own data 1 day later",
-            "TTSC (uncapped)": "TTSC, no cap"}
+            "TTSC (uncapped)": "TTSC, no cap", "ACI (weekly-tuned)": "ACI, weekly-tuned",
+            "Windowed ACI (weekly-tuned)": "7-day feedback only (κ = ∞)"}
 
 
 def ms_ttsc():
@@ -426,11 +427,11 @@ def ms_ttsc():
     pc = lambda x: "–" if pd.isna(x) else f"{100 * x:.1f}"  # noqa: E731
     dl = lambda x: "–" if pd.isna(x) else ("0.0" if abs(100 * x) < 0.05 else f"{100 * x:+.1f}")  # noqa: E731
     rows = []
-    order = ["TTSC", "HSC-CQR recency (capped)", "QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR",
-             "TTSC (cumulative feedback)", "TTSC (delay 1d)"]
+    order = ["TTSC", "HSC-CQR recency (capped)", "QShrink-CQR (cov)", "ACI-CQR (cov)", "ACI (weekly-tuned)",
+             "Windowed ACI (weekly-tuned)", "CQR", "TTSC (cumulative feedback)", "TTSC (delay 1d)"]
     for ds in ["BDG2", "UCI", "BDG2 (seeds 2–4)", "UCI (seeds 2–4)"]:
         x = S[S.dataset == ds]
-        meths = order if "seeds" not in ds else ["TTSC", "HSC-CQR recency (capped)", "CQR"]
+        meths = order if "seeds" not in ds else ["TTSC", "HSC-CQR recency (capped)", "ACI (weekly-tuned)", "CQR"]
         for m in meths:
             r = x[x.method == m]
             if not len(r):
@@ -456,7 +457,8 @@ def ms_ttsc():
            "mean capacity-headroom cost (Eq. 9, ρ_p = 20) versus pooled CQR. Held-out: seeds 2–4, not inspected "
            "while TTSC was designed. Oracle reference: perfectly calibrated static intervals with the observed "
            "serial dependence of misses (block bootstrap). All strategies use the same LightGBM quantile models and "
-           "CQR scores and are tuned by leave-one-building-out on calibration buildings.")
+           "CQR scores and are tuned by leave-one-building-out on calibration buildings; 'weekly-tuned' strategies use the same "
+           "weekly objective, sharpness constraint and cap as TTSC.")
     labels = [("lso:none", "BDG2", "Unseen sites (5 folds)"), ("xds:BDG2->UCI", "UCI", "BDG2 → UCI"),
               ("xds:UCI->BDG2", "BDG2", "UCI → BDG2"), ("xds:BDG2->BDG2", "BDG2", "BDG2, no weather"),
               ("main:none:alpha=0.05", "BDG2", "Nominal 95 % (BDG2)"), ("main:none:alpha=0.05", "UCI", "Nominal 95 % (UCI)"),
