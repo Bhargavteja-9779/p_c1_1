@@ -424,7 +424,7 @@ def ms_ttsc():
         return
     S, O = pd.read_csv(f), pd.read_csv(g)
     pc = lambda x: "–" if pd.isna(x) else f"{100 * x:.1f}"  # noqa: E731
-    dl = lambda x: "–" if pd.isna(x) else f"{100 * x:+.1f}"  # noqa: E731
+    dl = lambda x: "–" if pd.isna(x) else ("0.0" if abs(100 * x) < 0.05 else f"{100 * x:+.1f}")  # noqa: E731
     rows = []
     order = ["TTSC", "HSC-CQR recency (capped)", "QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR",
              "TTSC (cumulative feedback)", "TTSC (delay 1d)"]

@@ -1,0 +1,24 @@
+| Data          | Strategy                   | Window (%)   | Week 1 (%)   | Weeks 2–8 (%)   | Any week < 0.80 (%)   | Breach weeks (%)   | Rel. IS (median)   | Cost Δ ρ=20 (%)   |
+|:--------------|:---------------------------|:-------------|:-------------|:----------------|:----------------------|:-------------------|:-------------------|:------------------|
+| BDG2          | TTSC (proposed)            | 0.3          | 11.2         | 13.6            | 20.0                  | 14.1               | 0.589              | 0.0               |
+| BDG2          | Shrinkage only (γ = 0)     | 0.5          | 14.7         | 19.9            | 43.9                  | 15.6               | 0.568              | -0.3              |
+| BDG2          | Quantile shrinkage         | 1.4          | 14.3         | 20.9            | 49.7                  | 15.6               | 0.568              | +0.4              |
+| BDG2          | ACI (feedback only)        | 2.6          | 19.2         | 20.0            | 48.5                  | 16.1               | 0.564              | +0.5              |
+| BDG2          | Pooled CQR                 | 15.5         | 20.1         | 23.7            | 51.2                  | 17.5               | 0.568              | 0.0               |
+| BDG2          | TTSC, cumulative feedback  | 0.4          | 11.2         | 15.6            | 25.2                  | 14.0               | 0.592              | +0.1              |
+| BDG2          | TTSC, own data 1 day later | 0.4          | 17.6         | 18.4            | 38.7                  | 15.2               | 0.599              | +0.6              |
+| BDG2          | Oracle reference           | 1.8          | 17.3         | 17.3            | –                     | –                  | –                  | –                 |
+| UCI           | TTSC (proposed)            | 0.1          | 7.5          | 6.7             | 4.9                   | 9.8                | 0.375              | +0.2              |
+| UCI           | Shrinkage only (γ = 0)     | 0.1          | 7.6          | 13.4            | 22.3                  | 11.2               | 0.361              | -0.2              |
+| UCI           | Quantile shrinkage         | 0.1          | 7.3          | 14.6            | 24.2                  | 11.2               | 0.362              | -0.2              |
+| UCI           | ACI (feedback only)        | 1.7          | 14.5         | 12.3            | 21.7                  | 11.4               | 0.367              | -0.1              |
+| UCI           | Pooled CQR                 | 12.3         | 15.2         | 18.4            | 31.8                  | 12.9               | 0.361              | 0.0               |
+| UCI           | TTSC, cumulative feedback  | 0.1          | 7.5          | 9.8             | 8.4                   | 10.2               | 0.374              | +0.1              |
+| UCI           | TTSC, own data 1 day later | 0.1          | 11.6         | 12.8            | 15.7                  | 10.5               | 0.390              | +0.7              |
+| UCI           | Oracle reference           | 0.6          | 12.8         | 12.8            | –                     | –                  | –                  | –                 |
+| BDG2 held-out | TTSC (proposed)            | 0.5          | 10.6         | 14.0            | 21.1                  | 13.8               | 0.588              | 0.0               |
+| BDG2 held-out | Shrinkage only (γ = 0)     | 0.7          | 16.1         | 20.3            | 45.1                  | 15.6               | 0.571              | -0.3              |
+| BDG2 held-out | Pooled CQR                 | 15.5         | 21.4         | 23.6            | 49.3                  | 17.3               | 0.567              | 0.0               |
+| UCI held-out  | TTSC (proposed)            | 0.5          | 7.9          | 7.1             | 5.4                   | 10.0               | 0.371              | -0.1              |
+| UCI held-out  | Shrinkage only (γ = 0)     | 0.5          | 8.2          | 13.8            | 23.5                  | 11.7               | 0.366              | -0.3              |
+| UCI held-out  | Pooled CQR                 | 13.9         | 16.3         | 20.5            | 34.7                  | 13.6               | 0.359              | 0.0               |

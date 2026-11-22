@@ -327,7 +327,7 @@ def _ttsc_tokens(v):
     conditions), tp_ (parameters)."""
     tab = os.path.join(ROOT, "tables")
     pc = lambda x: "–" if pd.isna(x) else f"{100 * x:.1f}%"  # noqa: E731
-    dl = lambda x: "–" if pd.isna(x) else f"{100 * x:+.1f}%"  # noqa: E731
+    dl = lambda x: "–" if pd.isna(x) else ("0.0%" if abs(100 * x) < 0.05 else f"{100 * x:+.1f}%")  # noqa: E731
     f = os.path.join(tab, "TT_main.csv")
     if os.path.exists(f):
         for _, r in pd.read_csv(f).iterrows():
