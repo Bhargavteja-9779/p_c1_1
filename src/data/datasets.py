@@ -8,10 +8,10 @@ Both datasets are converted to a common representation:
 
 Cleaning rules (identical for all methods):
   * runs of >= 24 consecutive identical readings (zero or constant: outage / stuck meter) are missing;
-  * no value is imputed in the stored series (revision 2): missing hours stay NaN, the features are
+  * no value is imputed in the stored series: missing hours stay NaN, the features are
     NaN-tolerant and missing hours are excluded from every metric, so no reading from the future can
     enter a feature or a ground truth;
-  * eligibility (revision 2, no look-ahead): a building is kept if, in the *training/calibration*
+  * eligibility (no look-ahead): a building is kept if, in the *training/calibration*
     period only, the fraction of missing hours -- not counting gaps of <= 6 h, which are short enough
     to be bridged -- is <= 5 % and its mean load is >= 1 kWh/h. The target (evaluation) period is not
     used for selection; target windows only need >= 80 % valid hours (operational rule, pipeline.py).

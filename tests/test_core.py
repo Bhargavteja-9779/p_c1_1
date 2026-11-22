@@ -92,7 +92,7 @@ def test_metrics_ignore_undefined_intervals():
     assert np.allclose(m["coverage"], 1.0) and np.isfinite(m["rel_IS"]).all()
 
 
-# ---------------------------------------------------------------- tests added after the code audit
+# ---------------------------------------------------------------- regression tests
 def test_neighbours_nan_safe_and_self_excluded():
     rng = np.random.default_rng(3)
     zc = rng.normal(size=(12, 4))

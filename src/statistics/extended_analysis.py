@@ -1,7 +1,7 @@
 """Extended analyses: weekly/worst-week reliability with a method-independent oracle
-noise reference (#1, #3), paired under-coverage tests with cluster CIs and one confirmatory family (#14), tails and
-equivalence (#6), nested selection and bootstrap selection frequencies (#9), matched-kappa attribution (#7),
-robustness with week-1/one-sided/post-shift metrics (#13), offset/heterogeneity decomposition (#15), threshold and
+noise reference, paired under-coverage tests with cluster CIs and one confirmatory family, tails and
+equivalence, nested selection and bootstrap selection frequencies, matched-kappa attribution,
+robustness with week-1/one-sided/post-shift metrics, offset/heterogeneity decomposition, threshold and
 nominal-level sensitivity of the recommendation rule.
 
 Unit of analysis: one building (metrics averaged over the seeds in which it was a target), unless stated.
@@ -60,7 +60,7 @@ def per_building(t, cols):
 
 
 def weekly_table(df, methods):
-    """#1 + #3: window, week-1, weeks 2-8 and worst-week under-coverage per method, with the oracle reference."""
+    """window, week-1, weeks 2-8 and worst-week under-coverage per method, with the oracle reference."""
     rows = []
     for ds in ["BDG2", "UCI"]:
         t = _sel(df, dataset=ds)
@@ -99,7 +99,7 @@ def weekly_table(df, methods):
 
 
 def share_tests(df, primary, baselines, exp="main", dataset="BDG2", protocol=None, perturb="none", alpha=0.1):
-    """#14: paired comparisons of under-coverage (window, week 1) and IS: McNemar exact test on building x seed
+    """paired comparisons of under-coverage (window, week 1) and IS: McNemar exact test on building x seed
     pairs, mean difference of per-building shares with cluster-bootstrap CI; IS: Wilcoxon on per-building
     log-ratio and TOST at +-2 % (90 % bootstrap CI of the median log-ratio inside [log .98, log 1.02])."""
     t = _sel(df, exp, dataset, alpha, perturb, protocol)
@@ -151,7 +151,7 @@ def confirmatory(df, primary):
 
 
 def tails(df, methods):
-    """#6: mean/median IS, width-ratio tail vs CQR and worst-decile cost, per building x seed (main, 90 %)."""
+    """mean/median IS, width-ratio tail vs CQR and worst-decile cost, per building x seed (main, 90 %)."""
     rows = []
     for ds in ["BDG2", "UCI"]:
         t = _sel(df, dataset=ds)
@@ -245,7 +245,7 @@ def selection(df, cands=None, n_boot=300):
 
 
 def matched_kappa():
-    """#7: recency vs no recency at equal kappa (frontier, main 90 %)."""
+    """recency vs no recency at equal kappa (frontier, main 90 %)."""
     f = os.path.join(RES, "frontier.csv")
     if not os.path.exists(f):
         return None
@@ -262,7 +262,7 @@ def matched_kappa():
 
 
 def robustness(df, primary, methods):
-    """#13: per stress condition: window, week-1, upper-tail under-protection, post-shift coverage, IS; seed s.d.;
+    """per stress condition: window, week-1, upper-tail under-protection, post-shift coverage, IS; seed s.d.;
     McNemar of the primary vs each method on window under-coverage."""
     rb = df[df.exp == "robust"]
     if not len(rb):
@@ -295,7 +295,7 @@ def robustness(df, primary, methods):
 
 
 def offset_decomposition(df):
-    """#15: share of pooled-CQR under-coverage explained by a uniform level offset."""
+    """share of pooled-CQR under-coverage explained by a uniform level offset."""
     out = {}
     for ds in ["BDG2", "UCI"]:
         t = _sel(df, dataset=ds)

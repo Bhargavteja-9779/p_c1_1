@@ -422,10 +422,10 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
                              decay=RECENCY)[0]
     out["HSC-CQR recency"] = band(q_rec, lo=PT["qlo"], hi=PT["qhi"])
     # ---- further variants and safeguards
-    # kappa -> inf limit of the same (building-weighted, stage-agnostic) variant (#12)
+    # kappa -> inf limit of the same (building-weighted, stage-agnostic) variant
     out["HSC-CQR recency κ=∞"] = band(cb.hsc_quantiles(cct_q, bincq, None, alpha, [np.inf], stages,
                                                        stage_matched=False)[0], lo=PT["qlo"], hi=PT["qhi"])
-    # recency for the other own-score families, same constrained objective (#8)
+    # recency for the other own-score families, same constrained objective
     lamr, lamr_tab = tune_qshrink(Scq, bwq_cal, alpha, objective="cov", decay=RECENCY)
     info["qshrink_lambda_recency"] = lamr
     info["tune_qshrink_recency"] = lamr_tab.replace({np.inf: "inf"}).to_dict(orient="records")
@@ -434,11 +434,11 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
     q_sr = cb.hsc_quantiles(cct_q, bincq, None, alpha, [0], stages, decay=RECENCY)[0]
     q_sr = np.where(cb.own_defined(cb.own_counts_before(cct_q, RECENCY), alpha), q_sr, q_fbq[None, :])
     out["Self-CQR recency"] = band(q_sr, lo=PT["qlo"], hi=PT["qhi"])
-    # radius safeguard (#6): never wider than the pooled radius at level 1 - alpha/10
+    # radius safeguard: never wider than the pooled radius at level 1 - alpha/10
     q_cap = cb.pooled_quantile(bincq, alpha / 10, True)[sb]
     info["recency_capped_share"] = float(np.mean(q_rec > q_cap[None, :]))
     out["HSC-CQR recency (capped)"] = band(np.minimum(q_rec, q_cap[None, :]), lo=PT["qlo"], hi=PT["qhi"])
-    # data-latency variants (#4): own scores / feedback delayed by one day, parameters as tuned above
+    # data-latency variants: own scores / feedback delayed by one day, parameters as tuned above
     cct_d = cb.delay_counts(cct_q, 1)
     out["HSC-CQR recency (delay 1d)"] = band(cb.hsc_quantiles(cct_d, bincq, None, alpha, [br["kappa"]], stages,
                                                               stage_matched=False, decay=RECENCY)[0],
@@ -447,7 +447,7 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
                                               lo=PT["qlo"], hi=PT["qhi"])
     out["ACI-CQR (cov, delay 1d)"] = band(cb.aci_quantiles(Stq, bincq.sum(axis=0), alpha, gqc, stages, delay=1),
                                           lo=PT["qlo"], hi=PT["qhi"])
-    # grid-edge reporting (#2)
+    # grid-edge reporting
     info["grid_edge"] = dict(
         hsc_recency_kappa=bool(br["kappa"] in (min(k for k in KAPPAS if k > 0), max(k for k in KAPPAS if np.isfinite(k)))),
         aci_cqr_gamma_cov=bool(gqc in (max(GAMMAS),)), qshrink_lambda_cov=bool(lamc in (6, 1344)))
@@ -483,7 +483,7 @@ def run_calibration(PC, PT, alpha, meta_cal=None, meta_tgt=None, methods="all", 
         bm, _ = tune_hsc(Scm, PC["mqhi"] / PC["s"][:, :, None] - PC["mqlo"] / PC["s"][:, :, None], zc, alpha,
                          stage_matched=False, Ks=[None])
         info["hsc_cqr_mlp"] = bm
-        # the recommended configuration (recency, constrained coverage objective) on the MLP quantiles (#17)
+        # the recommended configuration (recency, constrained coverage objective) on the MLP quantiles
         bmr, _ = tune_hsc(Scm, PC["mqhi"] / PC["s"][:, :, None] - PC["mqlo"] / PC["s"][:, :, None], zc, alpha,
                           stage_matched=False, Ks=[None], objective="cov", decay=RECENCY)
         info["hsc_cqr_recency_mlp"] = bmr

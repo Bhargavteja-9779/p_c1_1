@@ -19,8 +19,10 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
   done. DONE 02:00 UTC: timing benchmark (results/timing.json), run_all --skip-experiments (rule A.1 -> HSC-CQR recency).
   DONE 02:15 UTC: manuscript v3 (results/discussion/abstract/highlights/contribution 4/setup rewritten; new title
   'Reliable day-ahead load intervals for newly metered buildings: shrinkage conformal calibration evaluated building by
-  building'; tables MS3_main, MS3_robust; SI Tables S16-S22; cover letter rewritten). NEXT: final submission package
-  (scripts/package_submission.py; strip process traces from code copy), then report to the user.
+  building'; tables MS3_main, MS3_robust; SI Tables S16-S22; cover letter rewritten). DONE 02:20 UTC: submission package
+  Target_Journal_Submission/ (6 upload files + 06_Code_and_data.zip; trace scan clean except the AI-use declaration);
+  SUBMISSION_CHECKLIST.md lists the author placeholders. NEXT: user fills placeholders; optional review cycle 3 only if
+  the user asks (CLAUDE.md: ask before the next cycle).
 - **LATEST (2026-11-21 20:55 UTC, dazzling-ramanujan session): most advanced branch is now
   `claude/dazzling-ramanujan-j9ysli`** (fast-forwarded from sharp-cori). Deps installed, 17 tests pass, parts snapshot
   17:56 restored (222 parts), `scripts/run_c2_stage.sh` restarted 20:52 UTC as harness-tracked background task.

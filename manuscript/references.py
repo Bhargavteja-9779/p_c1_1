@@ -1,6 +1,5 @@
 """Reference database (Elsevier numbered style). Every entry was verified against Crossref, DataCite,
-arXiv, PMLR or NeurIPS proceedings pages (literature/verify_refs.py, literature/references_verified.json,
-literature/citation_audit.md)."""
+arXiv, PMLR or NeurIPS proceedings pages."""
 
 REFS = {
     "miller2020bdg2": "Miller C, Kathirgamanathan A, Picchetti B, Arjunan P, Park JY, Nagy Z, et al. The Building Data Genome Project 2, energy meter data from the ASHRAE Great Energy Predictor III competition. Sci Data 2020;7:368. https://doi.org/10.1038/s41597-020-00712-x.",

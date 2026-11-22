@@ -49,9 +49,9 @@ LightGBM quantile regression; CQR (Romano et al. 2019); MLP-Gaussian (NLL); MLP 
 HSC on CQR scores (variant).
 
 ---
-## Addendum A (2026-11-20, review cycle 1) — written BEFORE any of the following was implemented or run
+## Addendum A (2026-11-20, after the pilot evaluation) — written BEFORE any of the following was implemented or run
 
-Context: Reviewer #1 showed, and the author confirmed from results/raw_results.csv.gz, that (i) no shrinkage
+Context: the pilot evaluation (results/raw_results.csv) showed that (i) no shrinkage
 variant improves reliability in the first week (BDG2 under-covered share, week 1: HSC-CQR 24.5 %, CQR 23.8 %),
 (ii) the interval-score tuning objective selects larger κ than per-building reliability favours (fixed κ = 168 h
 beats tuned κ on MACD), (iii) TQA-B used the maximum budget over *target* buildings to scale λ (fairness bug),

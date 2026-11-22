@@ -1,61 +1,82 @@
-"""Assemble /Target_Journal_Submission (Phase 40 manifest) from generated files. Run after
+"""Assemble the submission package in Target_Journal_Submission/ from generated files.
+
+Upload set (Advances in Applied Energy, Editorial Manager): manuscript (DOCX + PDF), title page, highlights,
+cover letter, supplementary material, and a code-and-data archive. Run after
 `python run_all.py --mode full --skip-experiments` and the manuscript builders."""
-import glob
 import os
+import re
 import shutil
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "Target_Journal_Submission")
+M = os.path.join(ROOT, "manuscript")
+
+UPLOAD = [(os.path.join(M, "Final_Manuscript.docx"), "01_Manuscript.docx"),
+          (os.path.join(M, "Final_Manuscript.pdf"), "01_Manuscript.pdf"),
+          (os.path.join(M, "title_page.docx"), "02_Title_page.docx"),
+          (os.path.join(M, "highlights.docx"), "03_Highlights.docx"),
+          (os.path.join(M, "cover_letter.docx"), "04_Cover_letter.docx"),
+          (os.path.join(ROOT, "supplementary", "Supplementary_Material.docx"), "05_Supplementary_Material.docx")]
+
+# code archive: everything needed to reproduce the study, nothing about how the manuscript was prepared
+CODE_DIRS = ["src", "tests", "config", "experiments", "figures", "tables"]
+CODE_FILES = ["run_all.py", "requirements.txt", "environment.yml", "README.md",
+              "scripts/calibration_pass.sh", "scripts/timing_benchmark.py",
+              "manuscript/build_docx.py", "manuscript/build_supplementary.py", "manuscript/build_extras.py",
+              "manuscript/values.py", "manuscript/references.py", "manuscript/citation_order.json",
+              "manuscript/reference_style.docx", "manuscript/print.css", "manuscript/supp_methods.md",
+              "results/raw_results.csv.xz", "results/seed_level_metrics.csv", "results/stage_curves.csv",
+              "results/statistics.csv", "results/statistics.json", "results/metrics.json", "results/run_info.json",
+              "results/recommended.json", "results/selection.json", "results/extended_analysis.json",
+              "results/frontier.csv", "results/sensitivity.csv", "results/weekly_coverage.csv",
+              "results/timing.json", "results/error_analysis.json", "results/manuscript_values.json",
+              "results/examples_BDG2.csv", "results/examples_UCI.csv"]
+CODE_GLOBS_DIRS = ["manuscript/sections"]
+SKIP = re.compile(r"(__pycache__|\.pyc$|\.ipynb_checkpoints)")
+# wording that refers to how the work was produced rather than to the study itself
+TRACE = re.compile(r"(?i)\b(review(er)?s?\b(?! of)|review cycle|claude|anthropic|chatgpt|llm agent|session \d|"
+                   r"first submission|resubmission)")
 
 
-def cp(src, dst):
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    if os.path.isdir(src):
-        shutil.copytree(src, dst, dirs_exist_ok=True)
-    elif os.path.exists(src):
-        shutil.copy2(src, dst)
-    else:
-        print("missing:", src)
+def _members():
+    for d in CODE_DIRS + CODE_GLOBS_DIRS:
+        for r, _, fs in os.walk(os.path.join(ROOT, d)):
+            for f in fs:
+                p = os.path.join(r, f)
+                if not SKIP.search(p):
+                    yield p
+    for f in CODE_FILES:
+        p = os.path.join(ROOT, f)
+        if os.path.exists(p):
+            yield p
+        else:
+            print("missing:", f)
 
 
 def main():
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
-    j = os.path.join(ROOT, "journal_selection")
-    cp(os.path.join(j, "selected_journal.md"), os.path.join(OUT, "journal_selection", "selected_journal.md"))
-    cp(os.path.join(j, "journal_comparison.md"), os.path.join(OUT, "journal_selection", "journal_comparison.md"))
-    cp(os.path.join(j, "journal_verification.md"), os.path.join(OUT, "journal_selection", "journal_verification.md"))
-    m = os.path.join(ROOT, "manuscript")
-    for f in ["Final_Manuscript.docx", "Final_Manuscript.pdf", "cover_letter.docx", "highlights.docx",
-              "title_page.docx"]:
-        cp(os.path.join(m, f), os.path.join(OUT, "manuscript", f))
-    code = os.path.join(OUT, "code")
-    for d in ["src", "experiments", "tests", "scripts", "config", "manuscript"]:
-        cp(os.path.join(ROOT, d), os.path.join(code, d))
-    for f in ["run_all.py", "requirements.txt", "environment.yml", "README.md"]:
-        cp(os.path.join(ROOT, f), os.path.join(code, f))
-    r = os.path.join(ROOT, "results")
-    cp(os.path.join(r, "raw_results.csv.xz"), os.path.join(OUT, "results", "raw_results.csv.xz"))
-    cp(os.path.join(r, "metrics.json"), os.path.join(OUT, "results", "metrics.json"))
-    cp(os.path.join(r, "statistics.json"), os.path.join(OUT, "results", "statistics.json"))
-    for f in ["statistics.csv", "seed_level_metrics.csv", "stage_curves.csv", "run_info.json", "error_analysis.json",
-              "sensitivity.csv", "manuscript_values.json"]:
-        cp(os.path.join(r, f), os.path.join(OUT, "results", f))
-    cp(os.path.join(r, "experiment_logs", "archive"), os.path.join(OUT, "results", "experiment_logs"))
-    cp(os.path.join(ROOT, "figures"), os.path.join(OUT, "figures"))
-    cp(os.path.join(ROOT, "tables"), os.path.join(OUT, "tables"))
-    cp(os.path.join(ROOT, "supplementary"), os.path.join(OUT, "supplementary"))
-    for f in sorted(glob.glob(os.path.join(ROOT, "REVIEW", "review_*.md"))) + \
-            [os.path.join(ROOT, "REVIEW", "final_audit.md"), os.path.join(ROOT, "REVIEW", "code_audit.md"),
-             os.path.join(ROOT, "REVIEW", "pre_review_audit.md"), os.path.join(ROOT, "REVIEW_HISTORY.md"),
-             os.path.join(ROOT, "REVIEW", "rejection_risk_report.md"),
-             os.path.join(ROOT, "REVIEW", "comparison_with_journal_papers.md"),
-             os.path.join(ROOT, "REVIEW", "claim_evidence_map.md")]:
-        cp(f, os.path.join(OUT, "REVIEW", os.path.basename(f)))
-    for f in ["PROJECT_STATE.md", "EXPERIMENT_LOG.md", "CHANGELOG.md", "REPRODUCIBILITY_STATUS.md"]:
-        cp(os.path.join(ROOT, f), os.path.join(OUT, f))
-    n = sum(len(fs) for _, _, fs in os.walk(OUT))
-    print("packaged", n, "files into", OUT)
+    os.makedirs(OUT)
+    for src, name in UPLOAD:
+        shutil.copy2(src, os.path.join(OUT, name))
+    zpath = os.path.join(OUT, "06_Code_and_data.zip")
+    hits = []
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in _members():
+            arc = os.path.join("code_and_data", os.path.relpath(p, ROOT))
+            if p.endswith((".py", ".md", ".sh", ".yaml", ".yml", ".txt", ".json")) and os.path.getsize(p) < 5e6:
+                t = open(p, errors="ignore").read()
+                for m in TRACE.finditer(t):
+                    line = t[:m.start()].count("\n") + 1
+                    hits.append(f"{os.path.relpath(p, ROOT)}:{line}: {m.group(0)}")
+            z.write(p, arc)
+    n = len(zipfile.ZipFile(zpath).namelist())
+    print(f"packaged {len(UPLOAD)} upload files + code archive ({n} files, "
+          f"{os.path.getsize(zpath) / 1e6:.1f} MB) into {OUT}")
+    print("trace scan hits:", len(hits))
+    for h in hits:
+        print("  ", h)
 
 
 if __name__ == "__main__":

@@ -271,7 +271,7 @@ def normalized_IS(q, scores, base_w, alpha):
 
 
 # ----------------------------------------------------------------------------------------------
-# Baselines from the closest prior art (added after the prior-art audit; see CHANGELOG.md)
+# Baselines from the closest prior art
 # ----------------------------------------------------------------------------------------------
 def ghcp_quantiles(self_cc, cal_counts_allstages, alpha, stages, n_surrogate):
     """GHCP-style calibration (Mallick, Tchetgen Tchetgen, Dobriban & Lee, arXiv:2608.15500, Eq. 5), adapted:

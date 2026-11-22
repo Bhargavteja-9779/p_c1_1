@@ -47,14 +47,6 @@ def _site_table():
 
 
 
-def _clean_protocol(t):
-    """Neutral wording for the embedded protocol (the committed file keeps its original history)."""
-    for a, b in [("(2026-11-20, review cycle 1)", "(2026-11-20, after the pilot evaluation)"),
-                 ("Reviewer #1 showed, and the author confirmed from results/raw_results.csv.gz, that",
-                  "The pilot evaluation (results/raw_results.csv) showed that")]:
-        t = t.replace(a, b)
-    return t
-
 def build():
     import values as V
     vals = json.load(open(os.path.join(ROOT, "results", "manuscript_values.json")))
@@ -84,7 +76,7 @@ def build():
              "1. The ACI step-size grid was extended to $\\{0, 10^{-4}, 2\\cdot10^{-4}\\}$ after a code audit showed that "
              "the lower edge of the original grid was selected in most runs.\n"
              "2. Mis-specified ablations of the first version were removed and replaced by the fixed-κ variant.\n"
-             "3. After the first internal review round, Addendum A (written and committed before the corresponding "
+             "3. After a pilot evaluation, Addendum A (written and committed before the corresponding "
              "experiments) added the coverage objective for HSC, QShrink and ACI, recency weighting (ρ = 0.95), "
              "stage-wise studentisation, the operational outcomes, the noise reference, site-level tests and the rule "
              "for the recommended configuration (Addendum A.1). It also fixed the TQA-B budget scaling and the ACI "
@@ -93,7 +85,19 @@ def build():
              "conformal step corrects the level. Uncalibrated quantile models (QR-LGBM, MLP-QR) are not reported at "
              "these levels.\n"
              "5. The original protocol selected the HSC pseudo-count by the interval score; this variant is reported "
-             "(HSC-CQR, HSC-CQR simple).\n\nThe complete protocol, including the addenda, is reproduced at the end of "
+             "(HSC-CQR, HSC-CQR simple).\n"
+             "6. Before the final runs, the analysis was revised without reference to target results: (a) building "
+             "eligibility is decided on the training period only, no target hours are interpolated, daylight-saving "
+             "hours are masked, and targets without an onboarding window with at least 80 % valid hours are dropped and "
+             "counted; (b) the running scale σ0 is estimated on training buildings; (c) every parametrised strategy is "
+             "tuned by the same constrained leave-one-building-out rule (minimum MACD subject to an interval score at "
+             "most 2 % above pooled CQR), with grids extended to κ, λ ∈ {6, 12} h and γ ≤ 0.05 and grid-edge selections "
+             "reported; (d) QShrink-CQR recency, Self-CQR recency, a one-day-delayed and a capped variant, the layer on "
+             "MLP quantiles and five further stress conditions were added; (e) the method-specific noise reference was "
+             "replaced by a method-independent oracle reference (7-day moving-block bootstrap); (f) one confirmatory "
+             "family was declared and the recommended configuration is selected by a nested rule (BDG2 selection, "
+             "confirmation on UCI, unseen sites and both transfer directions). All models were retrained and all "
+             "results recomputed.\n\nThe complete protocol, including the addenda, is reproduced at the end of "
              "this document.\n\n")
     s.append("# S5. Additional results\n\n")
     s.append(_tab("T_main_BDG2", "Table S2. All methods, BDG2, random-building protocol, nominal 90 % (mean ± s.d. over "
@@ -161,7 +165,7 @@ def build():
     for i, (f, cap) in enumerate(figs, 1):
         s.append(f"![**Fig. S{i}.** {cap}](figures/{f}.png){{width=16cm}}\n\n")
     s.append("# S7. Analysis protocol (as committed, including addenda)\n\n" +
-             _clean_protocol(open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read()).replace("# ", "## ", 1) + "\n")
+             open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read().replace("# ", "## ", 1) + "\n")
     md = os.path.join(ROOT, "supplementary", "Supplementary_Material.md")
     os.makedirs(os.path.dirname(md), exist_ok=True)
     open(md, "w").write("".join(s))
