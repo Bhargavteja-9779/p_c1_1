@@ -401,3 +401,57 @@ def ssc_quantiles(stud_cal, alpha, nt):
         F = (cc[ok, hi, :] / tot[ok, hi, None]).sum(axis=0) / (M + 1.0)
         q[:, hi] = GRID[_first_ge(F[None, :], np.array([1 - alpha]))[0]]
     return q
+
+
+# ----------------------------------------------------------------------------------------------
+# Two-timescale calibration: shrinkage prior (slow, distributional) + level feedback (fast, per building)
+# ----------------------------------------------------------------------------------------------
+def hsc_aci_quantiles(target_scores, self_cc, cal_bin_counts, alpha, kappa, gamma, stages, decay=1.0,
+                      excl=None, window=None, delay=0):
+    """Shrinkage-conformal radius evaluated at a building-specific level 1 - a_{b,h} that is updated online
+    from the building's own misses (ACI-type feedback on top of the shrinkage mixture).
+
+    Mixture (stage-agnostic population prior, recency-weighted own scores, +1 mass at +inf):
+        M_{b,h} = (kappa F_pop + S^rho_{b,h}) / (kappa + n^rho_{b,h} + 1)
+    Level feedback with daily batches of 24 hourly signals:
+        cumulative (window=None): a_{h+1} = a_h + gamma * sum_j (alpha - err_{h,j})
+        windowed (window=W days): a_{h+1} = alpha + gamma * sum over the last W days of (alpha - err)
+    gamma = 0 recovers the shrinkage radius. The level is clipped to the attainable range of M, so the radius
+    stays finite (largest observed score) and non-negative (smallest observed score).
+
+    target_scores: (nt, NH, 24); self_cc: (nt, NH, NG) cumulative counts of the same scores;
+    cal_bin_counts: (ncal, nbins, NG); excl: (nt,) calibration index of each target (leave-one-out tuning).
+    returns q (nt, NH)
+    """
+    nt, NH, NG = self_cc.shape
+    cbc = cal_bin_counts.astype(np.float32).sum(axis=1)  # stage-agnostic prior
+    tot = cbc[:, -1]
+    cal_cdf = cbc / np.maximum(tot, 1)[:, None]
+    FP, _ = prior_cdf(cal_cdf, tot, None, excl)
+    FP = np.broadcast_to(FP, (nt, NG)).astype(np.float32)
+    self_before = np.zeros((nt, NG), dtype=np.float32)
+    a = np.full(nt, alpha, dtype=float)
+    hist = []
+    pending = []
+    q = np.empty((nt, NH), dtype=np.float32)
+    for hi, h in enumerate(stages):
+        n_self = self_before[:, -1]
+        M = (kappa * FP + self_before) / (kappa + n_self + 1.0)[:, None]
+        mmax = M[:, -1]
+        lev = np.clip(1 - a, 1e-5, None)
+        lev = np.minimum(lev, mmax)
+        q[:, hi] = GRID[_first_ge(M, lev)]
+        e = target_scores[:, hi, :]
+        valid = ~np.isnan(e)
+        err = (e > q[:, hi:hi + 1]) & valid
+        sig = alpha * valid.sum(1) - err.sum(1)
+        pending.append(sig)
+        if len(pending) > delay:
+            s_ = pending.pop(0)
+            if window is None:
+                a = a + gamma * s_
+            else:
+                hist.append(s_)
+                a = alpha + gamma * np.sum(hist[-window:], axis=0)
+        self_before = decay * self_before + self_cc[:, hi, :]
+    return q

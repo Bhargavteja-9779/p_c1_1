@@ -14,6 +14,27 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **LATEST (2026-11-22 ~03:00 UTC, dazzling-ramanujan session, stopped for account change). USER REQUEST (v4):**
+  make the paper much stronger/novel, compare with related + same-journal (AAE) papers, reframe around a real-world
+  problem (onboarding buildings into weekly-settled flexibility/DR contracts), authors P N Bhargav Teja (1st) +
+  [Second Author] placeholder, no funding, no competing interests, **code "available on request"** (drop the code zip
+  from the upload set; data availability statement accordingly). Work fully automatically.
+  **New method TTSC (two-timescale shrinkage conformal)** = recency shrinkage prior (kappa as HSC-CQR recency) + per-
+  building ACI-type level feedback over a 7-day window (`cb.hsc_aci_quantiles`, window=7) + cap at pooled 99 % score
+  quantile; gamma by constrained LOBO with WEEKLY-MACD objective (IS <= 1.02 x pooled). Code: src/experiments_ttsc.py
+  (results/ttsc/<part>.csv, ~12 s/part, needs model caches in results/cache -> if missing, retrain first via
+  ex.train_only('full') ~70 min), analysis src/statistics/ttsc_analysis.py (tables/TT_*.md, results/ttsc_summary.json).
+  Pilot (seeds 0-1 BDG2, seed 0 UCI; method designed on these -> report seeds 2-4 as held-out): weeks 2-8 under-
+  coverage 19-19 % -> 13-16 % (BDG2; oracle 17.3 %), any-week<0.80 43 % -> 18-34 %, UCI 12.8 -> 10.4 %, mean IS ~=,
+  median IS +0-2.4 %; week-1 sometimes slightly worse. gamma often at grid edge (grid extended to 0.01).
+  NEXT: (1) finish run: `OMP_NUM_THREADS=1 python -u src/experiments_ttsc.py main lso xds robust weak` (skips done
+  parts) as harness background task; (2) `python src/statistics/ttsc_analysis.py`; (3) integrate: positioning table
+  manuscript/tables_static/positioning.md (verify claims for zhang2024bayes, fang2026, shi2026, jeon2026 abstracts
+  first), new title/abstract/highlights/intro gaps+contributions/method section for TTSC (+ algorithm box)/results
+  (TT tables, weekly contract case: breach = week with upper exceedance > 10 %)/discussion/limitations; TTSC becomes the
+  proposed method, HSC-CQR recency its slow component; (4) data/code statement "available on request"; remove
+  06_Code_and_data.zip from scripts/package_submission.py UPLOAD; (5) rebuild all docs, trace scan, package, push,
+  report to user honestly (no paper is "unrejectable").
 - **2026-11-22 01:45 UTC: CHAIN DONE (23:00 UTC, no failures).** Complete calibration parts (258 files) saved as
   results/parts_snapshot/parts_c2_full.tgz.part* (restore: `cat ...part* | tar xzf - -C results`). Sensitivity + frontier
   done. DONE 02:00 UTC: timing benchmark (results/timing.json), run_all --skip-experiments (rule A.1 -> HSC-CQR recency).
