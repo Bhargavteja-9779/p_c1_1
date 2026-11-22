@@ -363,8 +363,8 @@ def _ttsc_tokens(v):
             cnd = r.condition.replace("robust:", "").replace("main:none:alpha=", "a").replace(":none", "")
             cnd = cnd.replace("->", "to").replace("@", "at").replace("+", "p").replace("-", "m").replace(".", "")
             k = f"to_{cnd}_{r.dataset}_{_san(r.method)}"
-            for c in ["under", "wk1", "wk_late", "any85", "breach_wk"]:
-                v[f"{k}_{c}"] = pc(r[c])
+            for c in ["under", "wk1", "wk_late", "any85", "any_m10", "breach_wk"]:
+                v[f"{k}_{c}"] = pc(r[c]) if c in r else "–"
             v[f"{k}_ref_week"] = pc(r.ref_week)
         t = O[O.method == "TTSC"].set_index(["condition", "dataset"])
         others = ["HSC-CQR recency (capped)", "ACI-CQR (cov)", "CQR", "QShrink-CQR (cov)"]
@@ -381,6 +381,12 @@ def _ttsc_tokens(v):
                 ratio.append(r.rel_IS_median / c.rel_IS_median.iloc[0] - 1)
         if ratio:
             v["to_isdelta_min"], v["to_isdelta_max"] = dl(min(ratio)), dl(max(ratio))
+    f = os.path.join(tab, "TT_window.csv")
+    if os.path.exists(f):
+        for _, r in pd.read_csv(f).iterrows():
+            for c in ["wk1", "wk_late", "any80", "at_cap"]:
+                v[f"tw_{r.dataset}_W{int(r.W)}_{c}"] = pc(r[c])
+            v[f"tw_{r.dataset}_W{int(r.W)}_rel_IS_median"] = f"{r.rel_IS_median:.3f}"
     f = os.path.join(tab, "TT_params.csv")
     if os.path.exists(f):
         P = pd.read_csv(f)

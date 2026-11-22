@@ -13,7 +13,7 @@ title: "Two-timescale conformal calibration for week-by-week reliable day-ahead 
 - Flexibility programmes need load intervals reliable per building and per week
 - Pooled conformal intervals leave many newly enrolled buildings under-covered
 - Two-timescale calibration: population prior plus 7-day per-building feedback
-- Weekly under-coverage falls below the level of perfectly calibrated intervals
+- Weekly under-coverage falls below a static-calibration oracle reference
 - Confirmed on held-out runs, unseen sites, transfer and 14 stress tests
 
 # Abstract

@@ -8,7 +8,7 @@ The authors declare that they have no known competing financial interests or per
 
 # Declaration of generative AI and AI-assisted technologies in the manuscript preparation process
 
-During the preparation of this work the authors used Claude (Anthropic) to assist with literature screening, code development, running the experiments, and drafting and editing the text. All reported numbers are generated automatically from the released code and result files. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
+During the preparation of this work the authors used Claude (Anthropic) to assist with literature screening, code development, running the experiments, and drafting and editing the text. All reported numbers are generated automatically from the study's code and result files. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
 
 # Data availability
 

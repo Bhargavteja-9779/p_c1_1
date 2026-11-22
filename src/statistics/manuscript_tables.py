@@ -381,7 +381,7 @@ def ms_robust_building():
     labels = [("noise5", "Meter noise 5 %"), ("noise15", "Meter noise 15 %"), ("spikes2", "Spikes (2 % of hours)"),
               ("missing20", "Missing hours 20 %"), ("missing40", "Missing hours 40 %"), ("outage1-3d", "Outages 1–3 days"),
               ("shift+40", "Level shift +40 % (day 28)"), ("shift-40", "Level shift −40 % (day 28)"),
-              ("shift+40@d3-14", "Level shift +40 % (random day 3–14)"), ("ramp+40", "Ramp +40 % (days 14–42)"),
+              ("shift+40@d3-14", "Level shift +40 % (random day 3–14)"), ("ramp+40", "Ramp to +40 % over the window"),
               ("calpool10", "Calibration pool 10 %"), ("calpool25", "Calibration pool 25 %"),
               ("calpool50", "Calibration pool 50 %"), ("weak-forecaster", "Weak forecaster")]
     comp = ["QShrink-CQR (cov)", "ACI-CQR (cov)", "CQR"]
@@ -467,7 +467,7 @@ def ms_ttsc():
               ("robust:spikes2", "BDG2", "Spikes"), ("robust:missing20", "BDG2", "Missing hours 20 %"),
               ("robust:missing40", "BDG2", "Missing hours 40 %"), ("robust:outage1-3d", "BDG2", "Outages 1–3 days"),
               ("robust:shift+40", "BDG2", "Level shift +40 %"), ("robust:shift-40", "BDG2", "Level shift −40 %"),
-              ("robust:shift+40@d3-14", "BDG2", "Early level shift"), ("robust:ramp+40", "BDG2", "Ramp +40 %"),
+              ("robust:shift+40@d3-14", "BDG2", "Early level shift"), ("robust:ramp+40", "BDG2", "Ramp to +40 %"),
               ("robust:calpool10", "BDG2", "Calibration pool 10 %"), ("robust:calpool25", "BDG2", "Calibration pool 25 %"),
               ("robust:calpool50", "BDG2", "Calibration pool 50 %"), ("robust:weak-forecaster", "BDG2", "Weak forecaster")]
     rows = []
@@ -480,14 +480,14 @@ def ms_ttsc():
                      "Wk 2–8: TTSC / shrinkage / ACI / CQR (%)":
                          " / ".join(pc(v(m, "wk_late")) for m in ["TTSC", "HSC-CQR recency (capped)", "ACI-CQR (cov)", "CQR"]),
                      "Week 1: TTSC / CQR (%)": f"{pc(v('TTSC', 'wk1'))} / {pc(v('CQR', 'wk1'))}",
-                     "Any week < target − 5 pts: TTSC / CQR (%)": f"{pc(v('TTSC', 'any85'))} / {pc(v('CQR', 'any85'))}",
+                     "Any week < target − 10 pts: TTSC / CQR (%)": f"{pc(v('TTSC', 'any_m10'))} / {pc(v('CQR', 'any_m10'))}",
                      "Breach weeks: TTSC / CQR (%)": f"{pc(v('TTSC', 'breach_wk'))} / {pc(v('CQR', 'breach_wk'))}",
                      "Rel. IS Δ vs CQR (%)": dl(v("TTSC", "rel_IS_median") / v("CQR", "rel_IS_median") - 1),
                      "Oracle wk (%)": pc(v("TTSC", "ref_week"))})
     _write("MS5_robust", pd.DataFrame(rows),
            "Generalisation, nominal levels and stress tests (unit = building). Wk 2–8: share of buildings under-covered "
            "in a week of weeks 2–8 (coverage < target − 5 points) for TTSC, shrinkage only, ACI and pooled CQR. Any "
-           "week: share of buildings with at least one week below target − 5 points. Breach weeks: share of "
+           "week: share of buildings with at least one week below target − 10 points (0.80 at 90 %, as in Table 2). Breach weeks: share of "
            "building-weeks with upper-bound exceedance above twice the nominal rate. Rel. IS Δ: change of the median "
            "relative interval score of TTSC versus pooled CQR. Oracle wk: weekly reference for perfectly calibrated "
            "static intervals. Unseen sites: 5 folds; transfer and stress tests: 3 seeds; nominal levels: 5 seeds.")

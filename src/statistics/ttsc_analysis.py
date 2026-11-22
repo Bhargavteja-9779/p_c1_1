@@ -45,6 +45,7 @@ def unit_metrics(d):
         wk_late=np.nanmean(np.where(np.isnan(c[:, 1:]), np.nan, c[:, 1:] < thr), axis=1),
         any80=(np.nanmin(c, axis=1) < 0.80).astype(float),
         any85=(np.nanmin(c, axis=1) < thr).astype(float),
+        any_m10=(np.nanmin(c, axis=1) < thr - 0.05).astype(float),
         breach_wk=np.nanmean(np.where(np.isnan(u), np.nan, u > (a / 2) * 2), axis=1),
         breach_any=(np.nanmax(u, axis=1) > (a / 2) * 2).astype(float),
         rel_IS=d.rel_IS.values, rel_width=d.rel_width.values,
@@ -78,6 +79,7 @@ def summarise(b, ds):
             continue
         rows.append(dict(dataset=ds, method=m, n=len(x), under=x.under.mean(), wk1=x.wk1.mean(),
                          wk_late=x.wk_late.mean(), any85=x.any85.mean(), any80=x.any80.mean(),
+                         any_m10=x.any_m10.mean(),
                          breach_wk=x.breach_wk.mean(), breach_any=x.breach_any.mean(),
                          rel_IS_median=x.rel_IS.median(), rel_IS_mean=x.rel_IS.mean(),
                          rel_width_median=x.rel_width.median(),
@@ -169,7 +171,7 @@ def run():
     O = pd.concat(other, ignore_index=True)
     tune = pd.concat([pd.read_csv(f) for f in glob.glob(os.path.join(RES, "ttsc", "*_tune.csv"))])
     gam = df.groupby("part")[["gamma", "kappa", "gamma_edge"]].first().reset_index()
-    fmt = {c: pc for c in ["under", "wk1", "wk_late", "any85", "any80", "breach_wk", "breach_any", "ref_win",
+    fmt = {c: pc for c in ["under", "wk1", "wk_late", "any85", "any80", "any_m10", "breach_wk", "breach_any", "ref_win",
                            "ref_week", "ref_any"]}
     fmt.update({c: f3 for c in ["rel_IS_median", "rel_IS_mean", "rel_width_median", "cost10", "cost20", "cost40",
                                 "cost20_worst10"]})
