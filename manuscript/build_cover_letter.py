@@ -24,33 +24,34 @@ def build(mode="full"):
     P("[Date]")
     P("The Editors-in-Chief\nAdvances in Applied Energy\nElsevier")
     P("Dear Editors,")
-    P("We are pleased to submit our manuscript entitled “Reliable day-ahead prediction intervals for newly "
-      "metered buildings: hierarchical shrinkage conformal calibration evaluated building by building” for "
-      "consideration as a Research Article in Advances in Applied Energy.")
-    P("Demand-response baselines, flexibility bids and measurement-and-verification act on day-ahead prediction "
+    import re
+    title = re.search(r'title:\s*"(.*?)"', open(os.path.join(HERE, "sections", "01_front.md")).read()).group(1)
+    P(f"We are pleased to submit our manuscript entitled “{title}” for consideration as a Research Article in "
+      "Advances in Applied Energy.")
+    P("Demand-response baselines, flexibility offers and measurement-and-verification act on day-ahead load "
       "intervals of individual buildings, and these intervals are needed most when a building has just been "
-      "connected to a platform and has almost no data. We show that standard pooled conformal calibration, "
-      "although well calibrated on average, leaves "
-      f"{v['main_BDG2_SCPstage_under_rate']} of newly metered BDG2 buildings with coverage more than five "
-      "percentage points below the 90 % target during their first eight weeks. Our hierarchical shrinkage "
-      "conformal (HSC) calibration starts from the errors of similar buildings at the same onboarding stage and "
-      "shrinks toward each building's own errors as they accumulate. Applied to conformalised quantile "
-      f"regression, it reduces this share to {v['main_BDG2_HSCCQR_under_rate']} on BDG2 "
-      f"({v['main_UCI_CQR_under_rate']} → {v['main_UCI_HSCCQR_under_rate']} for CQR → HSC-CQR on the Portuguese UCI "
-      "data) without sharper-looking but less reliable intervals, at a cost below a millisecond per building-day.")
+      "connected to a platform and has almost no data. We evaluate calibration strategies building by building "
+      "during this onboarding period. Pooled conformalised quantile regression, although close to nominal on "
+      f"average, leaves {v['x_BDG2_CQR_under']} of newly metered buildings (Building Data Genome 2) and "
+      f"{v['x_UCI_CQR_under']} of new electricity clients (UCI, Portugal) with coverage more than five points below "
+      "the 90 % target over their first eight weeks. Shrinking each building's calibration toward its own "
+      f"recency-weighted scores reduces these shares to {v['x_BDG2_HSCCQR_recency_under']} and "
+      f"{v['x_UCI_HSCCQR_recency_under']} at an equivalent interval score, and brings first-week reliability to the "
+      "level of a perfectly calibrated building. We also report what the window metric hides: weekly coverage of "
+      "single buildings remains noisy for every strategy, which operators need to budget for.")
     P("We believe the work fits the journal's focus on applied energy innovation and complements recent "
       "Advances in Applied Energy papers on load forecasting, probabilistic forecasting and transfer learning for "
-      "smart buildings: it turns their forecasts into intervals that operators can trust building by building "
-      "from the first days of metering. The study uses two public datasets (more than 1,100 buildings and "
-      "clients), pre-registered protocols, five partition seeds, paired per-building statistical tests, "
-      "leave-site-out and cross-country transfer, stress tests and an ablation of every component. All code and "
-      "machine-generated results are provided for full reproducibility.")
+      "buildings. The study uses two public datasets "
+      f"({v['n_bdg2_plus_uci']} buildings and clients), a committed analysis protocol, one tuning rule for all "
+      "strategies, nested selection, per-building confirmatory tests with site-cluster confidence intervals, a "
+      "method-independent reference for sampling noise, leave-site-out and cross-country transfer and fourteen "
+      "stress tests. All code and machine-generated results are provided for full reproducibility.")
     P("We confirm that this manuscript is original, has not been published previously, and is not under "
       "consideration for publication elsewhere. All authors have approved the manuscript and agree with its "
       "submission. The study uses only publicly available, anonymised meter data and raised no ethical issues "
-      "requiring approval. The authors declare no competing interests and received no specific funding. The use of AI-assisted tools is declared "
-      "in the manuscript.")
-        P("Thank you for considering our submission.")
+      "requiring approval. The authors declare no competing interests and received no specific funding. The use "
+      "of AI-assisted tools is declared in the manuscript.")
+    P("Thank you for considering our submission.")
     P("Yours sincerely,\nP N Bhargav Teja, on behalf of all authors")
     out = os.path.join(HERE, "cover_letter.docx")
     d.save(out)

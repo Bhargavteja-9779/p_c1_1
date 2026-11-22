@@ -28,15 +28,22 @@ Per-cycle consolidated reviews: REVIEW/review_XX.md. Corrective actions: CHANGEL
 | Selective stress reporting | Table 2 reports all key strategies per condition; exceptions stated (α = 0.2 ACI, HSC-SSC in two conditions) |
 | Length/structure vs journal | v2 restructured to AAE pattern (literature/aae_fulltext_benchmark.md) |
 
-## Cycle 2 (10 reviewers; REVIEW/review_02.md) — fixes in progress
+## Cycle 2 (10 reviewers; REVIEW/review_02.md) — resolved in manuscript v3 (2026-11-22)
 All 10: Major revision; R9 (AE): not desk-rejected. Core result vs pooled CQR reproduced by all.
 | Issue | Planned resolution | Status |
 |---|---|---|
-| Window headline hides weekly under-coverage (~1 in 5 buildings per week) | weekly/worst-week metrics in main text; 0.4 % labelled window metric | open |
-| ACI tuned asymmetrically (grid edge γ=0.01; excluded post hoc) | constrained LOBO (min MACD s.t. IS ≤ 1.02×pooled) for every family; rule A.1 re-applied | open |
-| Noise reference method-dependent, not a floor | one method-independent 7-day block-bootstrap oracle reference | open |
-| D−1 information set; target-year filter; interpolation/DST | delayed-own-score variant; SSC-line data rules ported; full rerun | open |
-| Mean IS / tail blow-ups hidden | mean+median IS, tails, TOST; safeguard variant | open |
-| Week-1 gain from κ not recency; distribution-vs-quantile claim | matched-κ attribution; QShrink/Self recency variants; family-level framing | open |
-| Selection on target data | nested selection, bootstrap selection frequencies | open |
-| Novelty (Shahid n0 selection), missing refs, Prop. 1 premises, ESS ×24 | reframe; corollary; corrected bound | open |
+| Window headline hides weekly under-coverage (~1 in 5 buildings per week) | weekly/worst-week metrics in main text; 0.4 % labelled window metric | done |
+| ACI tuned asymmetrically (grid edge γ=0.01; excluded post hoc) | constrained LOBO (min MACD s.t. IS ≤ 1.02×pooled) for every family; rule A.1 re-applied | done |
+| Noise reference method-dependent, not a floor | one method-independent 7-day block-bootstrap oracle reference | done |
+| D−1 information set; target-year filter; interpolation/DST | delayed-own-score variant; SSC-line data rules ported; full rerun | done |
+| Mean IS / tail blow-ups hidden | mean+median IS, tails, TOST; safeguard variant | done |
+| Week-1 gain from κ not recency; distribution-vs-quantile claim | matched-κ attribution; QShrink/Self recency variants; family-level framing | done |
+| Selection on target data | nested selection, bootstrap selection frequencies | done |
+| Novelty (Shahid n0 selection), missing refs, Prop. 1 premises, ESS ×24 | reframe; corollary; corrected bound | done |
+
+Cycle-2 outcome (full rerun on the relaxed building set, 2026-11-21/22): rule A.1 and the nested rule both select
+HSC-CQR recency (bootstrap selection frequency 99.7 %; rank 1 in UCI, LSO and both cross-dataset confirmations). At
+α = 0.2 the rule selects ACI-CQR (cov) (reported). Window excess over the oracle reference is removed; weekly excess
+on BDG2 remains +2.5 pp [1.5, 3.3] (reported as limitation). Tail blow-ups (max width ratio 6.5×) are removed by the
+capped variant (recommended for deployment). The result is framed as a shrinkage-family result (QShrink tied in week 1).
+New main tables: MS3_main (per-building unit, oracle reference, weekly, tails), MS3_robust (14 stress conditions).

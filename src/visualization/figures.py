@@ -437,11 +437,13 @@ def fig_weekly(s):
             xm = x[x.method == m]
             ax.plot(xm.week, 100 * xm.under, color=_c(m), marker=MARK.get(m, "o"), ms=3,
                     lw=1.8 if m == KEY[0] else 1.0, ls="-" if m == KEY[0] else (0, (3, 1)), label=m)
-        fl = s[(s.exp == "main") & (s.dataset == ds) & (s.alpha == 0.1) & (s.perturb == "none") &
-               (s.method == KEY[0])]
-        if "under_floor_week" in fl and len(fl):
-            ax.axhline(100 * fl.under_floor_week.mean(), color=INK2, lw=0.9, ls=":",
-                       label="noise level, perfectly calibrated (approx.)")
+        rf = os.path.join(os.path.dirname(RES), "tables", "T2_weekly.csv")
+        if os.path.exists(rf):
+            ref = pd.read_csv(rf)
+            ref = ref[ref.dataset == ds]
+            if len(ref):
+                ax.axhline(100 * ref.ref_under_week.iloc[0], color=INK2, lw=0.9, ls=":",
+                           label="oracle reference (perfectly calibrated, block bootstrap)")
         ax.set_xlabel("Week after metering started")
         ax.set_title(f"{'ab'[j]}  {ds}", loc="left")
         ax.set_xticks(range(1, 9))

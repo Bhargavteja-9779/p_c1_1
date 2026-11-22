@@ -1,5 +1,5 @@
 ---
-title: "Trustworthy day-ahead load intervals for newly metered buildings via recency-weighted shrinkage conformal calibration"
+title: "Reliable day-ahead load intervals for newly metered buildings: shrinkage conformal calibration evaluated building by building"
 ---
 
 **Authors:** P N Bhargav Teja^a,\*^, [Second Author]^b^
@@ -11,10 +11,10 @@ title: "Trustworthy day-ahead load intervals for newly metered buildings via rec
 # Highlights
 
 - Pooled conformal intervals leave many newly metered buildings under-covered
-- Recency-weighted shrinkage calibrates intervals building by building
-- Under-covered new buildings fall from {{main_BDG2_CQR_under_rate}} to {{main_BDG2_HSCCQR_recency_under_rate}} at unchanged interval score
-- The layer also reduces first-week unreliability, unlike online level control
-- Tested on 1,157 buildings, unseen sites, cross-country transfer and stress tests
+- Shrinkage toward each building's own scores removes most of this excess
+- Under-covered buildings fall from {{x_BDG2_CQR_under}} to {{x_BDG2_HSCCQR_recency_under}} at equivalent interval score
+- First-week reliability reaches the level of a perfectly calibrated building
+- Weekly coverage stays noisy; tested on {{n_bdg2_plus_uci}} buildings and clients
 
 # Abstract
 

@@ -297,6 +297,7 @@ def _extended_tokens(v):
             v[f"off_{d}_offset"] = f"{o['offset']:+.4f}"
             v[f"off_{d}_under"] = pc(o["under"])
             v[f"off_{d}_under_removed"] = pc(o["under_offset_removed"])
+            v[f"off_{d}_drop"] = f"{100 * (o['under'] - o['under_offset_removed']):.1f}"
     sf = os.path.join(RES, "selection.json")
     if os.path.exists(sf):
         se = json.load(open(sf))
@@ -362,23 +363,21 @@ def _abstract(v):
         "Demand response, flexibility offers and measurement-and-verification need day-ahead load intervals for "
         "individual buildings, often from the first days after a building is metered. Interval methods are usually "
         "judged by coverage pooled over many buildings, which can hide buildings whose intervals are systematically "
-        "too narrow. We propose a recency-weighted shrinkage conformal calibration layer that mixes each new "
-        "building's exponentially down-weighted nonconformity scores with the score distribution of previously "
-        "onboarded buildings, with a pseudo-count selected by leave-one-building-out for per-building coverage. "
-        "Under a building- and period-disjoint protocol on "
-        f"{v['n_bdg2']} buildings at {v['n_sites']} sites (Building Data Genome 2) and {v['n_uci']} Portuguese "
-        "electricity clients, we compare it with pooled, self-only, adaptive, temporal, hierarchical and "
-        "quantile-shrinkage conformal calibration and with direct probabilistic forecasters. Pooled conformalised "
-        f"quantile regression left {v['main_BDG2_CQR_under_rate']} (BDG2) and {v['main_UCI_CQR_under_rate']} (UCI) of "
-        "new buildings with coverage more than five points below the 90 % target; the proposed layer reduced these "
-        f"shares to {v['main_BDG2_HSCCQR_recency_under_rate']} and {v['main_UCI_HSCCQR_recency_under_rate']}, the level "
-        "expected from sampling noise, with first-week shares falling from "
-        f"{v['wk_BDG2_CQR_w1']} to {v['wk_BDG2_HSCCQR_recency_w1']} and from {v['wk_UCI_CQR_w1']} to "
-        f"{v['wk_UCI_HSCCQR_recency_w1']}, at an interval score within {v['rec_HSCCQR_recency_is_ratio_BDG2']} of the "
-        "pooled baseline. Gains held on unseen sites, after cross-country transfer and under noise, missing data, level "
-        "shifts and small calibration pools. Online level control matched window-level reliability only in a narrow "
-        "parameter band and not in the first week. In day-ahead capacity-headroom offers, the layer left average cost "
-        "unchanged but removed systematically under-protected buildings, at "
+        "too narrow. We evaluate how calibration strategies serve newly metered buildings one by one, under a "
+        "building- and period-disjoint protocol on "
+        f"{v['n_bdg2']:,} buildings at {v['n_sites']} sites (Building Data Genome 2) and {v['n_uci']} Portuguese "
+        "electricity clients. Pooled, self-only, adaptive, temporal, hierarchical and shrinkage conformal calibration "
+        "are applied to the same quantile forecasts and tuned by one leave-one-building-out rule. Pooled conformalised "
+        f"quantile regression left {v['x_BDG2_CQR_under']} (BDG2) and {v['x_UCI_CQR_under']} (UCI) of new buildings "
+        "with coverage more than five points below the 90 % target over their first eight weeks. Shrinking each "
+        "building's calibration toward its own recency-weighted scores reduced these shares to "
+        f"{v['x_BDG2_HSCCQR_recency_under']} and {v['x_UCI_HSCCQR_recency_under']} at an equivalent median interval "
+        "score, and brought first-week under-coverage to the level of a perfectly calibrated building "
+        f"({v['x_BDG2_HSCCQR_recency_under_wk1']} versus {v['x_BDG2_CQR_under_wk1']} for the pooled baseline on BDG2). "
+        "Quantile shrinkage performed almost as well; online level control matched it only in a narrow parameter band. "
+        "Gains held on unseen sites, after cross-country transfer and under fourteen stress conditions. Weekly "
+        "coverage of single buildings remained noisy for every strategy. In day-ahead capacity-headroom offers, "
+        "shrinkage left average cost unchanged but removed most systematically under-protected buildings, at "
         f"{v['time_BDG2_recency_apply_ms']} ms per building-day."
     )
     n = len(a.split())

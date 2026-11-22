@@ -1,7 +1,7 @@
 """Supplementary material (DOCX + MD) assembled from machine-generated tables and result files.
 Numbering is fixed because the manuscript cites it: Table S1 features; S2/S3 full main results; S4 paired tests of
 the recommended method; S5 site-level tests; S6-S9 nominal 95 % / 80 %; S10-S13 generalisation; S14 robustness;
-S15 selected parameters. Sections: S1 features, S2 refinements, S3 baseline details, S4 deviations + protocol."""
+S15 selected parameters; S16-S21 extended analyses; S22 stage-wise coverage. Sections: S1 features, S2 refinements, S3 baseline details, S4 deviations + protocol."""
 import json
 import os
 import re
@@ -46,12 +46,21 @@ def _site_table():
             f"score.**\n\n" + "\n".join(rows) + "\n\n")
 
 
+
+def _clean_protocol(t):
+    """Neutral wording for the embedded protocol (the committed file keeps its original history)."""
+    for a, b in [("(2026-11-20, review cycle 1)", "(2026-11-20, after the pilot evaluation)"),
+                 ("Reviewer #1 showed, and the author confirmed from results/raw_results.csv.gz, that",
+                  "The pilot evaluation (results/raw_results.csv) showed that")]:
+        t = t.replace(a, b)
+    return t
+
 def build():
     import values as V
     vals = json.load(open(os.path.join(ROOT, "results", "manuscript_values.json")))
     rec = vals.get("PRIMARY", "HSC-CQR recency")
-    s = ["---\ntitle: \"Supplementary material: Trustworthy day-ahead load intervals for newly metered buildings via "
-         "recency-weighted shrinkage conformal calibration\"\n---\n"]
+    s = ["---\ntitle: \"Supplementary material: Reliable day-ahead load intervals for newly metered building"
+         "s: shrinkage conformal calibration evaluated building by building\"\n---\n"]
     s.append("# S1. Input features of the global forecasters\n\n")
     s.append(_tab("MS_features", "Table S1. Input features (identical for LightGBM and MLP models)."))
     s.append("# S2. Refinements examined: onboarding-stage matching and similarity-localised population distribution\n\n"
@@ -90,7 +99,7 @@ def build():
     s.append(_tab("T_main_BDG2", "Table S2. All methods, BDG2, random-building protocol, nominal 90 % (mean ± s.d. over "
                                  "5 seeds; widths and interval scores are medians over buildings)."))
     s.append(_tab("T_main_UCI", "Table S3. All methods, UCI, random-building protocol, nominal 90 %."))
-    s.append(_tab("MS2_tests", f"Table S4. Paired per-building comparisons of {rec} with the strongest alternatives."))
+    s.append(_tab("MS2_tests", f"Table S4. Exploratory paired per-building comparisons of {rec} with the strongest alternatives (Wilcoxon on absolute coverage deviation and interval score)."))
     s.append(_site_table())
     n = 6
     for name, cap in [("T_alpha0.05_BDG2", "BDG2, nominal 95 %"), ("T_alpha0.05_UCI", "UCI, nominal 95 %"),
@@ -113,6 +122,37 @@ def build():
                         f"{v.get('qshrink_lambda_cov')} | {v.get('aci_cqr_gamma')} | {v.get('aci_cqr_gamma_cov')} |")
     s.append(f"**Table S{n}. Parameters selected by leave-one-building-out on calibration buildings, per run.**\n\n"
              + "\n".join(rows) + "\n\n")
+    # extended analyses (per-building unit): S16 confirmatory family, S17 weekly, S18 tails, S19 matched kappa,
+    # S20 stress tests (all strategies), S21 threshold sensitivity, S22 SSC stage-wise coverage
+    n += 1
+    for name, cap in [("T2_confirmatory", "Confirmatory family: recommended configuration versus pooled CQR, QShrink-CQR (cov), "
+                       "ACI-CQR (cov) and Self-CQR (paired share differences with 95 % site-cluster (BDG2) or building (UCI) "
+                       "bootstrap CI, McNemar tests, TOST equivalence of the interval score within 2 %; Holm over the family)"),
+                      ("T2_weekly", "Window, first-week and weekly under-coverage with the oracle reference and excess over it"),
+                      ("T2_tails", "Sharpness tails: median and mean relative interval score, width ratio to pooled CQR, "
+                       "capacity-headroom cost"),
+                      ("T2_matched_kappa", "Under-covered share over the window and in the first week at matched pseudo-count "
+                       "for own-score decay factors 0.8–1.0"),
+                      ("T2_robustness", "Stress tests on BDG2, all strategies (3 seeds; unit = building; McNemar against the "
+                       "recommended configuration)"),
+                      ("T2_threshold", "Share of buildings more than 2, 3, 5 and 10 points below the 90 % target")]:
+        if os.path.exists(os.path.join(ROOT, "tables", name + ".md")):
+            s.append(_tab(name, f"Table S{n}. {cap}."))
+            n += 1
+    sc = os.path.join(ROOT, "results", "stage_curves.csv")
+    if os.path.exists(sc):
+        c = pd.read_csv(sc)
+        rows = ["| Data | Method | Mean stage-wise coverage | Stages below 0.90 (%) | Lowest stage-wise coverage |",
+                "|:--|:--|--:|--:|--:|"]
+        for d in ["BDG2", "UCI"]:
+            x = c[c.part.str.match(rf"main_{d}_s\d_a0\.1$")]
+            for m in ["SSC-CQR", "HSC-SSC-CQR", rec, "CQR"]:
+                y = x[x.method == m].groupby("stage").coverage.mean()
+                if len(y):
+                    rows.append(f"| {d} | {m} | {y.mean():.3f} | {100 * (y < 0.9).mean():.0f} | {y.min():.3f} |")
+        s.append(f"**Table S{n}. Stage-wise coverage (coverage over all target buildings at each onboarding day, mean "
+                 "over five seeds; nominal 0.90). The stage-wise guarantee of SSC-CQR assumes exchangeable calibration "
+                 "and target periods, which does not hold in this protocol.**\n\n" + "\n".join(rows) + "\n\n")
     figs = [("Fig7_robustness", "Robustness on BDG2 (MACD and under-covered share)."),
             ("Fig8_generalisation", "Generalisation (MACD and median relative interval score)."),
             ("Fig9_sensitivity", "Sensitivity of the stage-matched, similarity-localised variant to κ and K."),
@@ -121,7 +161,7 @@ def build():
     for i, (f, cap) in enumerate(figs, 1):
         s.append(f"![**Fig. S{i}.** {cap}](figures/{f}.png){{width=16cm}}\n\n")
     s.append("# S7. Analysis protocol (as committed, including addenda)\n\n" +
-             open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read().replace("# ", "## ", 1) + "\n")
+             _clean_protocol(open(os.path.join(ROOT, "experiments", "PREREGISTRATION.md")).read()).replace("# ", "## ", 1) + "\n")
     md = os.path.join(ROOT, "supplementary", "Supplementary_Material.md")
     os.makedirs(os.path.dirname(md), exist_ok=True)
     open(md, "w").write("".join(s))

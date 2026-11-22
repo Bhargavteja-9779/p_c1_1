@@ -17,7 +17,10 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 - **2026-11-22 01:45 UTC: CHAIN DONE (23:00 UTC, no failures).** Complete calibration parts (258 files) saved as
   results/parts_snapshot/parts_c2_full.tgz.part* (restore: `cat ...part* | tar xzf - -C results`). Sensitivity + frontier
   done. DONE 02:00 UTC: timing benchmark (results/timing.json), run_all --skip-experiments (rule A.1 -> HSC-CQR recency).
-  NEXT: manuscript step 4 (results/discussion/abstract/highlights from new tables T2_*, MS2_*), then submission package.
+  DONE 02:15 UTC: manuscript v3 (results/discussion/abstract/highlights/contribution 4/setup rewritten; new title
+  'Reliable day-ahead load intervals for newly metered buildings: shrinkage conformal calibration evaluated building by
+  building'; tables MS3_main, MS3_robust; SI Tables S16-S22; cover letter rewritten). NEXT: final submission package
+  (scripts/package_submission.py; strip process traces from code copy), then report to the user.
 - **LATEST (2026-11-21 20:55 UTC, dazzling-ramanujan session): most advanced branch is now
   `claude/dazzling-ramanujan-j9ysli`** (fast-forwarded from sharp-cori). Deps installed, 17 tests pass, parts snapshot
   17:56 restored (222 parts), `scripts/run_c2_stage.sh` restarted 20:52 UTC as harness-tracked background task.

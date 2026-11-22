@@ -31,7 +31,7 @@ def _write(name, df, caption):
     os.makedirs(TAB, exist_ok=True)
     df.to_csv(os.path.join(TAB, name + ".csv"), index=False)
     with open(os.path.join(TAB, name + ".md"), "w") as f:
-        f.write(df.to_markdown(index=False) + "\n")
+        f.write(df.to_markdown(index=False, disable_numparse=True) + "\n")
     with open(os.path.join(TAB, name + ".caption.txt"), "w") as f:
         f.write(caption)
 
