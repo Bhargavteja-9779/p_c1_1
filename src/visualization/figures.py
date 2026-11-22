@@ -57,7 +57,8 @@ def fig_schematic():
         (0.5, 3, 21, 15, "Calibration buildings\n(source period)\nsimulated onboarding;\nCQR scores $e$ in\nunits of the scale $s$"),
         (26, 3, 22, 15, "Population score\ndistribution $F^{pop}$\n(each calibration\nbuilding weighted equally)"),
         (26, 23, 22, 13, "New building $b$\n(later period)\nfeatures from its\nown $h$ days only"),
-        (52.5, 10, 27, 19, "Recency-weighted shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{pop}(e)+\\Sigma_i\\, \\rho^{d_i-1} 1\\{e_i\\leq e\\}$\n(normalised by $\\kappa+n^{\\rho}_b+1$)\n$q=\\tilde{F}^{-1}(1-\\alpha)$"),
+        (52.5, 15, 27, 15, "Slow: recency-weighted shrinkage\n$\\tilde{F}(e)\\propto\\kappa F^{pop}(e)+\\Sigma_i\\, \\rho^{d_i-1} 1\\{e_i\\leq e\\}$\n(normalised by $\\kappa+n^{\\rho}_b+1$)\n$q=\\min\\{\\tilde{F}^{-1}(1-a_b),\\ q^{cap}\\}$"),
+        (52.5, 2.2, 27, 8.5, "Fast: 7-day level feedback\n$a_b=\\alpha+\\gamma\\,\\Sigma_{last\\ 7\\ days}(\\alpha-\\mathrm{miss})$"),
         (82, 11, 17.5, 17, "Day-ahead interval\n$[\\hat{y}^{lo}-qs,\\ \\hat{y}^{hi}+qs]$\nfor the 24 h of\nday $h+1$"),
     ]
     for x, y, w, h, t in boxes:
@@ -67,14 +68,18 @@ def fig_schematic():
     arr = dict(arrowstyle="-|>", color=INK2, lw=0.8)
     ax.annotate("", xy=(25.6, 10.5), xytext=(21.9, 10.5), arrowprops=arr)
     ax.annotate("", xy=(25.6, 29.5), xytext=(21.9, 29.5), arrowprops=arr)
-    ax.annotate("", xy=(52.6, 16), xytext=(48.4, 10.5), arrowprops=arr)
-    ax.annotate("", xy=(52.6, 23), xytext=(48.4, 29.5), arrowprops=arr)
+    ax.annotate("", xy=(52.6, 18), xytext=(48.4, 10.5), arrowprops=arr)
+    ax.annotate("", xy=(52.6, 25), xytext=(48.4, 29.5), arrowprops=arr)
+    ax.annotate("", xy=(66, 14.6), xytext=(66, 11.1), arrowprops=arr)
+    ax.annotate("", xy=(79.9, 6.5), xytext=(90, 10.7), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.9,
+                                                                        connectionstyle="arc3,rad=-0.3"))
+    ax.text(93.5, 5.2, "misses of\nthe last week", ha="center", fontsize=fs, color=INK2)
     ax.annotate("", xy=(81.6, 19.5), xytext=(80.0, 19.5), arrowprops=arr)
     ax.annotate("", xy=(66, 28.6), xytext=(90, 28.6), arrowprops=dict(arrowstyle="-|>", color="#eb6834", lw=0.9,
                                                                         connectionstyle="arc3,rad=0.45"))
     ax.text(78, 37.2, "realised scores of day $h+1$ join $b$'s own scores; older days decay by $\\rho$ per day", ha="center",
             fontsize=fs, color=INK2)
-    ax.text(24.5, 0.3, "$\\kappa$ is chosen by leave-one-building-out on per-building coverage of calibration buildings",
+    ax.text(24.5, 0.3, "$\\kappa$ and $\\gamma$ are chosen by leave-one-building-out on calibration buildings",
             ha="center", fontsize=fs, color=INK2)
     _save(fig, "Fig1_method")
 
