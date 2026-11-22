@@ -6,8 +6,8 @@
 | Hierarchical CP [@dunn2023; @lee2023hier], GHCP [@mallick2026] | groups | ✓ | first observations (GHCP) | – | marginal over groups | ✓ |
 | Few-shot CP [@fisch2021] | tasks | ✓ (auxiliary tasks) | few labels | – | per task (marginal) | ✓ |
 | Credibility shrinkage [@shahid2026; @rafe2026] | sites, subgroups | ✓ | ✓ | – | per site / subgroup | – |
-| Decaying cold-start prior [@fang2026] | spatio-temporal | ✓ | ✓ | – | n/s | ✓ |
+| Bayesian conformal, temporal prior [@fang2026] | single series | prior from the series' own history | ✓ | ✓ | per series | – |
 | Donor–local mixture [@jeon2026] | solar stations | ✓ | ✓ | – | n/s | ✓ |
-| Online conformal for load [@shi2026; @suresh2025] | loads | – | ✓ | ✓ | n/s | – |
+| Online conformal for load [@shi2026; @suresh2025] | loads | n/s | ✓ | ✓ | n/s | n/s |
 | Cross-building conformal [@hao2026], BuildingsBench [@emami2023] | buildings | pooled / pretrained | – | – | pooled | ✓ |
 | **This study (TTSC)** | **1,358 buildings and clients** | **✓ (learned, LOBO-tuned)** | **✓ (recency-weighted)** | **✓ (7-day window = settlement period)** | **per building, per week, vs oracle reference** | **✓ (from day 1)** |
