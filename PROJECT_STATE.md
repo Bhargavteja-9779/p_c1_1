@@ -14,6 +14,15 @@ Last updated: 2026-11-20 22:30 UTC (session 2). Branch: `claude/funny-euler-sjuo
 4. Continue at "Exact next steps" below.
 
 ## RESUME HERE (2026-11-21, great-ride session; supersedes "Exact next steps" below)
+- **v4 STATUS (2026-11-22 12:00 UTC):** TTSC full rerun with cost columns running (results/ttsc; old copy in
+  results/ttsc_prev, delete after rerun, do not commit). Manuscript v4 text DONE (title, highlights, abstract in
+  values._abstract, intro gaps/contributions + positioning table (manuscript/tables_static), method §TTSC + Fig1,
+  setup, results (MS5_main, MS5_robust, Fig_ttsc_weekly), discussion/conclusion, data statement 'code on request',
+  cover letter, SI S23-S29). NEXT: when `=== ttsc all done ===` in results/experiment_logs/ttsc.log:
+  `python src/statistics/ttsc_analysis.py` -> `python -c "...manuscript_tables.ms_ttsc()"` -> figures.fig_ttsc_weekly()
+  (call figures._set_primary() first) -> check every claim in 06_results/07_discussion against tables (esp.
+  'lowest in X of Y', 'every comparison significant', shift+40 sentence, 2-3 % IS) -> build_docx, build_supplementary,
+  build_extras, build_cover_letter -> package (no code zip) -> trace scan -> commit/push -> report.
 - **LATEST (2026-11-22 ~03:00 UTC, dazzling-ramanujan session, stopped for account change). USER REQUEST (v4):**
   make the paper much stronger/novel, compare with related + same-journal (AAE) papers, reframe around a real-world
   problem (onboarding buildings into weekly-settled flexibility/DR contracts), authors P N Bhargav Teja (1st) +

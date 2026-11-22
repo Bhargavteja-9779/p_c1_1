@@ -9,3 +9,4 @@ checkpoints/
 results/parts/
 results/experiment_logs/*.log
 results/raw_results.csv
+results/ttsc_prev/

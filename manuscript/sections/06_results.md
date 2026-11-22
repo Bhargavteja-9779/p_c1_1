@@ -48,8 +48,8 @@ The online step of TTSC (binning the new scores, updating the decayed counts and
 
 ## Where the calibration still fails {#sec:errors}
 
-{{ERROR_ANALYSIS_TEXT}} Fig. [-@fig:examples] shows the intervals for two pre-specified buildings: the one at the 10th percentile and the one at the median of per-building CQR coverage.
+Even with TTSC, single weeks of under-coverage remain common: {{tt_BDG2_TTSC_any85}} of the BDG2 buildings and {{tt_UCI_TTSC_any85}} of the UCI clients have at least one week below 0.85 over eight weeks (pooled CQR: {{tt_BDG2_CQR_any85}} and {{tt_UCI_CQR_any85}}; static oracle: {{tt_BDG2_ref_any}} and {{tt_UCI_ref_any}}). Occasional weekly misses are therefore unavoidable with intervals of this sharpness, and contracts should tolerate them; what TTSC removes is their concentration in the same buildings week after week. For the slow component, the remaining failures were analysed in detail. {{ERROR_ANALYSIS_TEXT}} Fig. [-@fig:examples] shows the intervals for two pre-specified buildings: the one at the 10th percentile and the one at the median of per-building CQR coverage.
 
-![Error analysis on BDG2: (a) per-building coverage versus point-forecast CV(RMSE) of the building (log scale) for pooled CQR and the proposed layer; (b) mean coverage by primary usage (usage classes with at least 30 building × seed units).](figures/Fig10_error_analysis.png){#fig:errors}
+![Error analysis on BDG2: (a) per-building coverage versus point-forecast CV(RMSE) of the building (log scale) for pooled CQR and the shrinkage component of TTSC; (b) mean coverage by primary usage (usage classes with at least 30 building × seed units).](figures/Fig10_error_analysis.png){#fig:errors}
 
 ![Day-ahead 90 % intervals for two pre-specified BDG2 buildings during their first 10 forecast days (seed 0): the building at the 10th percentile (a) and at the median (b) of per-building CQR coverage. Markers show observations outside the respective interval.](figures/Fig11_examples.png){#fig:examples}

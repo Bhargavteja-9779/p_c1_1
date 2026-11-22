@@ -74,3 +74,11 @@
   (104 MB) exceeded GitHub's 100 MB file limit.
 - Cycle-2 rerun complete (training 21:06-22:17, calibration to 22:44, sensitivity+frontier to 23:00 UTC; no failures);
   timing benchmark run alone; statistics/tables/figures regenerated. Rule A.1 again selects HSC-CQR recency.
+
+## 2026-11-22 (v4)
+- New method TTSC (two-timescale shrinkage conformal calibration): shrinkage prior (slow) + 7-day windowed per-building
+  level feedback (fast) + cap; gamma by LOBO on weekly coverage deviation under the 2 % sharpness constraint.
+  Designed after inspecting BDG2 seeds 0-1 and UCI seed 0; seeds 2-4 reported as held-out. Evaluated on all protocols
+  (src/experiments_ttsc.py, src/statistics/ttsc_analysis.py). Manuscript reframed around weekly-settled flexibility
+  onboarding; positioning table; code available on request (no code archive in the upload set).
+- Positioning claims checked against abstracts: Fang & Lee 2026 described as single-series prior (not cold start).

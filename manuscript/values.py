@@ -406,7 +406,7 @@ def _error_text():
     if "rho_cov_cvrmse_CQR" in b:
         t.append(f"With pooled CQR, a building's coverage falls with its forecast difficulty (Spearman correlation "
                  f"between per-building coverage and CV(RMSE): {b['rho_cov_cvrmse_CQR']:.2f} on BDG2, "
-                 f"{e['UCI']['rho_cov_cvrmse_CQR']:.2f} on UCI); with the proposed layer the correlation is "
+                 f"{e['UCI']['rho_cov_cvrmse_CQR']:.2f} on UCI); with the shrinkage component of TTSC the correlation is "
                  f"{b['rho_cov_cvrmse_' + P]:.2f} and {e['UCI']['rho_cov_cvrmse_' + P]:.2f} (Fig. [-@fig:errors]a).")
     if "usage_largest_reduction" in b:
         t.append(f"Across usage classes with at least 30 building × seed units, the largest reduction of the absolute "
